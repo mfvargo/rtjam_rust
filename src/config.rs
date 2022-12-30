@@ -1,8 +1,8 @@
-use std::fs::File;
-use std::io::{self, Read};
-use std::io::{ErrorKind, Write};
-
 use json::JsonValue;
+use std::{
+    fs::File,
+    io::{ErrorKind, Write},
+};
 pub struct Config {
     filename: String,
     settings: JsonValue,
@@ -18,29 +18,19 @@ impl Config {
     pub fn get_filename(&self) -> &str {
         &self.filename
     }
-    pub fn load_from_file(&mut self) -> Result<bool, io::Error> {
-        let setting_file_result = File::open(&self.filename);
-        let mut setting_file = match setting_file_result {
-            Ok(file) => file,
-            Err(error) => match error.kind() {
-                ErrorKind::NotFound => match File::create(&self.filename) {
-                    Ok(fc) => fc,
-                    Err(e) => panic!("Cannot create settings.json: {:?}", e),
-                },
-                other_error => {
-                    panic!("Problem opening the file: {:?}", other_error);
-                }
-            },
-        };
-
-        let mut raw_data = String::new();
-
-        setting_file.read_to_string(&mut raw_data)?;
-
-        let parsed = json::parse(&raw_data).unwrap();
-        self.settings.clone_from(&parsed);
-
-        Ok(true)
+    pub fn load_from_file(&mut self) -> std::io::Result<bool> {
+        match std::fs::read_to_string(&self.filename) {
+            Ok(raw_data) => {
+                // we were able to read the file
+                let parsed = json::parse(&raw_data).unwrap();
+                self.settings.clone_from(&parsed);
+                Ok(true)
+            }
+            Err(_) => {
+                // call save settings to create a new file
+                self.save_settings()
+            }
+        }
     }
 
     pub fn get_value<'a>(&'a mut self, key: &str, def_value: &'a str) -> &str {
@@ -59,14 +49,32 @@ impl Config {
         println!("config dump: {}", self.settings.pretty(2));
     }
 
-    pub fn save_settings(&self) -> std::io::Result<()> {
-        let mut f = std::fs::OpenOptions::new()
+    pub fn save_settings(&self) -> std::io::Result<bool> {
+        let file_open_result = std::fs::OpenOptions::new()
             .write(true)
             .truncate(true)
-            .open(self.filename.as_str())?;
+            .open(self.filename.as_str());
+        match file_open_result {
+            Ok(mut f) => self.flush_to_file(&mut f),
+            Err(error) => {
+                // File open failed.  See if we need to create it
+                match error.kind() {
+                    ErrorKind::NotFound => {
+                        // no file, create one
+                        let mut f = std::fs::File::create(self.filename.as_str())?;
+                        self.flush_to_file(&mut f)
+                    }
+                    other_error => {
+                        panic!("Cannot create settings file: {}", other_error);
+                    }
+                }
+            }
+        }
+    }
+    fn flush_to_file(&self, f: &mut File) -> std::io::Result<bool> {
         f.write_all(self.settings.pretty(2).as_bytes())?;
         f.sync_all()?;
-        Ok(())
+        Ok(true)
     }
 }
 #[cfg(test)]
@@ -113,13 +121,13 @@ mod test {
         assert_eq!(lastname, "kajikami");
     }
     #[test]
-    fn save_config() {
+    fn save_settings() {
         // You should be able to flush the settings to the file
         let mut config = Config::build().unwrap();
         config.load_from_file().unwrap();
         config.set_value("foobar", "as Usual");
         let result = config.save_settings();
-        assert_eq!(result.unwrap(), ());
+        assert_eq!(result.unwrap(), true);
         config.dump();
     }
 }

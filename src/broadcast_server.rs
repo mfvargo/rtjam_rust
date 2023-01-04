@@ -83,7 +83,7 @@ fn broadcast_keepalive(git_hash: &str) -> Result<(), BoxError> {
     );
     println!("api endpoint: {}", api_url);
     // create the api
-    let mut api = JamNationApi::new(api_url, "10.10.10.10", "test:mac", "gitHashString");
+    let mut api = JamNationApi::new(api_url, "10.10.10.10", "test:mac", git_hash);
 
     loop {
         while api.has_token() == true {

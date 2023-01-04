@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 json = "*"
 byteorder = "*"
+reqwest = { version = "*", features = ["blocking", "json"] }
+serde = { version = "*", features = ["derive"] }

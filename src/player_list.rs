@@ -1,5 +1,5 @@
 use std::fmt;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn get_micro_time() -> u128 {
@@ -46,6 +46,7 @@ impl fmt::Display for Player {
 #[cfg(test)]
 mod test_player {
     use std::net::IpAddr;
+    use std::net::Ipv4Addr;
 
     use super::*;
 

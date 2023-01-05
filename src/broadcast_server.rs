@@ -20,7 +20,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = audio_thread(7891);
     });
     // Now the main thread will run the broadcast keepalive code
-    broadcast_keepalive(git_hash)?;
+    broadcast_keepalive(git_hash, 7891)?;
     let _res = room_handle.join();
     Ok(())
 }
@@ -28,7 +28,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 fn audio_thread(port: u32) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
-    let res = sock.set_read_timeout(Some(Duration::new(1, 0)))?;
+    sock.set_read_timeout(Some(Duration::new(1, 0)))?;
     let mut players = PlayerList::build();
     let mut msg = JamMessage::build();
     let mut cnt: u64 = 0;
@@ -73,7 +73,7 @@ fn audio_thread(port: u32) -> Result<(), BoxError> {
     }
 }
 
-fn broadcast_keepalive(git_hash: &str) -> Result<(), BoxError> {
+fn broadcast_keepalive(git_hash: &str, port: u32) -> Result<(), BoxError> {
     // Get the Config Object
     let mut config = Config::build()?;
     config.load_from_file()?;
@@ -89,20 +89,22 @@ fn broadcast_keepalive(git_hash: &str) -> Result<(), BoxError> {
         while api.has_token() == true {
             // While in this loop, we are going to ping every 10 seconds
             let ping = api.broadcast_unit_ping()?;
-            if !ping["error"].is_empty() {
+            // println!("ping: {}", ping.pretty(2));
+            if ping["broadcastUnit"].is_null() {
                 // Error in the ping.  better re-register
-                println!("ping: {}", ping.pretty(2));
                 api.forget_token();
             } else {
                 // Successful ping.. Sleep for 10
-                println!("ping!");
+                // println!("ping!");
                 sleep(Duration::new(10, 0));
             }
         }
         if !api.has_token() {
             // We need to register the server
-            let reg = api.broadcast_unit_register()?;
-            println!("register: {}", reg.pretty(2));
+            let _register = api.broadcast_unit_register();
+            // Activate the room
+            let _room_activate = api.activate_room(port)?;
+            // println!("roomActivate: {}", _room_activate.pretty(2));
         }
         // This is the timer between registration attempts
         sleep(Duration::new(2, 0));

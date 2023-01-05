@@ -2,15 +2,8 @@ use std::collections::HashMap;
 
 use crate::box_error::BoxError;
 use json::JsonValue;
-use reqwest::{blocking::Client, blocking::Response, StatusCode};
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ServerStatus {
-    id: String,
-    name: String,
-    description: String,
-}
+use reqwest::blocking::Client;
+// use serde::{Deserialize, Serialize};
 
 pub struct JamNationApi {
     url_base: String,
@@ -48,53 +41,66 @@ impl JamNationApi {
         args.insert("gitHash", self.git_hash.clone());
         args
     }
-    pub fn get(&self, pth: &str) -> Result<Response, BoxError> {
-        Ok(Client::new()
+    pub fn get(&self, pth: &str) -> Result<JsonValue, BoxError> {
+        let response = Client::new()
             .get(format!("{}{}", self.url_base, pth))
-            .send()?)
+            .send()?;
+        if response.status().is_server_error() {
+            // Can't parse json on a server error
+            return Ok(JsonValue::new_object());
+        }
+        Ok(json::parse(response.text()?.as_str())?)
     }
-    pub fn put(&self, pth: &str, args: &HashMap<&str, String>) -> Result<Response, BoxError> {
+    pub fn put(&self, pth: &str, args: &HashMap<&str, String>) -> Result<JsonValue, BoxError> {
         let client = Client::new();
         let request_url = format!("{}{}", self.url_base, pth);
         let response = client.put(request_url).json(args).send()?;
-        Ok(response)
+        if response.status().is_server_error() {
+            // Can't parse json on a server error
+            return Ok(JsonValue::new_object());
+        }
+        Ok(json::parse(response.text()?.as_str())?)
     }
-    pub fn post(&self, pth: &str, args: &HashMap<&str, String>) -> Result<Response, BoxError> {
+    pub fn post(&self, pth: &str, args: &HashMap<&str, String>) -> Result<JsonValue, BoxError> {
         let client = Client::new();
         let request_url = format!("{}{}", self.url_base, pth);
         let response = client.post(request_url).json(args).send()?;
-        Ok(response)
+        if response.status().is_server_error() {
+            // Can't parse json on a server error
+            return Ok(JsonValue::new_object());
+        }
+        Ok(json::parse(response.text()?.as_str())?)
     }
-    pub fn get_status(&self) -> Result<ServerStatus, BoxError> {
-        Ok(self.get("status")?.json()?)
+    // pub fn check_response(&self, response: &Response) -> Result<JsonValue, BoxError> {
+    // let status = response.status();
+    // let data = JsonValue::new_object();
+    // if status.is_server_error() {
+    //     // Server error, just return empty json
+    //     let dat = JsonValue::new_object();
+    //     return Ok(dat);
+    // }
+    // Ok(json::parse(response.text()?.as_str())?)
+    // }
+    pub fn get_status(&self) -> Result<JsonValue, BoxError> {
+        Ok(self.get("status")?)
     }
     pub fn broadcast_unit_ping(&self) -> Result<JsonValue, BoxError> {
         let args = self.build_def_args();
-        Ok(json::parse(
-            self.put("broadcastUnit/ping", &args)?.text()?.as_str(),
-        )?)
+        Ok(self.put("broadcastUnit/ping", &args)?)
     }
     pub fn activate_room(&self, port: u32) -> Result<JsonValue, BoxError> {
         let mut args = self.build_def_args();
-        let pstr = format!("{}", port);
-        args.insert("port", pstr);
-        let client = Client::new();
-        let request_url = format!("{}{}", self.url_base, "room");
-        let response = client.post(request_url).json(&args).send()?;
-        Ok(json::parse(response.text()?.as_str())?)
+        args.insert("port", format!("{}", port));
+        Ok(self.post("room", &args)?)
     }
     pub fn broadcast_unit_register(&mut self) -> Result<JsonValue, BoxError> {
         let args = self.build_def_args();
-        let response = self.post("broadcastUnit", &args)?;
-        let status = response.status();
-        let result = json::parse(response.text()?.as_str())?;
-        if status == StatusCode::OK {
-            match result["broadcastUnit"]["token"].as_str() {
-                Some(v) => {
-                    self.token = String::from(v);
-                }
-                None => {}
+        let result = self.post("broadcastUnit", &args)?;
+        match result["broadcastUnit"]["token"].as_str() {
+            Some(v) => {
+                self.token = String::from(v);
             }
+            None => {}
         }
         Ok(result)
     }
@@ -114,18 +120,11 @@ mod test_api {
         )
     }
     #[test]
-    fn get() {
-        // you should be able to http get a resource
-        let api = build_new_api();
-        let result = api.get("status").unwrap();
-        assert!(result.status().is_success());
-    }
-    #[test]
     fn get_status() {
         // You should get the status from the server
         let api = build_new_api();
         let status = api.get_status().unwrap();
-        assert_eq!(status.name, "rtjam-nation");
+        assert_eq!(status["name"], "rtjam-nation");
     }
     #[test]
     fn broadcast_unit_register_and_ping() {

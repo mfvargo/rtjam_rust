@@ -9,4 +9,6 @@ edition = "2021"
 json = "*"
 byteorder = "*"
 reqwest = { version = "*", features = ["blocking", "json"] }
-serde = { version = "*", features = ["derive"] }
+tungstenite = "0.16.0"
+serde_json = "1.0.78"
+url = "2.2.2"

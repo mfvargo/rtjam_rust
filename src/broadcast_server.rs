@@ -75,7 +75,7 @@ fn audio_thread(port: u32) -> Result<(), BoxError> {
 
 fn broadcast_keepalive(git_hash: &str, port: u32) -> Result<(), BoxError> {
     // Get the Config Object
-    let mut config = Config::build()?;
+    let mut config = Config::build();
     config.load_from_file()?;
     let api_url = config.get_value(
         "rtjam-nation",

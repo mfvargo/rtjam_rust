@@ -11,18 +11,114 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+use tungstenite::{connect, Message};
+use url::Url;
 
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // This is the entry point for the broadcast server
 
-    // Create a thread to host the room
-    let room_handle = thread::spawn(|| {
-        let _res = audio_thread(7891);
+    // load up the config to get required info
+    let mut config = Config::build();
+    config.load_from_file()?;
+
+    let api_url =
+        String::from(config.get_value("api_url", "http://rtjam-nation.basscleftech.com/api/1/"));
+    let ws_url =
+        String::from(config.get_value("ws_url", "ws://rtjam-nation.basscleftech.com/primus"));
+    let port: u32 = config.get_value("port", "7891").parse()?;
+    let room_port = port.clone();
+
+    // Create an api endpoint and register this server
+    let mut api = JamNationApi::new(api_url.as_str(), "10.10.10.10", "test:mac", git_hash);
+    while !api.has_token() {
+        let _register = api.broadcast_unit_register();
+        // Activate the room
+        let _room_activate = api.activate_room(port)?;
+        if !api.has_token() {
+            sleep(Duration::new(2, 0));
+        }
+    }
+
+    // Now we have the token, we can pass it to the websocket thread
+    let token = String::from(api.get_token());
+    let _websocket_handle = thread::spawn(move || {
+        let _res = websocket_thread(&token, &ws_url);
     });
+
+    // Create a thread to host the room
+    let _room_handle = thread::spawn(move || {
+        let _res = audio_thread(room_port);
+    });
+
     // Now the main thread will run the broadcast keepalive code
-    broadcast_keepalive(git_hash, 7891)?;
-    let _res = room_handle.join();
-    Ok(())
+    loop {
+        while api.has_token() == true {
+            // While in this loop, we are going to ping every 10 seconds
+            let ping = api.broadcast_unit_ping()?;
+            // println!("ping: {}", ping.pretty(2));
+            if ping["broadcastUnit"].is_null() {
+                // Error in the ping.  better re-register
+                api.forget_token();
+            } else {
+                // Successful ping.. Sleep for 10
+                // println!("ping!");
+                sleep(Duration::new(10, 0));
+            }
+        }
+        if !api.has_token() {
+            // We need to register the server
+            let _register = api.broadcast_unit_register();
+            // Activate the room
+            let _room_activate = api.activate_room(port)?;
+            // println!("roomActivate: {}", _room_activate.pretty(2));
+        }
+        // This is the timer between registration attempts
+        sleep(Duration::new(2, 0));
+    }
+
+    // Code won't ever get here
+    // let _res = room_handle.join();
+    // let _res = websocket_handle.join();
+    // Ok(())
+}
+
+fn websocket_thread(_token: &str, ws_url: &str) -> Result<(), BoxError> {
+    loop {
+        let con_result = connect(Url::parse(ws_url).unwrap());
+        match con_result {
+            Ok(res) => {
+                // connect attempt was tried
+                let (mut sock, resp) = res;
+                dbg!(resp);
+                let mut connected = true;
+                while connected {
+                    let res_msg = sock.read_message();
+                    match res_msg {
+                        Ok(msg) => {
+                            // We got a message from the websocket
+                            if msg.is_text() {
+                                handle_websocket_message(&msg);
+                            }
+                        }
+                        Err(e) => {
+                            dbg!(e);
+                            connected = false;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                dbg!(e);
+            }
+        }
+
+        // pause before trying to connect again
+        sleep(Duration::new(2, 0));
+    }
+}
+
+fn handle_websocket_message(msg: &Message) -> () {
+    dbg!(msg);
 }
 
 fn audio_thread(port: u32) -> Result<(), BoxError> {
@@ -70,43 +166,5 @@ fn audio_thread(port: u32) -> Result<(), BoxError> {
                 }
             },
         }
-    }
-}
-
-fn broadcast_keepalive(git_hash: &str, port: u32) -> Result<(), BoxError> {
-    // Get the Config Object
-    let mut config = Config::build();
-    config.load_from_file()?;
-    let api_url = config.get_value(
-        "rtjam-nation",
-        "http://rtjam-nation.basscleftech.com/api/1/",
-    );
-    println!("api endpoint: {}", api_url);
-    // create the api
-    let mut api = JamNationApi::new(api_url, "10.10.10.10", "test:mac", git_hash);
-
-    loop {
-        while api.has_token() == true {
-            // While in this loop, we are going to ping every 10 seconds
-            let ping = api.broadcast_unit_ping()?;
-            // println!("ping: {}", ping.pretty(2));
-            if ping["broadcastUnit"].is_null() {
-                // Error in the ping.  better re-register
-                api.forget_token();
-            } else {
-                // Successful ping.. Sleep for 10
-                // println!("ping!");
-                sleep(Duration::new(10, 0));
-            }
-        }
-        if !api.has_token() {
-            // We need to register the server
-            let _register = api.broadcast_unit_register();
-            // Activate the room
-            let _room_activate = api.activate_room(port)?;
-            // println!("roomActivate: {}", _room_activate.pretty(2));
-        }
-        // This is the timer between registration attempts
-        sleep(Duration::new(2, 0));
     }
 }

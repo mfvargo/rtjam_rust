@@ -9,11 +9,11 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn build() -> Result<Config, &'static str> {
-        Ok(Config {
+    pub fn build() -> Config {
+        Config {
             filename: String::from("settings.json"),
             settings: json::object! {},
-        })
+        }
     }
     pub fn get_filename(&self) -> &str {
         &self.filename
@@ -85,7 +85,7 @@ mod test {
     #[test]
     fn should_dump() {
         // you should be able to dump the config object
-        let config = Config::build().unwrap();
+        let config = Config::build();
         assert_eq!(config.dump(), ());
     }
 
@@ -93,7 +93,7 @@ mod test {
 
     fn config_build() {
         // You should be able to build a Config object
-        let config = Config::build().unwrap();
+        let config = Config::build();
         println!("filename is : {}", config.get_filename());
         assert_eq!(config.get_filename(), "settings.json");
     }
@@ -101,21 +101,21 @@ mod test {
     #[test]
     fn load_from_file() {
         // The configuration should serialize itself to JSON
-        let mut config = Config::build().unwrap();
+        let mut config = Config::build();
         assert_eq!(config.load_from_file().unwrap(), true);
     }
 
     #[test]
     fn get_value_default() {
         // You should be able to get a value with a default
-        let mut config = Config::build().unwrap();
+        let mut config = Config::build();
         let bob = config.get_value("bob", "bob");
         assert_eq!(bob, "bob");
     }
     #[test]
     fn set_value() {
         // You should be able to set a value on a key
-        let mut config = Config::build().unwrap();
+        let mut config = Config::build();
         config.set_value("lastname", "kajikami");
         let lastname = config.get_value("lastname", "smith");
         assert_eq!(lastname, "kajikami");
@@ -123,7 +123,7 @@ mod test {
     #[test]
     fn save_settings() {
         // You should be able to flush the settings to the file
-        let mut config = Config::build().unwrap();
+        let mut config = Config::build();
         config.load_from_file().unwrap();
         config.set_value("foobar", "as Usual");
         let result = config.save_settings();

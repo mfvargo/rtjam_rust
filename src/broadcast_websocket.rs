@@ -1,10 +1,14 @@
 use crate::box_error::BoxError;
-use std::thread::sleep;
-use std::time::Duration;
+use json::JsonValue;
+use std::{sync::mpsc, thread::sleep, time::Duration};
 use tungstenite::{connect, Message};
 use url::Url;
 
-pub fn websocket_thread(_token: &str, ws_url: &str) -> Result<(), BoxError> {
+pub fn websocket_thread(
+    _token: &str,
+    ws_url: &str,
+    ws_tx: mpsc::Sender<JsonValue>,
+) -> Result<(), BoxError> {
     let mut room = Room::new();
     loop {
         room.reset();
@@ -25,7 +29,8 @@ pub fn websocket_thread(_token: &str, ws_url: &str) -> Result<(), BoxError> {
                                 if is_ping {
                                     sock.write_message(Message::Text(pong_msg.into()))?;
                                 }
-                                handle_websocket_message(&mut room, &msg);
+                                // let _msg_res = handle_websocket_message(&mut room, &msg);
+                                ws_tx.send(json::parse(msg.to_string().as_str())?)?;
                             }
                         }
                         Err(e) => {
@@ -56,8 +61,9 @@ fn is_primus_ping(msg: &Message) -> (bool, String) {
     (is_bool, pong_msg)
 }
 
-fn handle_websocket_message(room: &mut Room, msg: &Message) -> () {
-    dbg!(msg);
+fn handle_websocket_message(room: &mut Room, msg: &Message) -> Result<(), BoxError> {
+    let parsed = json::parse(msg.to_string().as_str())?;
+    println!("websocket message: {}", parsed.pretty(2));
     // If this is a ping, we send a pong
     match room.get_state() {
         RoomState::Idle => {
@@ -72,6 +78,7 @@ fn handle_websocket_message(room: &mut Room, msg: &Message) -> () {
             // this is a message from somebody in the room
         }
     }
+    Ok(())
 }
 
 enum RoomState {

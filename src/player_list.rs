@@ -2,6 +2,8 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use json::{object, JsonValue};
+
 pub fn get_micro_time() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -27,6 +29,14 @@ impl Player {
     }
     pub fn age(&self, now_time: u128) -> u128 {
         now_time - self.keep_alive
+    }
+    pub fn as_json(&self) -> JsonValue {
+        let t: u64 = self.age(get_micro_time()).try_into().unwrap();
+        object! {
+            client_id: self.client_id,
+            age: t,
+            address: self.address.to_string(),
+        }
     }
 }
 
@@ -89,6 +99,13 @@ impl PlayerList {
     }
     pub fn get_players(&self) -> &Vec<Player> {
         &self.players
+    }
+    pub fn as_json(&self) -> JsonValue {
+        let mut data = json::JsonValue::new_array();
+        for p in &self.players {
+            data.push(p.as_json());
+        }
+        data
     }
 }
 

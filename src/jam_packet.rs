@@ -1,4 +1,5 @@
 use byteorder::{ByteOrder, NetworkEndian};
+use std::fmt;
 
 const JAM_BUF_SIZE: usize = 1024;
 pub struct JamMessage {
@@ -84,6 +85,19 @@ impl JamMessage {
     }
 }
 
+impl fmt::Display for JamMessage {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{{ seq: {}, client: {}, cl_time: {} sv_time: {} }}",
+            self.get_sequence_num(),
+            self.get_client_id(),
+            self.get_client_timestamp(),
+            self.get_server_time()
+        )
+    }
+}
 #[cfg(test)]
 mod test {
     use super::*;

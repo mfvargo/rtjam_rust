@@ -5,9 +5,10 @@ use tungstenite::{connect, Message};
 use url::Url;
 
 pub fn websocket_thread(
-    _token: &str,
-    ws_url: &str,
-    ws_tx: mpsc::Sender<JsonValue>,
+    _token: &str,                     // Token for the chat room name
+    ws_url: &str,                     // URL to connect to the server
+    ws_tx: mpsc::Sender<JsonValue>,   // channel to main thread
+    ws_rx: mpsc::Receiver<JsonValue>, // channel from main thread
 ) -> Result<(), BoxError> {
     let mut room = Room::new();
     loop {

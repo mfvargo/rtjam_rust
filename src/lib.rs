@@ -7,4 +7,5 @@ pub mod broadcast_websocket;
 pub mod config;
 pub mod jam_nation_api;
 pub mod jam_packet;
+pub mod stream_time_stat;
 pub mod player_list;

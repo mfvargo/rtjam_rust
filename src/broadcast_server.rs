@@ -39,9 +39,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
     let token = String::from(api.get_token());
-    let (ws_tx, ws_rx): (mpsc::Sender<JsonValue>, mpsc::Receiver<JsonValue>) = mpsc::channel();
+    let (tp_ws_tx, to_ws_rx): (mpsc::Sender<JsonValue>, mpsc::Receiver<JsonValue>) =
+        mpsc::channel();
+    let (from_ws_tx, from_ws_rx): (mpsc::Sender<JsonValue>, mpsc::Receiver<JsonValue>) =
+        mpsc::channel();
     let _websocket_handle = thread::spawn(move || {
-        let _res = broadcast_websocket::websocket_thread(&token, &ws_url, ws_tx);
+        let _res = broadcast_websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
     // Create a thread to host the room
@@ -57,7 +60,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 
     // Now this main thread will listen on the mpsc channels
     loop {
-        let res = ws_rx.try_recv();
+        let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
                 println!("websocket message: {}", m.pretty(2));
@@ -70,6 +73,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         match res {
             Ok(m) => {
                 println!("audio thread message: {}", m.pretty(2));
+                // So we got a message from the audio thread.  See if we need
+                // To pass this along to the websocket
             }
             Err(e) => {
                 // dbg!(e);

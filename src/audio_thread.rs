@@ -27,16 +27,27 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<JsonValue>) -> Result<(), BoxError>
                 if cnt % 1000 == 0 {
                     println!("got {} bytes from {}", amt, src);
                     println!("player: {}", players);
+                    println!("msg: {}", msg);
                     audio_tx.send(players.as_json())?;
                 }
                 // check if the packet was good
                 if amt <= 0 || !msg.is_valid(amt) || !players.is_allowed(msg.get_client_id()) {
                     continue;
                 }
+                // println!("rcv: {}", msg);
+                // Update this player with the current time
+                let mut time_diff: u128 = 5000;
+                let packet_time = <u64 as TryInto<u128>>::try_into(msg.get_server_time()).unwrap();
+                if now_time > packet_time {
+                    time_diff = now_time - packet_time;
+                }
+                players.update_player(now_time, time_diff, msg.get_client_id(), src);
+
                 // set the server timestamp
                 msg.set_server_time(now_time.try_into()?);
-                // Update this player with the current time
-                players.update_player(now_time, msg.get_client_id(), src);
+                // println!("xmit: {}", msg);
+
+                // Broadcast
                 for player in players.get_players() {
                     if player.address != src {
                         // don't send echo back

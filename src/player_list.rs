@@ -2,6 +2,10 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use json::{object, JsonValue};
+
+use crate::stream_time_stat::StreamTimeStat;
+
 pub fn get_micro_time() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -14,7 +18,9 @@ const SERVER_EXPIRATION_IN_MICROSECONDS: u128 = 500000;
 pub struct Player {
     pub client_id: u32,
     pub keep_alive: u128,
+    pub last_loop: u128,
     pub address: SocketAddr,
+    pub loop_stat: StreamTimeStat,
 }
 
 impl Player {
@@ -22,11 +28,26 @@ impl Player {
         Player {
             client_id: id,
             keep_alive: now_time,
+            last_loop: now_time,
             address: addr.clone(),
+            loop_stat: StreamTimeStat::build(50),
         }
     }
     pub fn age(&self, now_time: u128) -> u128 {
         now_time - self.keep_alive
+    }
+    pub fn as_json(&self) -> JsonValue {
+        // TODO: figure out how not to cast this.  Why can't JsonValue deal
+        // with a u128?
+        let t: u64 = self.age(get_micro_time()).try_into().unwrap();
+        let lt: u64 = self.last_loop.try_into().unwrap();
+        object! {
+            client_id: self.client_id,
+            age: t,
+            last_loop: lt,
+            loop_avg: self.loop_stat.get_mean(),
+            address: self.address.to_string(),
+        }
     }
 }
 
@@ -35,10 +56,11 @@ impl fmt::Display for Player {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ id: {}, address: {}, age: {} }}",
+            "{{ id: {}, address: {}, age: {} loop_time: {} }}",
             self.client_id,
             self.address,
-            self.age(get_micro_time())
+            self.age(get_micro_time()),
+            self.last_loop
         )
     }
 }
@@ -69,13 +91,23 @@ impl PlayerList {
     pub fn is_allowed(&self, _id: u32) -> bool {
         true
     }
-    pub fn update_player(&mut self, now_time: u128, id: u32, addr: SocketAddr) -> () {
+    pub fn update_player(
+        &mut self,
+        now_time: u128,
+        loop_time: u128,
+        id: u32,
+        addr: SocketAddr,
+    ) -> () {
         // look for this player and update their timestamp if found
         for player in &mut self.players {
             if player.address == addr {
                 player.keep_alive = now_time;
                 player.address = addr;
                 player.client_id = id;
+                if loop_time < 5000 {
+                    player.last_loop = loop_time;
+                    player.loop_stat.add_sample(loop_time as f64);
+                }
                 return ();
             }
         }
@@ -89,6 +121,13 @@ impl PlayerList {
     }
     pub fn get_players(&self) -> &Vec<Player> {
         &self.players
+    }
+    pub fn as_json(&self) -> JsonValue {
+        let mut data = json::JsonValue::new_array();
+        for p in &self.players {
+            data.push(p.as_json());
+        }
+        data
     }
 }
 
@@ -125,21 +164,22 @@ mod test_playerlist {
         // functions to add/update players to the list
         let mut plist = PlayerList::build();
         let now_time = get_micro_time();
+        let loop_time = now_time - 2400;
         let id = 55533;
         let addr: SocketAddr = "182.1.1.1:33345"
             .parse()
             .expect("Unable to parse socket address");
         // Add a new player to an empty list
-        plist.update_player(now_time, id, addr);
+        plist.update_player(now_time, loop_time, id, addr);
         assert_eq!(plist.get_players().len(), 1);
         // this will update a player if we have seen them before
-        plist.update_player(now_time + 100, id, addr);
+        plist.update_player(now_time + 100, loop_time, id, addr);
         assert_eq!(plist.get_players().len(), 1);
         // This will add another player
         let addr: SocketAddr = "192.1.1.1:33345"
             .parse()
             .expect("Unable to parse socket address");
-        plist.update_player(now_time, id, addr);
+        plist.update_player(now_time, loop_time, id, addr);
         assert_eq!(plist.get_players().len(), 2);
     }
     #[test]
@@ -152,7 +192,7 @@ mod test_playerlist {
             .parse()
             .expect("Unable to parse socket address");
         // Add a new player to an empty list
-        plist.update_player(now_time, id, addr);
+        plist.update_player(now_time, now_time, id, addr);
         assert_eq!(plist.get_players().len(), 1);
         // Call prune with a now_time that is past
         plist.prune(now_time + SERVER_EXPIRATION_IN_MICROSECONDS + 1);

@@ -1,5 +1,3 @@
-use json::JsonValue;
-
 use crate::{
     audio_thread, box_error::BoxError, broadcast_websocket, config::Config,
     jam_nation_api::JamNationApi,
@@ -39,17 +37,23 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
     let token = String::from(api.get_token());
-    let (tp_ws_tx, to_ws_rx): (mpsc::Sender<JsonValue>, mpsc::Receiver<JsonValue>) =
-        mpsc::channel();
-    let (from_ws_tx, from_ws_rx): (mpsc::Sender<JsonValue>, mpsc::Receiver<JsonValue>) =
-        mpsc::channel();
+    let (to_ws_tx, to_ws_rx): (
+        mpsc::Sender<serde_json::Value>,
+        mpsc::Receiver<serde_json::Value>,
+    ) = mpsc::channel();
+    let (from_ws_tx, from_ws_rx): (
+        mpsc::Sender<serde_json::Value>,
+        mpsc::Receiver<serde_json::Value>,
+    ) = mpsc::channel();
     let _websocket_handle = thread::spawn(move || {
         let _res = broadcast_websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
     // Create a thread to host the room
-    let (audio_tx, audio_rx): (mpsc::Sender<JsonValue>, mpsc::Receiver<JsonValue>) =
-        mpsc::channel();
+    let (audio_tx, audio_rx): (
+        mpsc::Sender<serde_json::Value>,
+        mpsc::Receiver<serde_json::Value>,
+    ) = mpsc::channel();
     let _room_handle = thread::spawn(move || {
         let _res = audio_thread::run(room_port, audio_tx);
     });
@@ -63,21 +67,22 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
-                println!("websocket message: {}", m.pretty(2));
+                println!("websocket message: {}", m.to_string());
             }
-            Err(e) => {
+            Err(_e) => {
                 // dbg!(e);
             }
         }
         let res = audio_rx.try_recv();
         match res {
             Ok(m) => {
-                println!("audio thread message: {}", m.pretty(2));
+                println!("audio thread message: {}", m.to_string());
                 // So we got a message from the audio thread.  See if we need
                 // To pass this along to the websocket
+                to_ws_tx.send(m)?;
             }
-            Err(e) => {
-                // dbg!(e);
+            Err(_e) => {
+                // dbg!(_e);
             }
         }
         // This is the timer between registration attempts

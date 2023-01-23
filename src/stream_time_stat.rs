@@ -9,6 +9,9 @@
 use std::f64;
 use std::fmt;
 
+use serde::Deserialize;
+use serde::Serialize;
+#[derive(Debug, Deserialize, Serialize)]
 pub struct StreamTimeStat {
     peak: f64,
     mean: f64,

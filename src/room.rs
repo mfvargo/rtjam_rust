@@ -1,7 +1,17 @@
 use crate::box_error::BoxError;
 use serde_json::{json, Value};
-use std::{net::TcpStream, thread::sleep, time::Duration};
-use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
+use std::{
+    net::{SocketAddr, TcpStream, ToSocketAddrs},
+    thread::sleep,
+    time::Duration,
+};
+use tungstenite::{
+    client,
+    error::{Error, UrlError},
+    http::Uri,
+    stream::{Mode, NoDelay},
+    Message, WebSocket,
+};
 use url::Url;
 
 #[derive(PartialEq)]
@@ -13,18 +23,50 @@ enum RoomState {
 pub struct Room {
     state: RoomState,
     token: String,
-    sock: WebSocket<MaybeTlsStream<TcpStream>>,
+    sock: WebSocket<TcpStream>,
     msg_id: u64,
 }
 impl Room {
     pub fn new(toke: &str, url: &str) -> Result<Self, BoxError> {
-        let (sock, _resp) = connect(Url::parse(url).unwrap())?;
+        let stream = Self::make_stream(url)?;
+        let (sock, _resp) = client::client(Url::parse(url).unwrap(), stream)?;
+
+        // let (sock, _resp) = connect(Url::parse(url).unwrap())?;
         Ok(Room {
             state: RoomState::Idle,
             token: String::from(toke),
             sock: sock,
             msg_id: 0,
         })
+    }
+    fn make_stream(url: &str) -> Result<TcpStream, BoxError> {
+        let url = reqwest::Url::parse(url)?;
+        let request = client::IntoClientRequest::into_client_request(url)?;
+        let uri = request.uri();
+        let mode = client::uri_mode(uri)?;
+        // let host = request.uri().host().unwrap();
+        let host = request
+            .uri()
+            .host()
+            .ok_or(Error::Url(UrlError::NoHostName))?;
+        let port = uri.port_u16().unwrap_or(match mode {
+            Mode::Plain => 80,
+            Mode::Tls => 443,
+        });
+        let addrs = (host, port).to_socket_addrs()?;
+        let mut stream = Self::connect_to_some(addrs.as_slice(), request.uri())?;
+        NoDelay::set_nodelay(&mut stream, true)?;
+        stream.set_read_timeout(Some(Duration::new(0, 200_000_000)))?; // poll 5 times per second
+        Ok(stream)
+    }
+    fn connect_to_some(addrs: &[SocketAddr], uri: &Uri) -> Result<TcpStream, Error> {
+        for addr in addrs {
+            dbg!("Trying to contact {} at {}...", uri, addr);
+            if let Ok(stream) = TcpStream::connect(addr) {
+                return Ok(stream);
+            }
+        }
+        Err(Error::Url(UrlError::UnableToConnect(uri.to_string())))
     }
     pub fn join_room(&mut self) -> () {
         let msg = json!({
@@ -83,17 +125,36 @@ impl Room {
         let _res = self.sock.write_message(Message::Text(msg.to_string()));
     }
 
-    pub fn get_message(&mut self) -> Result<Value, BoxError> {
-        let msg = self.sock.read_message()?;
-        if !self.is_primus_ping(&msg) {
-            // This is not a ping
-            let jvalue: Value = serde_json::from_str(msg.to_string().as_str())?;
-            if jvalue["context"] == "user" {
-                return Ok(jvalue);
-            } else {
-                println!("non-user message: {}", jvalue.to_string());
+    pub fn get_message(&mut self) -> Result<Option<Value>, BoxError> {
+        match self.sock.read_message() {
+            Ok(msg) => {
+                dbg!(&msg);
+                if self.is_primus_ping(&msg) {
+                    Ok(None)
+                } else {
+                    // This is not a ping
+                    let jvalue: Value = serde_json::from_str(msg.to_string().as_str())?;
+                    if jvalue["context"] == "user" {
+                        Ok(Some(jvalue))
+                    } else {
+                        // println!("non-user message: {}", jvalue.to_string());
+                        Ok(None)
+                    }
+                }
+            }
+            Err(e) => {
+                match e {
+                    Error::Io(ioerr) => {
+                        if ioerr.kind() == std::io::ErrorKind::WouldBlock {
+                            // timeout reading the websocket
+                            return Ok(None);
+                        } else {
+                            return Err(ioerr.into());
+                        }
+                    }
+                    _ => return Err(e.into()),
+                };
             }
         }
-        Ok(json!({}))
     }
 }

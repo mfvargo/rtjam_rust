@@ -16,14 +16,20 @@ pub fn websocket_thread(
                 room.join_room(); // Join the chat room
                 while room.is_connected() {
                     // We are in the room.  Do our thing
+                    // The get_message will block for a few msec before returning.
                     match room.get_message() {
-                        Ok(msg) => {
-                            // Is this a message for us?
-                            println!("sock_msg: {}", msg.to_string());
-                            if msg["context"] == "user" {
-                                // Message from the room, send on to the main thread
-                                ws_tx.send(msg)?;
+                        Ok(result) => {
+                            match result {
+                                Some(msg) => {
+                                    println!("sock_msg: {}", msg.to_string());
+                                    if msg["context"] == "user" {
+                                        // Message from the room, send on to the main thread
+                                        ws_tx.send(msg)?;
+                                    }
+                                }
+                                None => {}
                             }
+
                             // Do we have any messages to send from the main thread?
                             let res = ws_rx.try_recv();
                             match res {
@@ -42,8 +48,6 @@ pub fn websocket_thread(
                             dbg!(e);
                         }
                     }
-                    // assume non-blocking read on socket.  Throttle
-                    sleep(Duration::new(0, 1_000_000));
                 }
             }
             Err(e) => {

@@ -1,11 +1,12 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use json::{object, JsonValue};
-
 use crate::stream_time_stat::StreamTimeStat;
+use serde::{Deserialize, Serialize};
 
+// Get the time in microseconds
 pub fn get_micro_time() -> u128 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -13,8 +14,11 @@ pub fn get_micro_time() -> u128 {
         .as_micros()
 }
 
+// This is how long a player lasts until we boot them (if they go silent)
 const SERVER_EXPIRATION_IN_MICROSECONDS: u128 = 500000;
 
+// make the player serialize to json
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Player {
     pub client_id: u32,
     pub keep_alive: u128,
@@ -35,19 +39,6 @@ impl Player {
     }
     pub fn age(&self, now_time: u128) -> u128 {
         now_time - self.keep_alive
-    }
-    pub fn as_json(&self) -> JsonValue {
-        // TODO: figure out how not to cast this.  Why can't JsonValue deal
-        // with a u128?
-        let t: u64 = self.age(get_micro_time()).try_into().unwrap();
-        let lt: u64 = self.last_loop.try_into().unwrap();
-        object! {
-            client_id: self.client_id,
-            age: t,
-            last_loop: lt,
-            loop_avg: self.loop_stat.get_mean(),
-            address: self.address.to_string(),
-        }
     }
 }
 
@@ -78,6 +69,7 @@ mod test_player {
         let player = Player::build(get_micro_time(), 44, socket);
         println!("player: {}", player);
         assert_eq!(player.address, socket);
+        println!("json player: {}", serde_json::to_string(&player).unwrap());
     }
 }
 pub struct PlayerList {
@@ -122,12 +114,15 @@ impl PlayerList {
     pub fn get_players(&self) -> &Vec<Player> {
         &self.players
     }
-    pub fn as_json(&self) -> JsonValue {
-        let mut data = json::JsonValue::new_array();
+
+    pub fn get_latency(&mut self) -> serde_json::Value {
+        let mut lmap: HashMap<u32, f64> = HashMap::new();
         for p in &self.players {
-            data.push(p.as_json());
+            lmap.insert(p.client_id, p.loop_stat.get_mean());
         }
-        data
+        serde_json::json!({
+            "latency": lmap,
+        })
     }
 }
 
@@ -197,5 +192,17 @@ mod test_playerlist {
         // Call prune with a now_time that is past
         plist.prune(now_time + SERVER_EXPIRATION_IN_MICROSECONDS + 1);
         assert_eq!(plist.get_players().len(), 0);
+    }
+    #[test]
+    fn get_latency() {
+        let mut plist = PlayerList::build();
+        let now_time = get_micro_time();
+        let id = 55533;
+        let addr: SocketAddr = "182.1.1.1:33345"
+            .parse()
+            .expect("Unable to parse socket address");
+        // Add a new player to an empty list
+        plist.update_player(now_time, now_time, id, addr);
+        println!("latency: {}", plist.get_latency());
     }
 }

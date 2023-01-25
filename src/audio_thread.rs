@@ -3,16 +3,16 @@ use crate::{
     jam_packet::JamMessage,
     player_list::{get_micro_time, PlayerList},
 };
-use json::JsonValue;
 use std::{io::ErrorKind, net::UdpSocket, sync::mpsc, time::Duration};
 
-pub fn run(port: u32, audio_tx: mpsc::Sender<JsonValue>) -> Result<(), BoxError> {
+pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
     sock.set_read_timeout(Some(Duration::new(1, 0)))?;
     let mut players = PlayerList::build();
     let mut msg = JamMessage::build();
     let mut cnt: u64 = 0;
+    let mut last_latency_update = get_micro_time();
 
     loop {
         cnt += 1;
@@ -24,12 +24,16 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<JsonValue>) -> Result<(), BoxError>
         match res {
             Ok(r) => {
                 let (amt, src) = r;
-                if cnt % 1000 == 0 {
-                    println!("got {} bytes from {}", amt, src);
-                    println!("player: {}", players);
-                    println!("msg: {}", msg);
-                    audio_tx.send(players.as_json())?;
+                if now_time > (last_latency_update + 1000000) {
+                    println!("now: {}, last_update: {}", now_time, last_latency_update);
+                    last_latency_update = now_time;
+                    audio_tx.send(players.get_latency())?;
                 }
+                // if cnt % 1000 == 0 {
+                //     println!("got {} bytes from {}", amt, src);
+                //     println!("player: {}", players);
+                //     println!("msg: {}", msg);
+                // }
                 // check if the packet was good
                 if amt <= 0 || !msg.is_valid(amt) || !players.is_allowed(msg.get_client_id()) {
                     continue;

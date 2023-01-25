@@ -1,6 +1,6 @@
 use crate::{
     audio_thread, box_error::BoxError, broadcast_websocket, config::Config,
-    jam_nation_api::JamNationApi,
+    jam_nation_api::JamNationApi, utils,
 };
 use std::{
     sync::mpsc,
@@ -21,10 +21,15 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         String::from(config.get_value("ws_url", "ws://rtjam-nation.basscleftech.com/primus"));
     let port: u32 = config.get_value("port", "7891").parse()?;
     let room_port = port.clone();
-
+    let mac_address = utils::get_my_mac_address(config.get_value("networkInterface", "eth0"))?;
     // Create an api endpoint and register this server
     // TODO: figure out way to get lan ip and mac address
-    let mut api = JamNationApi::new(api_url.as_str(), "10.10.10.10", "test:mac", git_hash);
+    let mut api = JamNationApi::new(
+        api_url.as_str(),
+        "10.10.10.10",
+        mac_address.as_str(),
+        git_hash,
+    );
     while !api.has_token() {
         let _register = api.broadcast_unit_register();
         // Activate the room

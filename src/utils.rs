@@ -1,4 +1,4 @@
-use crate::box_error::BoxError;
+use crate::common::box_error::BoxError;
 use std::fs;
 
 // utility functions

@@ -1,6 +1,0 @@
-{
-  "event": "say",
-  "message": { "latency": { "5025555": 1953.2271822269483, "666": 3261.177239117818 } },
-  "messageId": 132,
-  "room": "71eca8a2b27267c30dbdfaadc0f8bbcd63dd2977931c8b0e423141fa720d8ac29f14719b24d4adc026f149d7443e0d220f787c6193d091128606d9a631d90e47"
-}

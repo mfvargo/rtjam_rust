@@ -1,4 +1,4 @@
-use crate::stream_time_stat::StreamTimeStat;
+use crate::common::stream_time_stat::StreamTimeStat;
 
 const MIN_DEPTH: usize = 512;
 const MAX_DEPTH: usize = 8192;

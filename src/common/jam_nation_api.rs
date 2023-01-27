@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::box_error::BoxError;
+use crate::common::box_error::BoxError;
 use json::JsonValue;
 use reqwest::blocking::Client;
 // use serde::{Deserialize, Serialize};

@@ -1,6 +1,7 @@
 use crate::{
-    audio_thread, box_error::BoxError, broadcast_websocket, config::Config,
-    jam_nation_api::JamNationApi, utils,
+    common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi},
+    server::{audio_thread, broadcast_websocket},
+    utils,
 };
 use std::{
     sync::mpsc,

@@ -3,7 +3,7 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::stream_time_stat::StreamTimeStat;
+use crate::common::stream_time_stat::StreamTimeStat;
 use serde::{Deserialize, Serialize};
 
 // Get the time in microseconds

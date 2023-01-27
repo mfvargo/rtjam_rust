@@ -1,5 +1,5 @@
-use crate::box_error::BoxError;
-use crate::room::Room;
+use crate::common::box_error::BoxError;
+use crate::common::room::Room;
 
 use std::{sync::mpsc, thread::sleep, time::Duration};
 

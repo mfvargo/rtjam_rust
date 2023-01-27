@@ -1,4 +1,4 @@
-use rtjam_rust::{box_error::BoxError, broadcast_server};
+use rtjam_rust::{common::box_error::BoxError, server::broadcast_server};
 use std::process::Command;
 
 fn main() -> Result<(), BoxError> {

@@ -1,7 +1,6 @@
 use crate::{
-    box_error::BoxError,
-    jam_packet::JamMessage,
-    player_list::{get_micro_time, PlayerList},
+    common::{box_error::BoxError, jam_packet::JamMessage},
+    server::player_list::{get_micro_time, PlayerList},
 };
 use std::{io::ErrorKind, net::UdpSocket, sync::mpsc, time::Duration};
 

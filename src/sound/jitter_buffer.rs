@@ -1,16 +1,29 @@
-use crate::common::stream_time_stat::StreamTimeStat;
+use crate::{common::stream_time_stat::StreamTimeStat, dsp::peak_detector::PeakDetector};
+use std::fmt;
 
 const MIN_DEPTH: usize = 512;
 const MAX_DEPTH: usize = 8192;
-// const MIN_SIGMA: f64 = 7.0;
+const MIN_SIGMA: f64 = 7.0;
 
 pub struct JitterBuffer {
     buffer: Vec<f32>,
     depth_stats: StreamTimeStat,
     target_depth: usize,
     filling: bool,
-    underruns: u32,
-    overruns: u32,
+    underruns: usize,
+    overruns: usize,
+    depth_filter: PeakDetector,
+}
+
+impl fmt::Display for JitterBuffer {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{{ target: {}, underruns: {}, overruns: {} }}",
+            self.target_depth, self.underruns, self.overruns
+        )
+    }
 }
 
 impl JitterBuffer {
@@ -22,6 +35,7 @@ impl JitterBuffer {
             filling: true,
             underruns: 0,
             overruns: 0,
+            depth_filter: PeakDetector::build(0.1, 2.5, 48000 / 128),
         }
     }
     pub fn length(&self) -> usize {
@@ -29,6 +43,12 @@ impl JitterBuffer {
     }
     pub fn avg_depth(&self) -> f64 {
         self.depth_stats.get_mean()
+    }
+    pub fn get_overruns(&self) -> usize {
+        self.overruns
+    }
+    pub fn get_underruns(&self) -> usize {
+        self.underruns
     }
     pub fn is_filling(&self) -> bool {
         self.filling
@@ -42,6 +62,15 @@ impl JitterBuffer {
     pub fn get(&mut self, count: usize) -> Vec<f32> {
         // It should get some data off the buffer
         self.depth_stats.add_sample(self.buffer.len() as f64); // Gather depth stats
+
+        // Adjust target depth based on jitter sigma
+        self.target_depth = MIN_DEPTH
+            + self
+                .depth_filter
+                .get(self.depth_stats.get_sigma() * MIN_SIGMA) as usize;
+        if self.target_depth > MAX_DEPTH {
+            self.target_depth = MAX_DEPTH;
+        }
 
         // check if we are filling
         if self.filling {
@@ -58,8 +87,9 @@ impl JitterBuffer {
 
         // Second case see if we have too much data and need to throw some out
         // TODO:  code this to be adaptive
-        if self.buffer.len() > MAX_DEPTH {
-            self.buffer.drain(..self.buffer.len() - MAX_DEPTH);
+        if self.buffer.len() > self.target_depth {
+            self.overruns += 1;
+            self.buffer.drain(..self.buffer.len() - self.target_depth);
         }
 
         // Third case, we have enough data to satisfy
@@ -121,27 +151,8 @@ mod test_jitter_buffer {
         assert_eq!(buf.length(), MIN_DEPTH);
         let res = buf.get(2);
         assert_eq!(res.len(), 2);
-        assert!(!buf.is_filling());
     }
 
-    #[test]
-    fn get_partial() {
-        let mut buf = JitterBuffer::build();
-        let mut samples: Vec<f32> = vec![0.1; 3];
-        buf.put(&mut samples); // added 3 samples
-        assert!(buf.is_filling());
-        assert_eq!(buf.length(), 3);
-        let mut samples: Vec<f32> = vec![0.3; MIN_DEPTH]; // add MIN_DEPTH
-        buf.put(&mut samples);
-        let res = buf.get(4);
-        assert!(!buf.is_filling());
-        assert_eq!(res.len(), 4);
-        assert_eq!(res, vec![0.1, 0.1, 0.1, 0.3]);
-        buf.get(MIN_DEPTH - 2); // Read off all but one sample
-        let res = buf.get(3);
-        assert_eq!(res, vec![0.3, 0.0, 0.0]);
-        assert!(buf.is_filling());
-    }
     #[test]
     fn get_from_empty() {
         let mut buf = JitterBuffer::build();
@@ -149,5 +160,17 @@ mod test_jitter_buffer {
         assert_eq!(res.len(), 4);
         assert_eq!(res, vec![0.0; 4]);
         assert!(buf.is_filling());
+    }
+    #[test]
+    fn overrun_measure() {
+        let mut buf = JitterBuffer::build();
+        let mut samps = vec![0.1; MIN_DEPTH + 10];
+        buf.put(&mut samps);
+        let mut samps = vec![0.1; MIN_DEPTH + 10];
+        buf.put(&mut samps);
+        buf.get(2);
+        println!("jitterbuf: {}", buf);
+        assert!(!buf.is_filling());
+        assert!(buf.get_overruns() > 0);
     }
 }

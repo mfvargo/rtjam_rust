@@ -5,6 +5,7 @@ pub mod box_error;
 pub mod broadcast_server;
 pub mod broadcast_websocket;
 pub mod config;
+pub mod dsp;
 pub mod jam_nation_api;
 pub mod jam_packet;
 pub mod jitter_buffer;

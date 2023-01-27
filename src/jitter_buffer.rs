@@ -1,8 +1,16 @@
 use crate::stream_time_stat::StreamTimeStat;
 
+const MIN_DEPTH: usize = 512;
+const MAX_DEPTH: usize = 8192;
+// const MIN_SIGMA: f64 = 7.0;
+
 pub struct JitterBuffer {
     buffer: Vec<f32>,
     depth_stats: StreamTimeStat,
+    target_depth: usize,
+    filling: bool,
+    underruns: u32,
+    overruns: u32,
 }
 
 impl JitterBuffer {
@@ -10,6 +18,10 @@ impl JitterBuffer {
         JitterBuffer {
             buffer: Vec::<f32>::new(),
             depth_stats: StreamTimeStat::build(50),
+            target_depth: MIN_DEPTH,
+            filling: true,
+            underruns: 0,
+            overruns: 0,
         }
     }
     pub fn length(&self) -> usize {
@@ -18,29 +30,60 @@ impl JitterBuffer {
     pub fn avg_depth(&self) -> f64 {
         self.depth_stats.get_mean()
     }
+    pub fn is_filling(&self) -> bool {
+        self.filling
+    }
     pub fn put(&mut self, samples: &mut Vec<f32>) -> () {
         // This function should put in some data
         self.buffer.append(samples);
     }
+    // get will retrieve data from the jitter buffer.  It will always give you a full vector but
+    // it might have zeros if there is no data.
     pub fn get(&mut self, count: usize) -> Vec<f32> {
         // It should get some data off the buffer
-
         self.depth_stats.add_sample(self.buffer.len() as f64); // Gather depth stats
 
+        // check if we are filling
+        if self.filling {
+            if self.buffer.len() >= self.target_depth {
+                self.filling = false;
+            }
+        }
+
+        // First case, we are filling so don't give them anything
+        if self.filling {
+            // just give zeros until we have something
+            return vec![0.0; count];
+        }
+
+        // Second case see if we have too much data and need to throw some out
+        // TODO:  code this to be adaptive
+        if self.buffer.len() > MAX_DEPTH {
+            self.buffer.drain(..self.buffer.len() - MAX_DEPTH);
+        }
+
+        // Third case, we have enough data to satisfy
+        if self.buffer.len() >= count {
+            return self.buffer.drain(..count).collect();
+        }
+
+        // This is the onset of an underrun
+        self.underruns += 1;
+        self.filling = true;
+
+        // The buffer is empty
         if self.buffer.len() == 0 {
             // No data in the buffer
             return vec![0.0; count];
         }
-        if count > self.buffer.len() {
-            // This is an underrun
-            let remainder = count - self.buffer.len();
-            // get the partial data
-            let mut rval: Vec<f32> = self.buffer.drain(..).collect();
-            // fill zeros on the end
-            rval.append(&mut vec![0.0; remainder]);
-            return rval;
-        }
-        self.buffer.drain(..count).collect()
+
+        // consuming the last bits of a partial read
+        let remainder = count - self.buffer.len();
+        // get the partial data
+        let mut rval: Vec<f32> = self.buffer.drain(..).collect();
+        // fill zeros on the end
+        rval.append(&mut vec![0.0; remainder]);
+        return rval;
     }
 }
 
@@ -72,21 +115,32 @@ mod test_jitter_buffer {
     fn get_normal() {
         // It should have a get function
         let mut buf = JitterBuffer::build();
-        let mut samples: Vec<f32> = vec![0.2, 0.3, 0.4];
+        let mut samples: Vec<f32> = vec![0.2; MIN_DEPTH];
+        assert!(buf.is_filling());
         buf.put(&mut samples);
-        assert_eq!(buf.length(), 3);
+        assert_eq!(buf.length(), MIN_DEPTH);
         let res = buf.get(2);
         assert_eq!(res.len(), 2);
+        assert!(!buf.is_filling());
     }
+
     #[test]
     fn get_partial() {
         let mut buf = JitterBuffer::build();
-        let mut samples: Vec<f32> = vec![0.2, 0.3, 0.4];
-        buf.put(&mut samples);
+        let mut samples: Vec<f32> = vec![0.1; 3];
+        buf.put(&mut samples); // added 3 samples
+        assert!(buf.is_filling());
         assert_eq!(buf.length(), 3);
+        let mut samples: Vec<f32> = vec![0.3; MIN_DEPTH]; // add MIN_DEPTH
+        buf.put(&mut samples);
         let res = buf.get(4);
+        assert!(!buf.is_filling());
         assert_eq!(res.len(), 4);
-        assert_eq!(res, vec![0.2, 0.3, 0.4, 0.0]);
+        assert_eq!(res, vec![0.1, 0.1, 0.1, 0.3]);
+        buf.get(MIN_DEPTH - 2); // Read off all but one sample
+        let res = buf.get(3);
+        assert_eq!(res, vec![0.3, 0.0, 0.0]);
+        assert!(buf.is_filling());
     }
     #[test]
     fn get_from_empty() {
@@ -94,5 +148,6 @@ mod test_jitter_buffer {
         let res = buf.get(4);
         assert_eq!(res.len(), 4);
         assert_eq!(res, vec![0.0; 4]);
+        assert!(buf.is_filling());
     }
 }

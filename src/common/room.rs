@@ -128,7 +128,6 @@ impl Room {
     pub fn get_message(&mut self) -> Result<Option<Value>, BoxError> {
         match self.sock.read_message() {
             Ok(msg) => {
-                dbg!(&msg);
                 if self.is_primus_ping(&msg) {
                     Ok(None)
                 } else {

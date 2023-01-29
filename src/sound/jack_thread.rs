@@ -1,13 +1,16 @@
 use crate::common::box_error::BoxError;
+
 use jack;
-use serde_json::json;
+// use serde_json::json;
 use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
 
+use super::param_message::ParamMessage;
+
 pub fn run(
-    status_data_tx: mpsc::Sender<serde_json::Value>, // channel for us to send status data
-    command_rx: mpsc::Receiver<serde_json::Value>,   // channel for us to receive commands
+    _status_data_tx: mpsc::Sender<serde_json::Value>, // channel for us to send status data to room
+    command_rx: mpsc::Receiver<ParamMessage>,         // channel for us to receive commands
 ) -> Result<(), BoxError> {
     // let's open up a jack port
     let (client, _status) = jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER)?;
@@ -18,6 +21,13 @@ pub fn run(
     let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
 
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
+        match command_rx.try_recv() {
+            Ok(msg) => {
+                // received a command
+                println!("jack thread received message: {}", msg);
+            }
+            Err(_) => (),
+        }
         let out_a_p = out_a.as_mut_slice(ps);
         let out_b_p = out_b.as_mut_slice(ps);
         let in_a_p = in_a.as_slice(ps);
@@ -48,8 +58,8 @@ pub fn run(
     loop {
         sleep(Duration::new(2, 0));
     }
-    active_client.deactivate()?;
-    Ok(())
+    // active_client.deactivate()?;
+    // Ok(())
 }
 
 struct Notifications;

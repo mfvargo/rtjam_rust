@@ -1,6 +1,6 @@
 use crate::{
-    common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi},
-    server::{audio_thread, broadcast_websocket},
+    common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
+    server::audio_thread,
     utils,
 };
 use std::{
@@ -52,7 +52,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         mpsc::Receiver<serde_json::Value>,
     ) = mpsc::channel();
     let _websocket_handle = thread::spawn(move || {
-        let _res = broadcast_websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
+        let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
     // Create a thread to host the room

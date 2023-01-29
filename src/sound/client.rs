@@ -1,7 +1,6 @@
 use crate::{
-    common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi},
-    server::broadcast_websocket,
-    sound::jack_thread,
+    common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
+    sound::{jack_thread, param_message::ParamMessage},
     utils,
 };
 use std::{
@@ -51,7 +50,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         mpsc::Receiver<serde_json::Value>,
     ) = mpsc::channel();
     let _websocket_handle = thread::spawn(move || {
-        let _res = broadcast_websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
+        let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
     // Create channels to/from Jack Engine
@@ -63,10 +62,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     ) = mpsc::channel();
 
     // This is the channel we will use to send commands to the jack engine
-    let (command_tx, command_rx): (
-        mpsc::Sender<serde_json::Value>,
-        mpsc::Receiver<serde_json::Value>,
-    ) = mpsc::channel();
+    let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
+        mpsc::channel();
 
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(status_data_tx, command_rx);
@@ -81,10 +78,16 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
-                println!("websocket message: {}", m.to_string());
-                // pass it along to the audio thread
-                // TODO:  See if there is some parsing to do here
-                let _res = command_tx.send(m);
+                println!("websocket message: {}", m);
+                match ParamMessage::from_json(&m) {
+                    Ok(msg) => {
+                        // We have a valid param message.  Send it to the jack thread
+                        let _res = command_tx.send(msg);
+                    }
+                    Err(e) => {
+                        dbg!(e);
+                    }
+                }
             }
             Err(_e) => {
                 // dbg!(e);

@@ -7,11 +7,11 @@ use std::fmt;
 use crate::common::box_error::BoxError;
 
 pub struct ParamMessage {
-    param: i64,
-    ivalue_1: i64,
-    ivalue_2: i64,
-    fvalue: f64,
-    svalue: String,
+    pub param: i64,
+    pub ivalue_1: i64,
+    pub ivalue_2: i64,
+    pub fvalue: f64,
+    pub svalue: String,
 }
 
 impl ParamMessage {

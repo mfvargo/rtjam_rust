@@ -1,4 +1,5 @@
 use crate::common::box_error::BoxError;
+use crate::common::jam_packet::JamMessage;
 
 use jack;
 // use serde_json::json;
@@ -6,6 +7,7 @@ use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
 
+use super::jam_socket::JamSocket;
 use super::param_message::ParamMessage;
 
 pub fn run(
@@ -20,18 +22,38 @@ pub fn run(
     let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;
     let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
 
+    // Lets create the socket for the callback
+    let mut sock = JamSocket::build(9991)?;
+    let mut _rcv_message = JamMessage::build();
+    let mut xmit_message = JamMessage::build();
+    // The callback gets called by jack whenever we have a frame
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         match command_rx.try_recv() {
             Ok(msg) => {
                 // received a command
                 println!("jack thread received message: {}", msg);
+                if msg.param == 21 {
+                    // connect message
+                    let _res = sock.connect(
+                        &msg.svalue,
+                        (msg.ivalue_1 as i32).into(),
+                        (msg.ivalue_2 as i32).into(),
+                    );
+                }
             }
             Err(_) => (),
         }
-        let out_a_p = out_a.as_mut_slice(ps);
-        let out_b_p = out_b.as_mut_slice(ps);
+        // Do our network stuff
+        // TODO:  read from sock
+
+        // Now encode our audio
         let in_a_p = in_a.as_slice(ps);
         let in_b_p = in_b.as_slice(ps);
+        xmit_message.encode_audio(in_a_p, in_b_p);
+        let _res = sock.send(&xmit_message);
+
+        let out_a_p = out_a.as_mut_slice(ps);
+        let out_b_p = out_b.as_mut_slice(ps);
         out_a_p.clone_from_slice(in_a_p);
         out_b_p.clone_from_slice(in_b_p);
         jack::Control::Continue

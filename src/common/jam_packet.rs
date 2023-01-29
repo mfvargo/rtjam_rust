@@ -1,9 +1,10 @@
 use byteorder::{ByteOrder, NetworkEndian};
 use std::fmt;
 
-const JAM_BUF_SIZE: usize = 1024;
+pub const JAM_BUF_SIZE: usize = 1024;
 pub struct JamMessage {
     buffer: [u8; JAM_BUF_SIZE],
+    nbytes: usize,
 }
 
 // C Definition for doc purposes
@@ -20,12 +21,13 @@ pub struct JamMessage {
 //   unsigned char buffer[JAM_BUF_SIZE];
 // };
 // Header size is all the stuff up to the buffer...
-const JAM_HEADER_SIZE: usize = 1 + 1 + 1 + 1 + 8 + 8 + 4 + 4;
+pub const JAM_HEADER_SIZE: usize = 1 + 1 + 1 + 1 + 8 + 8 + 4 + 4;
 
 impl JamMessage {
     pub fn build() -> JamMessage {
         JamMessage {
             buffer: [0; JAM_BUF_SIZE],
+            nbytes: JAM_HEADER_SIZE,
         }
     }
     pub fn get_channel(&self) -> u8 {
@@ -78,6 +80,42 @@ impl JamMessage {
     }
     pub fn get_buffer(&mut self) -> &mut [u8] {
         &mut self.buffer
+    }
+    pub fn get_send_buffer(&self) -> &[u8] {
+        &self.buffer[0..self.nbytes]
+    }
+    pub fn encode_audio(&mut self, chan1: &[f32], chan2: &[f32]) -> usize {
+        // this will take an array of floats and encode them into the packet
+
+        let mut idx = 0;
+        for v in chan1 {
+            let mut sample = v + 1.0;
+            // Prevent clipping
+            if sample > 2.0 {
+                sample = 2.0;
+            }
+            if sample < 0.0 {
+                sample = 0.0;
+            }
+            let n = (sample * 32766.0) as u16;
+            NetworkEndian::write_u16(&mut self.buffer[idx..idx + 2], n);
+            idx += 1;
+        }
+        for v in chan2 {
+            let mut sample = v + 1.0;
+            // Prevent clipping
+            if sample > 2.0 {
+                sample = 2.0;
+            }
+            if sample < 0.0 {
+                sample = 0.0;
+            }
+            let n = (sample * 32766.0) as u16;
+            NetworkEndian::write_u16(&mut self.buffer[idx..idx + 2], n);
+            idx += 1;
+        }
+        self.nbytes = JAM_HEADER_SIZE + idx * 2;
+        idx
     }
     pub fn is_valid(&self, amt: usize) -> bool {
         // a packet has to be at least as big as a header and must be an even number of bytes
@@ -152,5 +190,13 @@ mod test {
         assert_eq!(msg.is_valid(JAM_HEADER_SIZE + 5), false);
         // This is for a packet with 64 samples each 2 bytes wide with 2 channels
         assert_eq!(msg.is_valid(JAM_HEADER_SIZE + 64 * 2 * 2), true)
+    }
+    #[test]
+    fn encode_audio() {
+        // It should take two channels and encode them into the JamPacket
+        let chan_1: Vec<f32> = vec![0.5; 128];
+        let chan_2: Vec<f32> = vec![0.6; 128];
+        let mut msg = JamMessage::build();
+        assert_eq!(msg.encode_audio(&chan_1[..], &chan_2[..]), 256);
     }
 }

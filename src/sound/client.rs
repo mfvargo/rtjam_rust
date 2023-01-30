@@ -97,7 +97,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let res = status_data_rx.try_recv();
         match res {
             Ok(m) => {
-                println!("audio thread message: {}", m.to_string());
+                // println!("audio thread message: {}", m.to_string());
                 // So we got a message from the jack thread.  See if we need
                 // To pass this along to the websocket
                 to_ws_tx.send(m)?;

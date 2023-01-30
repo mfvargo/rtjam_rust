@@ -51,8 +51,9 @@ impl JamEngine {
         self.send_my_audio(in_a, in_b);
         // This is where we would get the playback data
         // For now just copy input to output
-        out_a.clone_from_slice(in_a);
-        out_b.clone_from_slice(in_b);
+        let (a, b) = self.xmit_message.decode_audio();
+        out_a.clone_from_slice(&a[..]);
+        out_b.clone_from_slice(&b[..]);
         Ok(())
     }
     fn send_status(&mut self, now: u128) -> () {
@@ -63,7 +64,7 @@ impl JamEngine {
             let _res = self.status_data_tx.send(json!({
                 "speaker": "UnitChatRobot",
                 "levelEvent": json!({
-                    "connected": false,
+                    "connected": self.sock.is_connected(),
                     "players": [],
                     "jamUnitToken": self.token,
                     "masterLevel": -20.0,
@@ -90,6 +91,7 @@ impl JamEngine {
                         (msg.ivalue_1 as i32).into(),
                         (msg.ivalue_2 as i32).into(),
                     );
+                    self.xmit_message.set_client_id(msg.ivalue_2 as u32);
                 }
                 if msg.param == 22 {
                     self.sock.disconnect();
@@ -119,6 +121,6 @@ impl JamEngine {
     // This is where we forward our data to the network (if connected)
     fn send_my_audio(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
         self.xmit_message.encode_audio(in_a, in_b);
-        let _res = self.sock.send(&self.xmit_message);
+        let _res = self.sock.send(&mut self.xmit_message);
     }
 }

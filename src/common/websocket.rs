@@ -42,7 +42,7 @@ pub fn websocket_thread(
                             match res {
                                 Ok(m) => {
                                     // Got a message to send
-                                    println!("sending to room: {}", m);
+                                    // println!("sending to room: {}", m);
                                     room.send_message(&m);
                                 }
                                 Err(_e) => {

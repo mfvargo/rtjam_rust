@@ -87,35 +87,49 @@ impl JamMessage {
     pub fn encode_audio(&mut self, chan1: &[f32], chan2: &[f32]) -> usize {
         // this will take an array of floats and encode them into the packet
 
-        let mut idx = 0;
+        let mut idx = JAM_HEADER_SIZE;
         for v in chan1 {
-            let mut sample = v + 1.0;
-            // Prevent clipping
-            if sample > 2.0 {
-                sample = 2.0;
-            }
-            if sample < 0.0 {
-                sample = 0.0;
-            }
-            let n = (sample * 32766.0) as u16;
-            NetworkEndian::write_u16(&mut self.buffer[idx..idx + 2], n);
-            idx += 1;
+            NetworkEndian::write_u16(&mut self.buffer[idx..idx + 2], Self::convert_to_u16(v));
+            idx += 2; // move ahead 2 bytes
         }
         for v in chan2 {
-            let mut sample = v + 1.0;
-            // Prevent clipping
-            if sample > 2.0 {
-                sample = 2.0;
-            }
-            if sample < 0.0 {
-                sample = 0.0;
-            }
-            let n = (sample * 32766.0) as u16;
-            NetworkEndian::write_u16(&mut self.buffer[idx..idx + 2], n);
-            idx += 1;
+            NetworkEndian::write_u16(&mut self.buffer[idx..idx + 2], Self::convert_to_u16(v));
+            idx += 2; // move ahead 2 bytes
         }
-        self.nbytes = JAM_HEADER_SIZE + idx * 2;
+        self.nbytes = idx;
         idx
+    }
+    fn convert_to_u16(v: &f32) -> u16 {
+        let mut sample = v + 1.0;
+        // Prevent clipping
+        if sample > 2.0 {
+            sample = 2.0;
+        }
+        if sample < 0.0 {
+            sample = 0.0;
+        }
+        (sample * 32766.0) as u16
+    }
+    pub fn decode_audio(&self) -> (Vec<f32>, Vec<f32>) {
+        let mut chan_1: Vec<f32> = Vec::new();
+        let mut chan_2: Vec<f32> = Vec::new();
+        let num_samples = (self.nbytes - JAM_HEADER_SIZE) / 4; //  2 bytes per sample and 2 channels of data
+        let mut off_1 = JAM_HEADER_SIZE; // starting offset to first channel
+        let mut off_2 = JAM_HEADER_SIZE + num_samples * 2; // staring offset to 2nd channel
+        for _n in 0..num_samples {
+            chan_1.push(Self::convert_to_f32(NetworkEndian::read_u16(
+                &self.buffer[off_1..off_1 + 2],
+            )));
+            chan_2.push(Self::convert_to_f32(NetworkEndian::read_u16(
+                &self.buffer[off_2..off_2 + 2],
+            )));
+            off_1 += 2;
+            off_2 += 2;
+        }
+        (chan_1, chan_2)
+    }
+    fn convert_to_f32(n: u16) -> f32 {
+        (1.0 / 32768.0 * n as f32) - 1.0
     }
     pub fn is_valid(&self, amt: usize) -> bool {
         // a packet has to be at least as big as a header and must be an even number of bytes
@@ -197,6 +211,12 @@ mod test {
         let chan_1: Vec<f32> = vec![0.5; 128];
         let chan_2: Vec<f32> = vec![0.6; 128];
         let mut msg = JamMessage::build();
-        assert_eq!(msg.encode_audio(&chan_1[..], &chan_2[..]), 256);
+        assert_eq!(
+            msg.encode_audio(&chan_1[..], &chan_2[..]),
+            256 * 2 + JAM_HEADER_SIZE
+        );
+        let (dec_1, dec_2) = msg.decode_audio();
+        assert_eq!(dec_1.len(), 128);
+        assert_eq!(dec_2.len(), 128);
     }
 }

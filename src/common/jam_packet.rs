@@ -1,5 +1,8 @@
 use byteorder::{ByteOrder, NetworkEndian};
+use simple_error::bail;
 use std::fmt;
+
+use super::box_error::BoxError;
 
 pub const JAM_BUF_SIZE: usize = 1024;
 pub struct JamMessage {
@@ -130,6 +133,13 @@ impl JamMessage {
     }
     fn convert_to_f32(n: u16) -> f32 {
         (1.0 / 32768.0 * n as f32) - 1.0
+    }
+    pub fn set_nbytes(&mut self, amt: usize) -> Result<(), BoxError> {
+        if self.is_valid(amt) {
+            bail!("invalid packet");
+        }
+        self.nbytes = amt;
+        Ok(())
     }
     pub fn is_valid(&self, amt: usize) -> bool {
         // a packet has to be at least as big as a header and must be an even number of bytes

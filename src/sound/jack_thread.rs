@@ -24,7 +24,7 @@ pub fn run(
 
     // Lets create the socket for the callback
     let mut sock = JamSocket::build(9991)?;
-    let mut _rcv_message = JamMessage::build();
+    let mut rcv_message = JamMessage::build();
     let mut xmit_message = JamMessage::build();
     // The callback gets called by jack whenever we have a frame
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
@@ -43,8 +43,17 @@ pub fn run(
             }
             Err(_) => (),
         }
-        // Do our network stuff
-        // TODO:  read from sock
+        // Read for any network data
+        let _res = sock.recv(&mut rcv_message);
+        match _res {
+            Ok(_v) => {
+                // got a network packet
+                let (_c1, _c2) = rcv_message.decode_audio();
+            }
+            Err(_e) => {
+                // dbg!(_e);
+            }
+        }
 
         // Now encode our audio
         let in_a_p = in_a.as_slice(ps);

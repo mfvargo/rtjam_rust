@@ -19,8 +19,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
         // update the player list
         players.prune(now_time);
         match res {
-            Ok(r) => {
-                let (amt, src) = r;
+            Ok((amt, src)) => {
                 if now_time > (last_latency_update + 1000000) {
                     println!("now: {}, last_update: {}", now_time, last_latency_update);
                     last_latency_update = now_time;

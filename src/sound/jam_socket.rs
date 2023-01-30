@@ -14,6 +14,7 @@ pub struct JamSocket {
 impl JamSocket {
     pub fn build(port: i64) -> Result<JamSocket, BoxError> {
         let sock = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
+        sock.set_nonblocking(true)?;
         // make it non-blocking
         Ok(JamSocket {
             sock: sock,
@@ -40,6 +41,11 @@ impl JamSocket {
         Ok(self
             .sock
             .send_to(packet.get_send_buffer(), self.server.as_str())?)
+    }
+    pub fn recv(&self, packet: &mut JamMessage) -> Result<(), BoxError> {
+        let (nbytes, _addr) = self.sock.recv_from(packet.get_buffer())?;
+        packet.set_nbytes(nbytes)?;
+        Ok(())
     }
 }
 

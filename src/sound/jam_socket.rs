@@ -2,6 +2,7 @@ use simple_error::bail;
 
 use crate::common::box_error::BoxError;
 use crate::common::jam_packet::JamMessage;
+use crate::server::player_list::get_micro_time;
 use std::fmt;
 use std::net::UdpSocket;
 
@@ -9,6 +10,7 @@ pub struct JamSocket {
     sock: UdpSocket,
     client_id: Option<i64>,
     server: String,
+    seq_no: u32,
 }
 
 impl JamSocket {
@@ -20,6 +22,7 @@ impl JamSocket {
             sock: sock,
             client_id: None,
             server: String::new(),
+            seq_no: 0,
         })
     }
     pub fn connect(&mut self, host: &str, port: i64, id: i64) -> Result<(), BoxError> {
@@ -30,17 +33,28 @@ impl JamSocket {
     pub fn disconnect(&mut self) -> () {
         self.server.clear();
         self.client_id = None;
+        self.seq_no = 0;
     }
     pub fn is_connected(&self) -> bool {
         !self.client_id.is_none()
     }
-    pub fn send(&self, packet: &JamMessage) -> Result<usize, BoxError> {
-        if !self.is_connected() {
-            bail!("socket not connected");
+    pub fn send(&mut self, packet: &mut JamMessage) -> Result<usize, BoxError> {
+        match self.client_id {
+            Some(id) => {
+                packet.set_sample_rate(0);
+                packet.set_num_sub_channels(2);
+                packet.set_client_id(id as u32);
+                packet.set_sequence_num(self.seq_no);
+                self.seq_no += 1;
+                packet.set_client_timestamp(get_micro_time() as u64);
+                Ok(self
+                    .sock
+                    .send_to(packet.get_send_buffer(), self.server.as_str())?)
+            }
+            None => {
+                bail!("socket not connected");
+            }
         }
-        Ok(self
-            .sock
-            .send_to(packet.get_send_buffer(), self.server.as_str())?)
     }
     pub fn recv(&self, packet: &mut JamMessage) -> Result<(), BoxError> {
         let (nbytes, _addr) = self.sock.recv_from(packet.get_buffer())?;

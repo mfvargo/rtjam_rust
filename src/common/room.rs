@@ -121,7 +121,7 @@ impl Room {
             "messageId": self.msg_id,
         });
         self.msg_id += 1;
-        println!("sending this message: {}", msg.to_string());
+        // println!("sending this message: {}", msg.to_string());
         let _res = self.sock.write_message(Message::Text(msg.to_string()));
     }
 

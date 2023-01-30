@@ -1,6 +1,6 @@
 use crate::{
     common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
-    sound::{jack_thread, param_message::ParamMessage},
+    sound::{jack_thread, jam_engine::JamEngine, param_message::ParamMessage},
     utils,
 };
 use std::{
@@ -65,8 +65,9 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
+    let engine = JamEngine::build(status_data_tx, command_rx, api.get_token())?;
     let _jack_thread_handle = thread::spawn(move || {
-        let _res = jack_thread::run(status_data_tx, command_rx);
+        let _res = jack_thread::run(engine);
     });
 
     let _ping_handle = thread::spawn(move || {

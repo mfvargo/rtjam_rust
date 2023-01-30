@@ -2,17 +2,12 @@ use crate::common::box_error::BoxError;
 
 use jack;
 // use serde_json::json;
-use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
 
 use super::jam_engine::JamEngine;
-use super::param_message::ParamMessage;
 
-pub fn run(
-    status_data_tx: mpsc::Sender<serde_json::Value>, // channel for us to send status data to room
-    command_rx: mpsc::Receiver<ParamMessage>,        // channel for us to receive commands
-) -> Result<(), BoxError> {
+pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
     // let's open up a jack port
     let (client, _status) = jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER)?;
 
@@ -21,8 +16,6 @@ pub fn run(
     let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;
     let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
 
-    // Create the jam Engine
-    let mut engine = JamEngine::build(status_data_tx, command_rx)?;
     // The callback gets called by jack whenever we have a frame
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
         let in_a_p = in_a.as_slice(ps);

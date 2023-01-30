@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::box_error::BoxError;
+use crate::common::box_error::BoxError;
 use json::JsonValue;
 use reqwest::blocking::Client;
 // use serde::{Deserialize, Serialize};
@@ -103,6 +103,22 @@ impl JamNationApi {
             None => {}
         }
         Ok(result)
+    }
+    pub fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError> {
+        let mut args = self.build_def_args();
+        args.insert("canTalkOnWebsocket", String::from("true"));
+        let result = self.post("jamUnit", &args)?;
+        match result["jamUnit"]["token"].as_str() {
+            Some(v) => {
+                self.token = String::from(v);
+            }
+            None => {}
+        }
+        Ok(result)
+    }
+    pub fn jam_unit_ping(&self) -> Result<JsonValue, BoxError> {
+        let args = self.build_def_args();
+        Ok(self.put("jamUnit/ping", &args)?)
     }
 }
 

@@ -11,6 +11,7 @@ use std::fmt;
 
 use serde::Deserialize;
 use serde::Serialize;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StreamTimeStat {
     peak: f64,
@@ -85,5 +86,43 @@ mod test_stream_time_stat {
         stat.add_sample(1.0);
         stat.add_sample(1.0);
         assert!(stat.get_mean() > 0.25);
+    }
+}
+
+pub struct MicroTimer {
+    last_time: u128,
+    interval: u128,
+}
+
+impl MicroTimer {
+    pub fn build(now: u128, interval: u128) -> MicroTimer {
+        MicroTimer {
+            last_time: now,
+            interval: interval,
+        }
+    }
+    pub fn expired(&self, now: u128) -> bool {
+        (self.last_time + self.interval) < now
+    }
+    pub fn reset(&mut self, now: u128) {
+        self.last_time = now;
+    }
+}
+
+#[cfg(test)]
+mod test_micro_timer {
+    use super::*;
+
+    #[test]
+    fn test_expiration() {
+        let mut now = 1000;
+        let mut mt = MicroTimer::build(now, 100);
+        assert!(!mt.expired(now));
+        now += 99;
+        assert!(!mt.expired(now));
+        now += 2;
+        assert!(mt.expired(now));
+        mt.reset(now);
+        assert!(!mt.expired(now));
     }
 }

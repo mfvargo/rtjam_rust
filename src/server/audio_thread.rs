@@ -1,7 +1,6 @@
 use crate::{
-    box_error::BoxError,
-    jam_packet::JamMessage,
-    player_list::{get_micro_time, PlayerList},
+    common::{box_error::BoxError, jam_packet::JamMessage},
+    server::player_list::{get_micro_time, PlayerList},
 };
 use std::{io::ErrorKind, net::UdpSocket, sync::mpsc, time::Duration};
 
@@ -20,8 +19,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
         // update the player list
         players.prune(now_time);
         match res {
-            Ok(r) => {
-                let (amt, src) = r;
+            Ok((amt, src)) => {
                 if now_time > (last_latency_update + 1000000) {
                     println!("now: {}, last_update: {}", now_time, last_latency_update);
                     last_latency_update = now_time;

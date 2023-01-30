@@ -1,5 +1,5 @@
-use crate::box_error::BoxError;
-use crate::room::Room;
+use crate::common::box_error::BoxError;
+use crate::common::room::Room;
 
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
@@ -21,10 +21,17 @@ pub fn websocket_thread(
                         Ok(result) => {
                             match result {
                                 Some(msg) => {
-                                    println!("sock_msg: {}", msg.to_string());
                                     if msg["context"] == "user" {
-                                        // Message from the room, send on to the main thread
-                                        ws_tx.send(msg)?;
+                                        // Message from the room, parse and send on to the main thread
+                                        match msg["message"].as_str() {
+                                            Some(data) => match serde_json::from_str(data) {
+                                                Ok(umsg) => {
+                                                    let _res = ws_tx.send(umsg);
+                                                }
+                                                Err(_) => {}
+                                            },
+                                            None => {}
+                                        }
                                     }
                                 }
                                 None => {}

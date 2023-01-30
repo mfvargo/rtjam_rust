@@ -1,13 +1,11 @@
+//! rtjam - Real Time Jam library
+//!
+//! provides library elements to create code for a jamUnit (device to connect with)
+//! and a broadcast_server which will host rooms for real time audio conferencing
 extern crate json;
 
-pub mod audio_thread;
-pub mod box_error;
-pub mod broadcast_server;
-pub mod broadcast_websocket;
-pub mod config;
-pub mod jam_nation_api;
-pub mod jam_packet;
-pub mod player_list;
-pub mod room;
-pub mod stream_time_stat;
+pub mod common;
+pub mod dsp;
+pub mod server;
+pub mod sound;
 pub mod utils;

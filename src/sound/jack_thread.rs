@@ -1,5 +1,4 @@
 use crate::common::box_error::BoxError;
-use crate::common::jam_packet::JamMessage;
 
 use jack;
 // use serde_json::json;
@@ -7,12 +6,12 @@ use std::sync::mpsc;
 use std::thread::sleep;
 use std::time::Duration;
 
-use super::jam_socket::JamSocket;
+use super::jam_engine::JamEngine;
 use super::param_message::ParamMessage;
 
 pub fn run(
-    _status_data_tx: mpsc::Sender<serde_json::Value>, // channel for us to send status data to room
-    command_rx: mpsc::Receiver<ParamMessage>,         // channel for us to receive commands
+    status_data_tx: mpsc::Sender<serde_json::Value>, // channel for us to send status data to room
+    command_rx: mpsc::Receiver<ParamMessage>,        // channel for us to receive commands
 ) -> Result<(), BoxError> {
     // let's open up a jack port
     let (client, _status) = jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER)?;
@@ -22,49 +21,18 @@ pub fn run(
     let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;
     let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
 
-    // Lets create the socket for the callback
-    let mut sock = JamSocket::build(9991)?;
-    let mut rcv_message = JamMessage::build();
-    let mut xmit_message = JamMessage::build();
+    // Create the jam Engine
+    let mut engine = JamEngine::build(status_data_tx, command_rx)?;
     // The callback gets called by jack whenever we have a frame
     let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-        match command_rx.try_recv() {
-            Ok(msg) => {
-                // received a command
-                println!("jack thread received message: {}", msg);
-                if msg.param == 21 {
-                    // connect message
-                    let _res = sock.connect(
-                        &msg.svalue,
-                        (msg.ivalue_1 as i32).into(),
-                        (msg.ivalue_2 as i32).into(),
-                    );
-                }
-            }
-            Err(_) => (),
-        }
-        // Read for any network data
-        let _res = sock.recv(&mut rcv_message);
-        match _res {
-            Ok(_v) => {
-                // got a network packet
-                let (_c1, _c2) = rcv_message.decode_audio();
-            }
-            Err(_e) => {
-                // dbg!(_e);
-            }
-        }
-
-        // Now encode our audio
         let in_a_p = in_a.as_slice(ps);
         let in_b_p = in_b.as_slice(ps);
-        xmit_message.encode_audio(in_a_p, in_b_p);
-        let _res = sock.send(&xmit_message);
-
         let out_a_p = out_a.as_mut_slice(ps);
         let out_b_p = out_b.as_mut_slice(ps);
-        out_a_p.clone_from_slice(in_a_p);
-        out_b_p.clone_from_slice(in_b_p);
+
+        // Let the engine process it
+        let _res = engine.process(in_a_p, in_b_p, out_a_p, out_b_p);
+
         jack::Control::Continue
     };
     let process = jack::ClosureProcessHandler::new(process_callback);

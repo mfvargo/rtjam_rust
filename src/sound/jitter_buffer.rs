@@ -147,7 +147,7 @@ mod test_jitter_buffer {
     fn put() {
         // It should have an append
         let mut buf = JitterBuffer::build();
-        let mut samples: Vec<f32> = vec![0.2, 0.3, 0.4];
+        let samples: Vec<f32> = vec![0.2, 0.3, 0.4];
         buf.append(&samples);
         assert_eq!(buf.length(), 3);
     }
@@ -155,7 +155,7 @@ mod test_jitter_buffer {
     fn get_normal() {
         // It should have a get function
         let mut buf = JitterBuffer::build();
-        let mut samples: Vec<f32> = vec![0.2; MIN_DEPTH];
+        let samples: Vec<f32> = vec![0.2; MIN_DEPTH];
         assert!(buf.is_filling());
         buf.append(&samples);
         assert_eq!(buf.length(), MIN_DEPTH);
@@ -176,7 +176,7 @@ mod test_jitter_buffer {
         let mut buf = JitterBuffer::build();
         let samps = vec![0.1; MIN_DEPTH + 10];
         buf.append(&samps);
-        let mut samps = vec![0.1; MIN_DEPTH + 10];
+        let samps = vec![0.1; MIN_DEPTH + 10];
         buf.append(&samps);
         buf.get(2);
         println!("jitterbuf: {}", buf);

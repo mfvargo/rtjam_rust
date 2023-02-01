@@ -53,6 +53,9 @@ impl JitterBuffer {
     pub fn is_filling(&self) -> bool {
         self.filling
     }
+    pub fn append(&mut self, audio: &[f32]) -> () {
+        self.buffer.extend_from_slice(audio);
+    }
     pub fn put(&mut self, samples: &mut Vec<f32>) -> () {
         // This function should put in some data
         self.buffer.append(samples);

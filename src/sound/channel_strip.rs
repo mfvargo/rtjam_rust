@@ -39,4 +39,7 @@ impl ChannelStrip {
             i += 1;
         }
     }
+    pub fn add_data(&mut self, audio: &[f32]) -> () {
+        self.buffer.append(audio);
+    }
 }

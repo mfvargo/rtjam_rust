@@ -30,10 +30,21 @@ impl Mixer {
         self.master_vol = v;
     }
     pub fn get_mix(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
+        // Zero out the out buffer
+        for i in 0..out_a.len() {
+            out_a[i] = 0.0;
+            out_b[i] = 0.0;
+        }
         // TODO:  get the mix
         for chan in &mut self.strips {
             chan.mix_into(out_a, out_b);
         }
+    }
+    pub fn add_to_channel(&mut self, chan_no: usize, audio: &[f32]) -> () {
+        if chan_no > MIXER_CHANNELS {
+            return;
+        }
+        self.strips[chan_no].add_data(audio);
     }
 }
 

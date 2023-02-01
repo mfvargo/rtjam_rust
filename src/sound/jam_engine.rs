@@ -53,10 +53,10 @@ impl JamEngine {
         self.send_my_audio(in_a, in_b);
         // This is where we would get the playback data
         // For now just copy input to output
-        let (a, b) = self.xmit_message.decode_audio();
+        // let (a, b) = self.xmit_message.decode_audio();
         self.mixer.get_mix(out_a, out_b);
-        out_a.clone_from_slice(&a[..]);
-        out_b.clone_from_slice(&b[..]);
+        // out_a.clone_from_slice(&a[..]);
+        // out_b.clone_from_slice(&b[..]);
         Ok(())
     }
     fn send_status(&mut self, now: u128) -> () {
@@ -125,5 +125,8 @@ impl JamEngine {
     fn send_my_audio(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
         self.xmit_message.encode_audio(in_a, in_b);
         let _res = self.sock.send(&mut self.xmit_message);
+        // Stuff my buffers into the mixer for local monitoring
+        self.mixer.add_to_channel(0, in_a);
+        self.mixer.add_to_channel(1, in_b);
     }
 }

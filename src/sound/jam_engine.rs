@@ -7,7 +7,7 @@ use crate::{
     server::player_list::get_micro_time,
 };
 
-use super::{jam_socket::JamSocket, param_message::ParamMessage};
+use super::{jam_socket::JamSocket, mixer::Mixer, param_message::ParamMessage};
 
 pub struct JamEngine {
     // gonna have some stuff
@@ -18,6 +18,7 @@ pub struct JamEngine {
     command_rx: mpsc::Receiver<ParamMessage>,
     update_timer: MicroTimer,
     token: String,
+    mixer: Mixer,
 }
 
 impl JamEngine {
@@ -34,6 +35,7 @@ impl JamEngine {
             command_rx: rx,
             update_timer: MicroTimer::build(get_micro_time(), 1_000_000),
             token: String::from(tok),
+            mixer: Mixer::build(),
         })
     }
     pub fn process(
@@ -52,6 +54,7 @@ impl JamEngine {
         // This is where we would get the playback data
         // For now just copy input to output
         let (a, b) = self.xmit_message.decode_audio();
+        self.mixer.get_mix(out_a, out_b);
         out_a.clone_from_slice(&a[..]);
         out_b.clone_from_slice(&b[..]);
         Ok(())

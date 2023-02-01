@@ -1,3 +1,4 @@
+pub mod channel_map;
 pub mod channel_strip;
 pub mod client;
 pub mod fader;

@@ -2,8 +2,8 @@
 //! mixer used to combine all speakers into a stereo channel
 //!
 //!
-
 use super::channel_strip::ChannelStrip;
+use std::fmt;
 
 pub const MIXER_CHANNELS: usize = 24;
 
@@ -45,6 +45,17 @@ impl Mixer {
             return;
         }
         self.strips[chan_no].add_data(audio);
+    }
+}
+
+impl fmt::Display for Mixer {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "\n")?;
+        for c in &self.strips {
+            write!(f, " {}", c)?;
+        }
+        write!(f, "\n")
     }
 }
 

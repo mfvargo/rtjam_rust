@@ -1,4 +1,5 @@
 use crate::utils::clip_float;
+use std::fmt;
 
 use super::{fader::Fader, jitter_buffer::JitterBuffer};
 
@@ -41,5 +42,17 @@ impl ChannelStrip {
     }
     pub fn add_data(&mut self, audio: &[f32]) -> () {
         self.buffer.append(audio);
+    }
+}
+
+impl fmt::Display for ChannelStrip {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "[ gain: {}, fade: {}, buffer: {} ]",
+            self.gain, self.fader, self.buffer
+        )?;
+        write!(f, " ]\n")
     }
 }

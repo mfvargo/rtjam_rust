@@ -7,7 +7,9 @@ use crate::{
     server::player_list::get_micro_time,
 };
 
-use super::{jam_socket::JamSocket, mixer::Mixer, param_message::ParamMessage};
+use super::{
+    channel_map::ChannelMap, jam_socket::JamSocket, mixer::Mixer, param_message::ParamMessage,
+};
 
 pub struct JamEngine {
     // gonna have some stuff
@@ -19,6 +21,7 @@ pub struct JamEngine {
     update_timer: MicroTimer,
     token: String,
     mixer: Mixer,
+    chan_map: ChannelMap,
 }
 
 impl JamEngine {
@@ -36,6 +39,7 @@ impl JamEngine {
             update_timer: MicroTimer::build(get_micro_time(), 1_000_000),
             token: String::from(tok),
             mixer: Mixer::build(),
+            chan_map: ChannelMap::new(),
         })
     }
     pub fn process(
@@ -49,7 +53,7 @@ impl JamEngine {
         let now = get_micro_time();
         self.send_status(now);
         self.check_command();
-        self.read_network();
+        self.read_network(now);
         self.send_my_audio(in_a, in_b);
         // This is where we would get the playback data
         // For now just copy input to output
@@ -78,6 +82,7 @@ impl JamEngine {
                     "peakRight": -20.0,
                 })
             }));
+            println!("mixer: {}", self.mixer);
         }
     }
     // This is where we check for any commands we need to process
@@ -104,15 +109,32 @@ impl JamEngine {
         }
     }
     // This is where we read packets off of the network
-    fn read_network(&mut self) -> () {
+    fn read_network(&mut self, now: u128) -> () {
+        self.chan_map.prune(now);
         let mut reading = true;
         while reading {
             let _res = self.sock.recv(&mut self.recv_message);
             match _res {
                 Ok(_v) => {
                     // got a network packet
-                    let (_c1, _c2) = self.recv_message.decode_audio();
-                    // TODO:  Stuff it into the jitter buffer
+                    // Figure out what channel this guy belongs to
+                    let (c1, c2) = self.recv_message.decode_audio();
+                    if c1.len() > 0 {
+                        // only map and put if it's got some data
+                        match self
+                            .chan_map
+                            .get_loc_channel(self.recv_message.get_client_id(), now)
+                        {
+                            Some(idx) => {
+                                // We found a channel.
+                                self.mixer.add_to_channel(idx, &c1);
+                                self.mixer.add_to_channel(idx + 1, &c2);
+                            }
+                            None => {
+                                // For some reason we can't get a channel for this packet.
+                            }
+                        }
+                    }
                 }
                 Err(_e) => {
                     // This is where we get WouldBlock when there is nothing to read

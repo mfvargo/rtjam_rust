@@ -1,6 +1,7 @@
 //! Constant power left/right fader
 
 use crate::utils::clip_float;
+use std::fmt;
 
 pub struct Fader {
     left: f32,
@@ -32,6 +33,12 @@ impl Fader {
     }
 }
 
+impl fmt::Display for Fader {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[ left: {}, right: {} ]", self.left, self.right)
+    }
+}
 #[cfg(test)]
 
 mod test_fader {

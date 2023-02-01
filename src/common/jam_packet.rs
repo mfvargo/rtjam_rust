@@ -135,7 +135,7 @@ impl JamMessage {
         (1.0 / 32768.0 * n as f32) - 1.0
     }
     pub fn set_nbytes(&mut self, amt: usize) -> Result<(), BoxError> {
-        if self.is_valid(amt) {
+        if !self.is_valid(amt) {
             bail!("invalid packet");
         }
         self.nbytes = amt;
@@ -143,7 +143,7 @@ impl JamMessage {
     }
     pub fn is_valid(&self, amt: usize) -> bool {
         // a packet has to be at least as big as a header and must be an even number of bytes
-        amt > JAM_HEADER_SIZE && amt % 2 == 0
+        amt >= JAM_HEADER_SIZE && amt % 2 == 0
     }
 }
 
@@ -152,11 +152,12 @@ impl fmt::Display for JamMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ seq: {}, client: {}, cl_time: {} sv_time: {} }}",
+            "{{ seq: {}, client: {}, cl_time: {}, sv_time: {}, nbytes: {} }}",
             self.get_sequence_num(),
             self.get_client_id(),
             self.get_client_timestamp(),
-            self.get_server_time()
+            self.get_server_time(),
+            self.nbytes
         )
     }
 }

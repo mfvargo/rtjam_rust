@@ -13,6 +13,8 @@ pub struct JitterBuffer {
     underruns: usize,
     overruns: usize,
     depth_filter: PeakDetector,
+    puts: usize,
+    gets: usize,
 }
 
 impl fmt::Display for JitterBuffer {
@@ -20,8 +22,13 @@ impl fmt::Display for JitterBuffer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ target: {}, underruns: {}, overruns: {} }}",
-            self.target_depth, self.underruns, self.overruns
+            "{{ target: {}, underruns: {}, overruns: {}, depth: {}, puts: {}, gets: {} }}",
+            self.target_depth,
+            self.underruns,
+            self.overruns,
+            self.depth_stats.get_mean(),
+            self.puts,
+            self.gets
         )
     }
 }
@@ -36,6 +43,8 @@ impl JitterBuffer {
             underruns: 0,
             overruns: 0,
             depth_filter: PeakDetector::build(0.1, 2.5, 48000 / 128),
+            puts: 0,
+            gets: 0,
         }
     }
     pub fn length(&self) -> usize {
@@ -54,16 +63,14 @@ impl JitterBuffer {
         self.filling
     }
     pub fn append(&mut self, audio: &[f32]) -> () {
+        self.puts += 1;
         self.buffer.extend_from_slice(audio);
-    }
-    pub fn put(&mut self, samples: &mut Vec<f32>) -> () {
-        // This function should put in some data
-        self.buffer.append(samples);
     }
     // get will retrieve data from the jitter buffer.  It will always give you a full vector but
     // it might have zeros if there is no data.
     pub fn get(&mut self, count: usize) -> Vec<f32> {
         // It should get some data off the buffer
+        self.gets += 1;
         self.depth_stats.add_sample(self.buffer.len() as f64); // Gather depth stats
 
         // Adjust target depth based on jitter sigma
@@ -141,7 +148,7 @@ mod test_jitter_buffer {
         // It should have an append
         let mut buf = JitterBuffer::build();
         let mut samples: Vec<f32> = vec![0.2, 0.3, 0.4];
-        buf.put(&mut samples);
+        buf.append(&samples);
         assert_eq!(buf.length(), 3);
     }
     #[test]
@@ -150,7 +157,7 @@ mod test_jitter_buffer {
         let mut buf = JitterBuffer::build();
         let mut samples: Vec<f32> = vec![0.2; MIN_DEPTH];
         assert!(buf.is_filling());
-        buf.put(&mut samples);
+        buf.append(&samples);
         assert_eq!(buf.length(), MIN_DEPTH);
         let res = buf.get(2);
         assert_eq!(res.len(), 2);
@@ -167,10 +174,10 @@ mod test_jitter_buffer {
     #[test]
     fn overrun_measure() {
         let mut buf = JitterBuffer::build();
+        let samps = vec![0.1; MIN_DEPTH + 10];
+        buf.append(&samps);
         let mut samps = vec![0.1; MIN_DEPTH + 10];
-        buf.put(&mut samps);
-        let mut samps = vec![0.1; MIN_DEPTH + 10];
-        buf.put(&mut samps);
+        buf.append(&samps);
         buf.get(2);
         println!("jitterbuf: {}", buf);
         assert!(!buf.is_filling());

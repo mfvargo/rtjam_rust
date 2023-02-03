@@ -4,6 +4,7 @@ use std::fmt;
 // This is how long a player lasts until we boot them (if they go silent)
 const CLIENT_EXPIRATION_IN_MICROSECONDS: u128 = 1_000_000;
 const NUM_PLAYERS_IN_ROOM: usize = MIXER_CHANNELS / 2 - 1; // take away one cause the local guy is always in the room
+const EMPTY_SLOT: u32 = 40000;
 
 pub struct Client {
     pub client_id: u32,
@@ -13,7 +14,7 @@ pub struct Client {
 impl Client {
     pub fn new() -> Client {
         Client {
-            client_id: 0,
+            client_id: EMPTY_SLOT,
             keep_alive: 0,
         }
     }
@@ -31,14 +32,23 @@ impl ChannelMap {
         }
         map
     }
+    pub fn clear(&mut self) -> () {
+        for c in &mut self.clients {
+            c.client_id = EMPTY_SLOT;
+            c.keep_alive = 0;
+        }
+    }
     pub fn prune(&mut self, now: u128) -> () {
         // search for aged clients
         for c in &mut self.clients {
             if c.client_id > 0 && c.keep_alive + CLIENT_EXPIRATION_IN_MICROSECONDS < now {
-                c.client_id = 0;
+                c.client_id = EMPTY_SLOT;
                 c.keep_alive = 0;
             }
         }
+    }
+    pub fn get_clients(&self) -> &[Client] {
+        &self.clients
     }
     pub fn get_loc_channel(&mut self, id: u32, now: u128) -> Option<usize> {
         // search for this id
@@ -50,7 +60,7 @@ impl ChannelMap {
             }
             None => {
                 // Nobody found with that ID.  Get first available slot
-                match self.clients.iter().position(|c| c.client_id == 0) {
+                match self.clients.iter().position(|c| c.client_id == EMPTY_SLOT) {
                     Some(idx) => {
                         self.clients[idx].client_id = id;
                         self.clients[idx].keep_alive = now;

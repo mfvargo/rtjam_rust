@@ -21,7 +21,7 @@ impl PeakDetector {
     }
 
     pub fn get(&mut self, input: f64) -> f64 {
-        let inp = input.abs();
+        let inp = input; // .abs();
         if self.peak_detector < inp {
             self.peak_detector =
                 inp * self.attack_coef + (1.0 - self.attack_coef) * self.last_output;

@@ -17,7 +17,8 @@ use super::{
 };
 
 // Set a timer for how long a connect will hold up without a keepalive from the web client
-pub const IDLE_DISCONNECT: u128 = 15 * 60 * 1000 * 1000;
+pub const IDLE_DISCONNECT: u128 = 15 * 60 * 1000 * 1000; // 15 minutes
+pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 
 pub struct JamEngine {
     // gonna have some stuff
@@ -27,6 +28,7 @@ pub struct JamEngine {
     status_data_tx: mpsc::Sender<serde_json::Value>,
     command_rx: mpsc::Receiver<ParamMessage>,
     update_timer: MicroTimer,
+    update_fallback_timer: MicroTimer,
     disconnect_timer: MicroTimer,
     token: String,
     mixer: Mixer,
@@ -42,13 +44,15 @@ impl JamEngine {
         tok: &str,
         git_hash: &str,
     ) -> Result<JamEngine, BoxError> {
+        let now = get_micro_time();
         let mut engine = JamEngine {
             sock: JamSocket::build(9991)?,
             recv_message: JamMessage::build(),
             xmit_message: JamMessage::build(),
             status_data_tx: tx,
             command_rx: rx,
-            update_timer: MicroTimer::build(get_micro_time(), 200_000),
+            update_timer: MicroTimer::build(now, IDLE_REFRESH),
+            update_fallback_timer: MicroTimer::build(now, IDLE_REFRESH * 5),
             disconnect_timer: MicroTimer::build(get_micro_time(), IDLE_DISCONNECT), // 15 minutes in uSeconds
             token: String::from(tok),
             mixer: Mixer::build(),
@@ -104,6 +108,10 @@ impl JamEngine {
         // give any clients on the websocket an update
         if self.update_timer.expired(self.now) {
             self.update_timer.reset(self.now);
+            if self.update_fallback_timer.expired(self.now) {
+                // throttle back to default refresh interval
+                self.update_timer.set_interval(IDLE_REFRESH);
+            }
             // send level updates
             let _res = self.status_data_tx.send(self.build_level_event());
             println!("disconnect: {}", self.disconnect_timer.since(self.now));
@@ -286,6 +294,18 @@ impl JamEngine {
             Some(JamParams::ConnectionKeepAlive) => {
                 // Sent by web client to let us know they are still there.
                 self.disconnect_timer.reset(self.now);
+            }
+            Some(JamParams::SetUpdateInterval) => {
+                // Update the refresh rate
+                let mut interval = (msg.ivalue_1 * 1000) as u128; // convert to msec
+                if interval < 150_000 {
+                    interval = 150_000;
+                }
+                if interval > IDLE_REFRESH {
+                    interval = IDLE_REFRESH;
+                }
+                self.update_timer.set_interval(interval);
+                self.update_fallback_timer.reset(self.now);
             }
             Some(_) => {
                 println!("unknown command: {}", msg);

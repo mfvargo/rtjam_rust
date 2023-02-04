@@ -101,11 +101,17 @@ impl MicroTimer {
             interval: interval,
         }
     }
+    pub fn set_interval(&mut self, interval: u128) -> () {
+        self.interval = interval;
+    }
     pub fn expired(&self, now: u128) -> bool {
         (self.last_time + self.interval) < now
     }
     pub fn reset(&mut self, now: u128) {
         self.last_time = now;
+    }
+    pub fn since(&mut self, now: u128) -> u128 {
+        now - self.last_time
     }
 }
 
@@ -124,5 +130,9 @@ mod test_micro_timer {
         assert!(mt.expired(now));
         mt.reset(now);
         assert!(!mt.expired(now));
+        assert_eq!(mt.since(now + 10), 10);
+        mt.set_interval(9);
+        now += 10;
+        assert!(mt.expired(now));
     }
 }

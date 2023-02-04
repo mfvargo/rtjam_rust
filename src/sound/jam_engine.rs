@@ -16,6 +16,9 @@ use super::{
     param_message::ParamMessage,
 };
 
+// Set a timer for how long a connect will hold up without a keepalive from the web client
+pub const IDLE_DISCONNECT: u128 = 15 * 60 * 1000 * 1000;
+
 pub struct JamEngine {
     // gonna have some stuff
     sock: JamSocket,
@@ -24,10 +27,12 @@ pub struct JamEngine {
     status_data_tx: mpsc::Sender<serde_json::Value>,
     command_rx: mpsc::Receiver<ParamMessage>,
     update_timer: MicroTimer,
+    disconnect_timer: MicroTimer,
     token: String,
     mixer: Mixer,
     chan_map: ChannelMap,
     git_hash: String,
+    now: u128,
 }
 
 impl JamEngine {
@@ -44,10 +49,12 @@ impl JamEngine {
             status_data_tx: tx,
             command_rx: rx,
             update_timer: MicroTimer::build(get_micro_time(), 200_000),
+            disconnect_timer: MicroTimer::build(get_micro_time(), IDLE_DISCONNECT), // 15 minutes in uSeconds
             token: String::from(tok),
             mixer: Mixer::build(),
             chan_map: ChannelMap::new(),
             git_hash: String::from(git_hash),
+            now: get_micro_time(),
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -61,10 +68,11 @@ impl JamEngine {
         out_b: &mut [f32],
     ) -> Result<(), BoxError> {
         // Get the local microsecond time
-        let now = get_micro_time();
-        self.send_status(now);
+        self.set_now();
+        self.send_status();
+        self.check_disconnect();
         self.check_command();
-        self.read_network(now);
+        self.read_network();
         self.send_my_audio(in_a, in_b);
         // This is where we would get the playback data
         // For now just copy input to output
@@ -74,12 +82,31 @@ impl JamEngine {
         // out_b.clone_from_slice(&b[..]);
         Ok(())
     }
-    fn send_status(&mut self, now: u128) -> () {
+    fn set_now(&mut self) -> () {
+        self.now = get_micro_time();
+    }
+    fn check_disconnect(&mut self) -> () {
+        if self.disconnect_timer.expired(self.now) {
+            self.disconnect();
+        }
+    }
+    fn disconnect(&mut self) -> () {
+        self.sock.disconnect();
+        // self.xmit_message.set_client_id(0);
+        self.chan_map.clear();
+    }
+    fn connect(&mut self, server: &str, port: i64, id: i64) -> () {
+        let _res = self.sock.connect(server, port, id);
+        self.xmit_message.set_client_id(id as u32);
+        self.disconnect_timer.reset(self.now);
+    }
+    fn send_status(&mut self) -> () {
         // give any clients on the websocket an update
-        if self.update_timer.expired(now) {
-            self.update_timer.reset(now);
+        if self.update_timer.expired(self.now) {
+            self.update_timer.reset(self.now);
             // send level updates
             let _res = self.status_data_tx.send(self.build_level_event());
+            println!("disconnect: {}", self.disconnect_timer.since(self.now));
             // println!("mixer: {}", self.mixer);
         }
     }
@@ -93,8 +120,8 @@ impl JamEngine {
         }
     }
     // This is where we read packets off of the network
-    fn read_network(&mut self, now: u128) -> () {
-        self.chan_map.prune(now);
+    fn read_network(&mut self) -> () {
+        self.chan_map.prune(self.now);
         let mut reading = true;
         while reading {
             let _res = self.sock.recv(&mut self.recv_message);
@@ -107,7 +134,7 @@ impl JamEngine {
                         // only map and put if it's got some data
                         match self
                             .chan_map
-                            .get_loc_channel(self.recv_message.get_client_id(), now)
+                            .get_loc_channel(self.recv_message.get_client_id(), self.now)
                         {
                             Some(idx) => {
                                 // We found a channel.
@@ -251,17 +278,14 @@ impl JamEngine {
             }
             Some(JamParams::RoomChange) => {
                 // connect message
-                let _res = self.sock.connect(
-                    &msg.svalue,
-                    (msg.ivalue_1 as i32).into(),
-                    (msg.ivalue_2 as i32).into(),
-                );
-                self.xmit_message.set_client_id(msg.ivalue_2 as u32);
+                self.connect(&msg.svalue, msg.ivalue_1, msg.ivalue_2);
             }
             Some(JamParams::Disconnect) => {
-                self.sock.disconnect();
-                // self.xmit_message.set_client_id(0);
-                self.chan_map.clear();
+                self.disconnect();
+            }
+            Some(JamParams::ConnectionKeepAlive) => {
+                // Sent by web client to let us know they are still there.
+                self.disconnect_timer.reset(self.now);
             }
             Some(_) => {
                 println!("unknown command: {}", msg);
@@ -271,5 +295,34 @@ impl JamEngine {
     }
     fn check_index(idx: usize) -> bool {
         idx < MIXER_CHANNELS
+    }
+}
+
+#[cfg(test)]
+
+mod test_jam_engine {
+    use super::*;
+
+    fn build_one() -> JamEngine {
+        // This is the channel the audio engine will use to send us status data
+        let (status_data_tx, _status_data_rx): (
+            mpsc::Sender<serde_json::Value>,
+            mpsc::Receiver<serde_json::Value>,
+        ) = mpsc::channel();
+
+        // This is the channel we will use to send commands to the jack engine
+        let (_command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
+            mpsc::channel();
+
+        JamEngine::build(status_data_tx, command_rx, "someToken", "some_git_hash").unwrap()
+    }
+
+    #[test]
+    fn disconnect_timer() {
+        // It should have a disconnect timer
+        let mut engine = build_one();
+        assert_eq!(engine.disconnect_timer.expired(engine.now), false);
+        engine.now = engine.now + IDLE_DISCONNECT + 1;
+        assert_eq!(engine.disconnect_timer.expired(engine.now), true);
     }
 }

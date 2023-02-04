@@ -107,6 +107,9 @@ impl MicroTimer {
     pub fn reset(&mut self, now: u128) {
         self.last_time = now;
     }
+    pub fn since(&mut self, now: u128) -> u128 {
+        now - self.last_time
+    }
 }
 
 #[cfg(test)]
@@ -124,5 +127,6 @@ mod test_micro_timer {
         assert!(mt.expired(now));
         mt.reset(now);
         assert!(!mt.expired(now));
+        assert_eq!(mt.since(now + 10), 10);
     }
 }

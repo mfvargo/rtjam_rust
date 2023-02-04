@@ -28,6 +28,9 @@ impl ChannelStrip {
     pub fn set_gain(&mut self, v: f32) -> () {
         self.gain = clip_float(v);
     }
+    pub fn get_gain(&self) -> f32 {
+        self.gain
+    }
     pub fn set_fade(&mut self, v: f32) -> () {
         self.fader.set(clip_float(v));
     }

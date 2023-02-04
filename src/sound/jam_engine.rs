@@ -5,10 +5,15 @@ use serde_json::json;
 use crate::{
     common::{box_error::BoxError, jam_packet::JamMessage, stream_time_stat::MicroTimer},
     server::player_list::get_micro_time,
+    utils::to_db,
 };
 
 use super::{
-    channel_map::ChannelMap, jam_socket::JamSocket, mixer::Mixer, param_message::ParamMessage,
+    channel_map::ChannelMap,
+    jam_params::JamParams,
+    jam_socket::JamSocket,
+    mixer::{Mixer, MIXER_CHANNELS},
+    param_message::ParamMessage,
 };
 
 pub struct JamEngine {
@@ -82,23 +87,7 @@ impl JamEngine {
     fn check_command(&mut self) -> () {
         match self.command_rx.try_recv() {
             Ok(msg) => {
-                // received a command
-                println!("jack thread received message: {}", msg);
-                // TODO: refactor this into some kind of match thing
-                if msg.param == 21 {
-                    // connect message
-                    let _res = self.sock.connect(
-                        &msg.svalue,
-                        (msg.ivalue_1 as i32).into(),
-                        (msg.ivalue_2 as i32).into(),
-                    );
-                    self.xmit_message.set_client_id(msg.ivalue_2 as u32);
-                }
-                if msg.param == 22 {
-                    self.sock.disconnect();
-                    self.xmit_message.set_client_id(0);
-                    self.chan_map.clear();
-                }
+                self.process_param_command(msg);
             }
             Err(_) => (),
         }
@@ -172,6 +161,9 @@ impl JamEngine {
             ));
             idx += 2;
         }
+        // this is a hack for input gain on channel 0 and 1
+        let in_gain0 = to_db(self.mixer.get_channel_gain(0)).round() as f64;
+        let in_gain1 = to_db(self.mixer.get_channel_gain(1)).round() as f64;
         let data = json!({
             "speaker": "UnitChatRobot",
             "levelEvent": json!({
@@ -181,10 +173,10 @@ impl JamEngine {
                   "masterLevel": self.mixer.get_master_level_avg(),
                   "peakMaster": self.mixer.get_master_level_peak(),
                   // TODO these values need to take out the gain in the channel strip
-                  "inputLeft": self.mixer.get_channel_power_avg(0),
-                  "inputRight": self.mixer.get_channel_power_avg(1),
-                  "peakLeft": self.mixer.get_channel_power_peak(0),
-                  "peakRight": self.mixer.get_channel_power_peak(1),
+                  "inputLeft": self.mixer.get_channel_power_avg(0) - in_gain0,
+                  "inputRight": self.mixer.get_channel_power_avg(1) - in_gain1,
+                  "peakLeft": self.mixer.get_channel_power_peak(0) - in_gain0,
+                  "peakRight": self.mixer.get_channel_power_peak(1)- in_gain1,
                   // These are what the channel is sending to the room
                   "roomInputLeft": self.mixer.get_channel_power_avg(0),
                   "roomInputRight": self.mixer.get_channel_power_avg(1),
@@ -205,5 +197,79 @@ impl JamEngine {
         });
 
         data
+    }
+    fn process_param_command(&mut self, msg: ParamMessage) -> () {
+        let param: Option<JamParams> = num::FromPrimitive::from_i64(msg.param);
+        match param {
+            Some(JamParams::ChanGain1) => {
+                self.mixer.set_channel_gain(0, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain2) => {
+                self.mixer.set_channel_gain(1, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain3) => {
+                self.mixer.set_channel_gain(2, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain4) => {
+                self.mixer.set_channel_gain(3, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain5) => {
+                self.mixer.set_channel_gain(4, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain6) => {
+                self.mixer.set_channel_gain(5, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain7) => {
+                self.mixer.set_channel_gain(6, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain8) => {
+                self.mixer.set_channel_gain(7, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain9) => {
+                self.mixer.set_channel_gain(8, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain10) => {
+                self.mixer.set_channel_gain(9, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain11) => {
+                self.mixer.set_channel_gain(10, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain12) => {
+                self.mixer.set_channel_gain(11, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain13) => {
+                self.mixer.set_channel_gain(12, msg.fvalue as f32);
+            }
+            Some(JamParams::ChanGain14) => {
+                self.mixer.set_channel_gain(13, msg.fvalue as f32);
+            }
+            Some(JamParams::SetFader) => {
+                if Self::check_index(msg.ivalue_1 as usize) {
+                    self.mixer
+                        .set_channel_fade(msg.ivalue_1 as usize, msg.fvalue as f32);
+                }
+            }
+            Some(JamParams::RoomChange) => {
+                // connect message
+                let _res = self.sock.connect(
+                    &msg.svalue,
+                    (msg.ivalue_1 as i32).into(),
+                    (msg.ivalue_2 as i32).into(),
+                );
+                self.xmit_message.set_client_id(msg.ivalue_2 as u32);
+            }
+            Some(JamParams::Disconnect) => {
+                self.sock.disconnect();
+                // self.xmit_message.set_client_id(0);
+                self.chan_map.clear();
+            }
+            Some(_) => {
+                println!("unknown command: {}", msg);
+            }
+            None => (),
+        }
+    }
+    fn check_index(idx: usize) -> bool {
+        idx < MIXER_CHANNELS
     }
 }

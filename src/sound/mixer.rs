@@ -2,7 +2,7 @@
 //! mixer used to combine all speakers into a stereo channel
 //!
 //!
-use crate::dsp::power_meter::PowerMeter;
+use crate::{dsp::power_meter::PowerMeter, utils::to_lin};
 
 use super::channel_strip::ChannelStrip;
 use std::fmt;
@@ -55,6 +55,15 @@ impl Mixer {
     }
     pub fn get_depth_in_msec(&self, idx: usize) -> f64 {
         self.strips[idx].get_depth() / 48.0 // Convert to msec
+    }
+    pub fn set_channel_gain(&mut self, idx: usize, val: f32) -> () {
+        self.strips[idx].set_gain(to_lin(val));
+    }
+    pub fn get_channel_gain(&self, idx: usize) -> f32 {
+        self.strips[idx].get_gain()
+    }
+    pub fn set_channel_fade(&mut self, idx: usize, val: f32) -> () {
+        self.strips[idx].set_fade(val);
     }
     pub fn get_mix(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
         // Zero out the out buffer

@@ -36,11 +36,17 @@ pub fn get_frame_power_in_db(frame: &[f32]) -> f32 {
     to_db(pow / frame.len() as f32)
 }
 
+// Convert a linear to db
 pub fn to_db(v: f32) -> f32 {
     if v > 0.000_000_1 {
         return 10.0 * f32::log10(v);
     }
     -60.0
+}
+
+// convert db to linear
+pub fn to_lin(v: f32) -> f32 {
+    f32::powf(10.0, v / 10.0)
 }
 
 #[cfg(test)]
@@ -70,5 +76,10 @@ mod test_utils {
         assert_eq!(get_frame_power_in_db(&frame), -60.0);
         let frame = [0.5; 128];
         assert_eq!(get_frame_power_in_db(&frame).round(), -6.0);
+    }
+    #[test]
+    fn lin_to_db_and_back() {
+        assert_eq!(to_db(1.0), 0.0);
+        assert_eq!(to_lin(-10.0), 0.1);
     }
 }

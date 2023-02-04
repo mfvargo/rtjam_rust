@@ -22,13 +22,12 @@ impl fmt::Display for JitterBuffer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ target: {}, underruns: {}, overruns: {}, depth: {}, puts: {}, gets: {} }}",
+            "{{ target: {}, underruns: {}, overruns: {}, depth: {:.2}, puts: {} }}",
             self.target_depth,
             self.underruns,
             self.overruns,
             self.depth_stats.get_mean(),
-            self.puts,
-            self.gets
+            self.puts
         )
     }
 }

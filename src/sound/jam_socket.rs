@@ -77,14 +77,14 @@ mod test_jam_socket {
 
     #[test]
     fn build_socket() {
-        let sock = JamSocket::build(9990).unwrap();
+        let sock = JamSocket::build(19990).unwrap();
         println!("sock: {}", sock);
         assert!(true);
     }
     #[test]
     fn connecting() {
         // It should be able to connect
-        let mut sock = JamSocket::build(9991).unwrap();
+        let mut sock = JamSocket::build(19991).unwrap();
         assert!(!sock.is_connected());
         sock.connect("10.0.0.9", 48481, 3949384).unwrap();
         assert!(sock.is_connected());

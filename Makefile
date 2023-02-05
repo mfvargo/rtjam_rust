@@ -4,7 +4,7 @@ all:
 	git rev-parse HEAD > target/release/examples/version.txt
 
 clean:
-	cargo clean
+	rm -rf target/release/examples/*
 
 deploy: all
 	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.basscleftech.com:/home/ubuntu/www/html/pi/rust

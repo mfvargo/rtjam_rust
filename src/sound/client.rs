@@ -79,7 +79,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
-                println!("websocket message: {}", m);
+                // println!("websocket message: {}", m);
                 match ParamMessage::from_json(&m) {
                     Ok(msg) => {
                         // We have a valid param message.  Send it to the jack thread

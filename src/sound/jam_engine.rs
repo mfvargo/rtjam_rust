@@ -114,7 +114,7 @@ impl JamEngine {
             }
             // send level updates
             let _res = self.status_data_tx.send(self.build_level_event());
-            println!("disconnect: {}", self.disconnect_timer.since(self.now));
+            // println!("disconnect: {}", self.disconnect_timer.since(self.now));
             // println!("mixer: {}", self.mixer);
         }
     }

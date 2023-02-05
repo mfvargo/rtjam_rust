@@ -8,7 +8,8 @@ if [ "$?" -ne "0" ]; then
   echo "could not get version from server"
   exit 2
 fi
-./rtjam-sound --version > $LOCAL_VERSION
+echo "getting local version"
+./rtjam-sound --version > version.local.txt
 cmp -s $WEBVER $LOCALVER
 if [ "$?" -ne "0" ]; then
   echo "Updating rtjam software"
@@ -16,7 +17,7 @@ if [ "$?" -ne "0" ]; then
   /usr/bin/mv rtjam-sound rtjam-sound.old
   /usr/bin/wget localhost/pi/rust/rtjam_sound
   /usr/bin/mv rtjam_sound rtjam-sound
-  /usr/bin/chmod +x rtjam_sound
+  /usr/bin/chmod +x rtjam-sound
   /usr/bin/systemctl start rtjam-sound
 else
   echo "No update needed"

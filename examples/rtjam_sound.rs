@@ -6,7 +6,7 @@ fn main() -> Result<(), BoxError> {
     let git_hash = get_git_hash();
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        print!("{}", git_hash);
+        println!("{}", git_hash);
         exit(0);
     }
     client::run(git_hash.as_str())?;

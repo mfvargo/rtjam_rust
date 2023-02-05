@@ -3,8 +3,7 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::common::stream_time_stat::StreamTimeStat;
-use serde::{Deserialize, Serialize};
+use crate::dsp::smoothing_filter::SmoothingFilter;
 
 // Get the time in microseconds
 pub fn get_micro_time() -> u128 {
@@ -18,27 +17,37 @@ pub fn get_micro_time() -> u128 {
 const SERVER_EXPIRATION_IN_MICROSECONDS: u128 = 500000;
 
 // make the player serialize to json
-#[derive(Debug, Deserialize, Serialize)]
 pub struct Player {
     pub client_id: u32,
     pub keep_alive: u128,
-    pub last_loop: u128,
     pub address: SocketAddr,
-    pub loop_stat: StreamTimeStat,
+    pub loop_stat: SmoothingFilter,
 }
+
+// Only measure loop times up to 100msec
+pub const MAX_LOOP_TIME: u128 = 100_000;
 
 impl Player {
     pub fn build(now_time: u128, id: u32, addr: SocketAddr) -> Player {
         Player {
             client_id: id,
             keep_alive: now_time,
-            last_loop: now_time,
             address: addr.clone(),
-            loop_stat: StreamTimeStat::build(50),
+            loop_stat: SmoothingFilter::build(0.5, 2666),
         }
     }
     pub fn age(&self, now_time: u128) -> u128 {
         now_time - self.keep_alive
+    }
+    pub fn update(&mut self, now_time: u128, id: u32, loop_time: u128) -> () {
+        if now_time > self.keep_alive {
+            if loop_time < MAX_LOOP_TIME {
+                // Only count loop times less than 100msec
+                self.loop_stat.get(loop_time as f64);
+            }
+            self.keep_alive = now_time;
+            self.client_id = id;
+        }
     }
 }
 
@@ -51,7 +60,7 @@ impl fmt::Display for Player {
             self.client_id,
             self.address,
             self.age(get_micro_time()),
-            self.last_loop
+            self.loop_stat.get_last_output()
         )
     }
 }
@@ -69,7 +78,6 @@ mod test_player {
         let player = Player::build(get_micro_time(), 44, socket);
         println!("player: {}", player);
         assert_eq!(player.address, socket);
-        println!("json player: {}", serde_json::to_string(&player).unwrap());
     }
 }
 pub struct PlayerList {
@@ -93,13 +101,7 @@ impl PlayerList {
         // look for this player and update their timestamp if found
         for player in &mut self.players {
             if player.address == addr {
-                player.keep_alive = now_time;
-                player.address = addr;
-                player.client_id = id;
-                if loop_time < 5000 {
-                    player.last_loop = loop_time;
-                    player.loop_stat.add_sample(loop_time as f64);
-                }
+                player.update(now_time, id, loop_time);
                 return ();
             }
         }
@@ -118,7 +120,8 @@ impl PlayerList {
     pub fn get_latency(&mut self) -> serde_json::Value {
         let mut lmap: HashMap<u32, f64> = HashMap::new();
         for p in &self.players {
-            lmap.insert(p.client_id, p.loop_stat.get_mean());
+            lmap.insert(p.client_id, p.loop_stat.get_last_output().round() / 1000.0);
+            // Convert to msec
         }
         serde_json::json!({
             "latency": lmap,

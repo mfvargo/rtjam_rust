@@ -136,6 +136,9 @@ impl JamEngine {
             match _res {
                 Ok(_v) => {
                     // got a network packet
+                    // Set the server timestamp on xmit packets to loop it back to broadcast server
+                    self.xmit_message
+                        .set_server_time(self.recv_message.get_server_time());
                     // Figure out what channel this guy belongs to
                     let (c1, c2) = self.recv_message.decode_audio();
                     if c1.len() > 0 {

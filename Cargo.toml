@@ -22,3 +22,9 @@ num-traits = "0.2.15"
 [build-dependencies]
 vergen = "7.5.0"
 anyhow = "1.0.68"
+
+
+[profile.release]
+opt-level = 'z'     # Optimize for size
+lto = true          # Enable link-time optimization
+strip = true        # Strip symbols from binary*

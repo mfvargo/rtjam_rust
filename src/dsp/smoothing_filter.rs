@@ -22,6 +22,9 @@ impl SmoothingFilter {
         self.last_output = input * self.coef + (1.0 - self.coef) * self.last_output;
         self.last_output
     }
+    pub fn get_last_output(&self) -> f64 {
+        self.last_output
+    }
 }
 
 impl fmt::Display for SmoothingFilter {

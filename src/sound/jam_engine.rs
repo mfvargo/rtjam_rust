@@ -53,12 +53,12 @@ impl JamEngine {
             command_rx: rx,
             update_timer: MicroTimer::build(now, IDLE_REFRESH),
             update_fallback_timer: MicroTimer::build(now, IDLE_REFRESH * 5),
-            disconnect_timer: MicroTimer::build(get_micro_time(), IDLE_DISCONNECT), // 15 minutes in uSeconds
+            disconnect_timer: MicroTimer::build(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
             token: String::from(tok),
             mixer: Mixer::build(),
             chan_map: ChannelMap::new(),
             git_hash: String::from(git_hash),
-            now: get_micro_time(),
+            now: now,
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);

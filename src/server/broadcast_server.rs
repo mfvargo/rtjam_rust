@@ -20,7 +20,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         String::from(config.get_value("api_url", "http://rtjam-nation.basscleftech.com/api/1/"));
     let ws_url =
         String::from(config.get_value("ws_url", "ws://rtjam-nation.basscleftech.com/primus"));
-    let port: u32 = config.get_value("port", "7891").parse()?;
+    let port: u32 = config.get_u32_value("port", 7891);
+    println!("port: {}", port);
     let room_port = port.clone();
     let mac_address = utils::get_my_mac_address(config.get_value("networkInterface", "eth0"))?;
     // Create an api endpoint and register this server

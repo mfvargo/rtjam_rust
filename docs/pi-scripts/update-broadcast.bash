@@ -9,16 +9,16 @@ if [ "$?" -ne "0" ]; then
   exit 2
 fi
 echo "getting local version"
-./rtjam-sound --version > version.local.txt
+./rtjam-broadcast --version > version.local.txt
 cmp -s $WEBVER $LOCALVER
 if [ "$?" -ne "0" ]; then
   echo "Updating rtjam software"
-  /usr/bin/systemctl stop rtjam-sound
-  /usr/bin/mv rtjam-sound rtjam-sound.old
-  /usr/bin/wget localhost/pi/rust/rtjam_sound
-  /usr/bin/mv rtjam_sound rtjam-sound
-  /usr/bin/chmod +x rtjam-sound
-  /usr/bin/systemctl start rtjam-sound
+  /usr/bin/systemctl stop rtjam-broadcast
+  /usr/bin/mv rtjam-broadcast rtjam-broadcast.old
+  /usr/bin/wget localhost/pi/rust/rtjam_broadcast
+  /usr/bin/mv rtjam_broadcast rtjam-broadcast
+  /usr/bin/chmod +x rtjam-broadcast
+  /usr/bin/systemctl start rtjam-broadcast
 else
   echo "No update needed"
 fi

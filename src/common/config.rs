@@ -24,6 +24,7 @@ impl Config {
                 // we were able to read the file
                 let parsed = json::parse(&raw_data).unwrap();
                 self.settings.clone_from(&parsed);
+                println!("settings: {}", self.settings.pretty(2));
                 Ok(true)
             }
             Err(_) => {
@@ -35,6 +36,14 @@ impl Config {
 
     pub fn get_value<'a>(&'a mut self, key: &str, def_value: &'a str) -> &str {
         let val = self.settings[key].as_str();
+        match val {
+            None => def_value,
+            Some(i) => i,
+        }
+    }
+
+    pub fn get_u32_value(&self, key: &str, def_value: u32) -> u32 {
+        let val = self.settings[key].as_u32();
         match val {
             None => def_value,
             Some(i) => i,

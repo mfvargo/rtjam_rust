@@ -1,3 +1,4 @@
+use crate::utils::to_db;
 use serde_json::{json, Value};
 
 pub enum SettingType {
@@ -18,7 +19,6 @@ pub enum SettingUnit {
 pub struct PedalSetting {
     name: String,
     labels: Vec<String>,
-    index: usize,
     value: f64,
     min: f64,
     max: f64,
@@ -28,12 +28,11 @@ pub struct PedalSetting {
 }
 
 impl PedalSetting {
-    pub fn build() -> PedalSetting {
+    pub fn build(name: &str, labels: Vec<String>, value: f64) -> PedalSetting {
         PedalSetting {
-            name: String::from("empty"),
-            labels: vec![],
-            index: 0,
-            value: 0.0,
+            name: String::from(name),
+            labels: labels,
+            value: value,
             min: -100.0,
             max: 100.0,
             step: 1.0,
@@ -41,9 +40,9 @@ impl PedalSetting {
             setting_type: SettingType::Float(0.0),
         }
     }
-    pub fn to_json(&self) -> Value {
+    pub fn to_json(&self, idx: usize) -> Value {
         json!({
-          "index": self.index,
+          "index": idx,
           "labels": self.labels,
           "name": self.name,
           "value": self.value,
@@ -54,11 +53,17 @@ impl PedalSetting {
           "type": self.setting_type_to_json(),
         })
     }
-    fn setting_type_to_json(&self) -> usize {
+    fn setting_type_to_json(&self) -> serde_json::Value {
         match self.setting_type {
-            SettingType::Float(_f) => 0,
-            SettingType::Int(_i) => 1,
-            SettingType::Boolean(_b) => 2,
+            SettingType::Float(f) => serde_json::Value::from(match self.units {
+                SettingUnit::Msec => f / 1000.0,
+                SettingUnit::DB => to_db(f) as f64,
+                SettingUnit::Linear => f,
+                SettingUnit::Selector => f,
+                SettingUnit::Footswitch => f,
+            }),
+            SettingType::Int(i) => serde_json::Value::from(i),
+            SettingType::Boolean(b) => serde_json::Value::from(b),
         }
     }
     pub fn get_value_float(&self) -> Option<f64> {
@@ -86,16 +91,20 @@ impl PedalSetting {
 mod test_pedal_setttings {
     use super::*;
 
+    fn build_a_db() -> PedalSetting {
+        PedalSetting::build("gain", vec![], -12.0)
+    }
+
     #[test]
     fn can_build() {
-        let setting = PedalSetting::build();
-        assert_eq!(setting.index, 0);
+        let setting = build_a_db();
+        assert_eq!(setting.value, -12.0);
     }
 
     #[test]
     fn can_json_out() {
-        let setting = PedalSetting::build();
-        let j_val = setting.to_json();
+        let setting = build_a_db();
+        let j_val = setting.to_json(1);
         println!("jval: {}", j_val);
         assert_eq!(j_val["name"], setting.name);
     }

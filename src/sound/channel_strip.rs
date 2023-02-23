@@ -1,11 +1,11 @@
-use crate::{dsp::power_meter::PowerMeter, utils::clip_float};
+use crate::dsp::power_meter::PowerMeter;
 use std::fmt;
 
 use super::{fader::Fader, jitter_buffer::JitterBuffer};
 
 pub struct ChannelStrip {
     fader: Fader,
-    gain: f32,
+    gain: f64,
     buffer: JitterBuffer,
     level: PowerMeter,
 }
@@ -21,18 +21,18 @@ impl ChannelStrip {
     }
     pub fn calc_values(&self, in_val: f32) -> (f32, f32) {
         (
-            self.gain * in_val * self.fader.left(),
-            self.gain * in_val * self.fader.right(),
+            self.gain as f32 * in_val * self.fader.left(),
+            self.gain as f32 * in_val * self.fader.right(),
         )
     }
-    pub fn set_gain(&mut self, v: f32) -> () {
-        self.gain = clip_float(v);
+    pub fn set_gain(&mut self, v: f64) -> () {
+        self.gain = f64::clamp(v, -1.0, 1.0);
     }
-    pub fn get_gain(&self) -> f32 {
+    pub fn get_gain(&self) -> f64 {
         self.gain
     }
     pub fn set_fade(&mut self, v: f32) -> () {
-        self.fader.set(clip_float(v));
+        self.fader.set(v);
     }
     pub fn mix_into(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
         // First get some data from the buff

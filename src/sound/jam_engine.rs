@@ -240,46 +240,46 @@ impl JamEngine {
         let param: Option<JamParams> = num::FromPrimitive::from_i64(msg.param);
         match param {
             Some(JamParams::ChanGain1) => {
-                self.mixer.set_channel_gain(0, msg.fvalue as f32);
+                self.mixer.set_channel_gain(0, msg.fvalue);
             }
             Some(JamParams::ChanGain2) => {
-                self.mixer.set_channel_gain(1, msg.fvalue as f32);
+                self.mixer.set_channel_gain(1, msg.fvalue);
             }
             Some(JamParams::ChanGain3) => {
-                self.mixer.set_channel_gain(2, msg.fvalue as f32);
+                self.mixer.set_channel_gain(2, msg.fvalue);
             }
             Some(JamParams::ChanGain4) => {
-                self.mixer.set_channel_gain(3, msg.fvalue as f32);
+                self.mixer.set_channel_gain(3, msg.fvalue);
             }
             Some(JamParams::ChanGain5) => {
-                self.mixer.set_channel_gain(4, msg.fvalue as f32);
+                self.mixer.set_channel_gain(4, msg.fvalue);
             }
             Some(JamParams::ChanGain6) => {
-                self.mixer.set_channel_gain(5, msg.fvalue as f32);
+                self.mixer.set_channel_gain(5, msg.fvalue);
             }
             Some(JamParams::ChanGain7) => {
-                self.mixer.set_channel_gain(6, msg.fvalue as f32);
+                self.mixer.set_channel_gain(6, msg.fvalue);
             }
             Some(JamParams::ChanGain8) => {
-                self.mixer.set_channel_gain(7, msg.fvalue as f32);
+                self.mixer.set_channel_gain(7, msg.fvalue);
             }
             Some(JamParams::ChanGain9) => {
-                self.mixer.set_channel_gain(8, msg.fvalue as f32);
+                self.mixer.set_channel_gain(8, msg.fvalue);
             }
             Some(JamParams::ChanGain10) => {
-                self.mixer.set_channel_gain(9, msg.fvalue as f32);
+                self.mixer.set_channel_gain(9, msg.fvalue);
             }
             Some(JamParams::ChanGain11) => {
-                self.mixer.set_channel_gain(10, msg.fvalue as f32);
+                self.mixer.set_channel_gain(10, msg.fvalue);
             }
             Some(JamParams::ChanGain12) => {
-                self.mixer.set_channel_gain(11, msg.fvalue as f32);
+                self.mixer.set_channel_gain(11, msg.fvalue);
             }
             Some(JamParams::ChanGain13) => {
-                self.mixer.set_channel_gain(12, msg.fvalue as f32);
+                self.mixer.set_channel_gain(12, msg.fvalue);
             }
             Some(JamParams::ChanGain14) => {
-                self.mixer.set_channel_gain(13, msg.fvalue as f32);
+                self.mixer.set_channel_gain(13, msg.fvalue);
             }
             Some(JamParams::SetFader) => {
                 if Self::check_index(msg.ivalue_1 as usize) {

@@ -53,6 +53,9 @@ impl PedalSetting {
           "type": self.setting_type_to_json(),
         })
     }
+    pub fn from_json(json: &serde_json::Value) -> Option<PedalSetting> {
+        None
+    }
     fn setting_type_to_json(&self) -> serde_json::Value {
         match self.setting_type {
             SettingType::Float(f) => serde_json::Value::from(match self.units {
@@ -124,6 +127,10 @@ mod test_pedal_setttings {
           }
         "#;
         let jval: Value = serde_json::from_str(data).unwrap();
-        println!("json: {}", jval);
+        let res = PedalSetting::from_json(&jval);
+        match res {
+            Some(setting) => assert_eq!(setting.name, "bypass"),
+            None => assert!(false),
+        }
     }
 }

@@ -200,8 +200,8 @@ impl JamEngine {
             idx += 2;
         }
         // this is a hack for input gain on channel 0 and 1
-        let in_gain0 = to_db(self.mixer.get_channel_gain(0)).round() as f64;
-        let in_gain1 = to_db(self.mixer.get_channel_gain(1)).round() as f64;
+        let in_gain0 = to_db(self.mixer.get_channel_gain(0)).round();
+        let in_gain1 = to_db(self.mixer.get_channel_gain(1)).round();
         let data = json!({
             "speaker": "UnitChatRobot",
             "levelEvent": json!({

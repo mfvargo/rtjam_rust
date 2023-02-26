@@ -9,7 +9,7 @@ pub struct AttackHoldRelease {
 }
 
 impl AttackHoldRelease {
-    pub fn build(attack: f64, hold: f64, release: f64, sample_rate: usize) -> AttackHoldRelease {
+    pub fn new(attack: f64, hold: f64, release: f64, sample_rate: usize) -> AttackHoldRelease {
         AttackHoldRelease {
             attack_coef: Self::get_coef(attack, sample_rate),
             release_coef: Self::get_coef(release, sample_rate),
@@ -24,7 +24,7 @@ impl AttackHoldRelease {
         27.0 * (1.0 - f64::exp(-1.0 * (1.0 / (6.28 * val * rate as f64))))
     }
 
-    pub fn get(&mut self, trigger: bool) -> f64 {
+    pub fn get(&mut self, trigger: bool) -> f32 {
         if trigger == true {
             self.attack_release_ouput =
                 self.attack_coef + (1.0 - self.attack_coef) * self.last_output;
@@ -43,7 +43,7 @@ impl AttackHoldRelease {
 
         self.last_output = self.attack_release_ouput; // trigger(n-1) = trigger(n)
 
-        self.attack_release_ouput
+        self.attack_release_ouput as f32
     }
 }
 
@@ -64,7 +64,7 @@ mod test_peak_detector {
 
     #[test]
     fn get_value() {
-        let mut detector = AttackHoldRelease::build(0.1, 0.5, 2.5, 2666);
+        let mut detector = AttackHoldRelease::new(0.1, 0.5, 2.5, 2666);
         println!("init: {}", detector);
         // It shoujld start at 0
         assert!(detector.get(true) > 0.0);

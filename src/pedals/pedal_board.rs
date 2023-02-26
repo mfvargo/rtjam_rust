@@ -1,4 +1,4 @@
-use super::{pedal::Pedal, tone_stack::ToneStack};
+use super::{noise_gate::NoiseGate, pedal::Pedal, tone_stack::ToneStack};
 use serde_json::json;
 
 pub struct PedalBoard {
@@ -15,7 +15,8 @@ impl PedalBoard {
 
     pub fn get_pedal_types() -> serde_json::Value {
         json!({
-          "Tone Stack": "Tone controls (3 band)"
+          "Tone Stack": "Tone controls (3 band)",
+          "Noise Gate": "Noise Gate",
         })
     }
 
@@ -26,6 +27,7 @@ impl PedalBoard {
     fn make_pedal(type_name: &str) -> Option<Box<dyn Pedal>> {
         match type_name {
             "Tone Stack" => Some(Box::new(ToneStack::new())),
+            "Noise Gate" => Some(Box::new(NoiseGate::new())),
             _ => {
                 // No pedal for that name
                 println!("Can't create pedal {}", type_name);
@@ -49,6 +51,15 @@ impl PedalBoard {
         if idx < self.pedals.len() {
             self.pedals.remove(idx);
         }
+    }
+    pub fn as_json(&self) -> serde_json::Value {
+        let mut rval: Vec<serde_json::Value> = vec![];
+        let mut i = 0;
+        for p in &self.pedals {
+            rval.push(p.as_json(i));
+            i += 1;
+        }
+        json!(rval)
     }
 }
 
@@ -78,5 +89,16 @@ mod test_pedal_board {
         assert_eq!(board.num_pedals(), 1);
         board.delete_pedal(0);
         assert_eq!(board.num_pedals(), 0);
+    }
+    #[test]
+    fn can_build_muliple() {
+        let mut board = PedalBoard::new();
+        board.insert_pedal("Tone Stack", 0);
+        board.insert_pedal("Noise Gate", 0);
+        assert_eq!(board.num_pedals(), 2);
+        println!(
+            "board: {}",
+            serde_json::to_string_pretty(&board.as_json()).unwrap()
+        );
     }
 }

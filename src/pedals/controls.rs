@@ -22,7 +22,7 @@ impl SettingUnit {
 }
 
 pub struct PedalSetting<T> {
-    units: SettingUnit,
+    pub units: SettingUnit,
     name: String,
     labels: Vec<String>,
     value: T,
@@ -58,6 +58,9 @@ impl<T: PartialOrd + Copy + Serialize> PedalSetting<T> {
         };
         thg.set_value(value);
         thg
+    }
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
     }
     pub fn set_value(&mut self, value: T) {
         if value < self.min {

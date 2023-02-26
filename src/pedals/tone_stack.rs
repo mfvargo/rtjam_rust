@@ -102,7 +102,7 @@ impl Pedal for ToneStack {
 
 #[cfg(test)]
 
-mod test_pedal_pedal {
+mod test_tonestack {
     use super::*;
 
     #[test]

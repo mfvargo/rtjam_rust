@@ -66,7 +66,7 @@ mod test_peak_detector {
     fn get_value() {
         let mut detector = AttackHoldRelease::new(0.1, 0.5, 2.5, 2666);
         println!("init: {}", detector);
-        // It shoujld start at 0
+        // It should start at 0
         assert!(detector.get(true) > 0.0);
     }
 }

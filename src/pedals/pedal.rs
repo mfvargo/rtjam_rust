@@ -3,7 +3,7 @@ use serde_json::json;
 use super::controls::{PedalSetting, SettingUnit};
 
 pub trait Pedal {
-    fn process(&self, input: &[f32], output: &mut [f32]) -> () {
+    fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
         if self.bypass() {
             let mut i: usize = 0;
             for samp in input {
@@ -32,7 +32,7 @@ pub trait Pedal {
         })
     }
 
-    fn do_algorithm(&self, input: &[f32], output: &mut [f32]) -> ();
+    fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> ();
 
     fn as_json(&self, index: usize) -> serde_json::Value;
 }

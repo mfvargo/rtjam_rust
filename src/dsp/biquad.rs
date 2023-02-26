@@ -201,12 +201,13 @@ impl BiQuadFilter {
         self.a0 = 1.0;
     }
 
-    pub fn get_sample(&mut self, input: f32) -> f32 {
-        let value: f64 = self.b0 * input as f64 + self.b1 * self.x1 + self.b2 * self.x2
+    pub fn get_sample(&mut self, input: &f32) -> f32 {
+        let samp = *input as f64;
+        let value: f64 = self.b0 * samp + self.b1 * self.x1 + self.b2 * self.x2
             - self.a1 * self.y1
             - self.a2 * self.y2;
         self.x2 = self.x1;
-        self.x1 = input as f64;
+        self.x1 = samp;
         self.y2 = self.y1;
         self.y1 = value;
         value as f32
@@ -242,7 +243,7 @@ mod test_biquad {
         let mut filter = BiQuadFilter::new();
         filter.init(FilterType::LowPass, 400.0, 1.0, 2.0, 48_000.0);
         for samp in samps {
-            res.push(filter.get_sample(samp));
+            res.push(filter.get_sample(&samp));
         }
         println!("result: {:?}", res);
     }

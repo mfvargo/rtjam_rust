@@ -36,6 +36,7 @@ pub struct JamEngine {
     chan_map: ChannelMap,
     git_hash: String,
     now: u128,
+    pedal_boards: Vec<PedalBoard>,
 }
 
 impl JamEngine {
@@ -60,6 +61,7 @@ impl JamEngine {
             chan_map: ChannelMap::new(),
             git_hash: String::from(git_hash),
             now: now,
+            pedal_boards: vec![PedalBoard::new(), PedalBoard::new()],
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -311,10 +313,20 @@ impl JamEngine {
                 self.update_timer.set_interval(interval);
                 self.update_fallback_timer.reset(self.now);
             }
+            Some(JamParams::GetConfigJson) => {
+                let _res = self.status_data_tx.send(json!({
+                    "speaker": "UnitChatRobot",
+                    "pedalInfo": [
+                        self.pedal_boards[0].as_json(0),
+                        self.pedal_boards[1].as_json(1)
+                    ]
+                }));
+            }
             Some(JamParams::GetPedalTypes) => {
-                let _res = self
-                    .status_data_tx
-                    .send(json!({ "pedalTypes": PedalBoard::get_pedal_types() }));
+                let _res = self.status_data_tx.send(json!({
+                    "speaker": "UnitChatRobot",
+                    "pedalTypes": PedalBoard::get_pedal_types()
+                }));
             }
             Some(_) => {
                 println!("unknown command: {}", msg);

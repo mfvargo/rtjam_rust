@@ -1,8 +1,14 @@
 use super::{noise_gate::NoiseGate, pedal::Pedal, tone_stack::ToneStack};
 use serde_json::json;
 
+type BoxedPedal = std::boxed::Box<
+    dyn Pedal
+        + std::marker::Send // needed for threads
+        + std::marker::Sync, // needed for threads
+>;
+
 pub struct PedalBoard {
-    pedals: Vec<Box<dyn Pedal>>,
+    pedals: Vec<BoxedPedal>,
 }
 
 impl PedalBoard {
@@ -24,7 +30,7 @@ impl PedalBoard {
         self.pedals.len()
     }
 
-    fn make_pedal(type_name: &str) -> Option<Box<dyn Pedal>> {
+    fn make_pedal(type_name: &str) -> Option<BoxedPedal> {
         match type_name {
             "Tone Stack" => Some(Box::new(ToneStack::new())),
             "Noise Gate" => Some(Box::new(NoiseGate::new())),
@@ -52,14 +58,19 @@ impl PedalBoard {
             self.pedals.remove(idx);
         }
     }
-    pub fn as_json(&self) -> serde_json::Value {
+    pub fn as_json(&self, idx: usize) -> serde_json::Value {
         let mut rval: Vec<serde_json::Value> = vec![];
         let mut i = 0;
         for p in &self.pedals {
             rval.push(p.as_json(i));
             i += 1;
         }
-        json!(rval)
+        json!({
+            "boardId": -1,
+            "channel": idx,
+            "name": format!("channel_{}", idx),
+            "effects": rval,
+        })
     }
 }
 
@@ -98,7 +109,7 @@ mod test_pedal_board {
         assert_eq!(board.num_pedals(), 2);
         println!(
             "board: {}",
-            serde_json::to_string_pretty(&board.as_json()).unwrap()
+            serde_json::to_string_pretty(&board.as_json(1)).unwrap()
         );
     }
 }

@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use super::controls::{PedalSetting, SettingUnit};
+use super::controls::SettingUnit;
 
 pub trait Pedal {
     fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
@@ -35,9 +35,4 @@ pub trait Pedal {
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> ();
 
     fn as_json(&self, index: usize) -> serde_json::Value;
-}
-
-pub enum Setting {
-    Float(PedalSetting<f64>),
-    Selector(PedalSetting<usize>),
 }

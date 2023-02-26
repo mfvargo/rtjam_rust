@@ -4,6 +4,7 @@ use serde_json::json;
 
 use crate::{
     common::{box_error::BoxError, jam_packet::JamMessage, stream_time_stat::MicroTimer},
+    pedals::pedal_board::PedalBoard,
     server::player_list::get_micro_time,
     utils::to_db,
 };
@@ -309,6 +310,11 @@ impl JamEngine {
                 }
                 self.update_timer.set_interval(interval);
                 self.update_fallback_timer.reset(self.now);
+            }
+            Some(JamParams::GetPedalTypes) => {
+                let _res = self
+                    .status_data_tx
+                    .send(json!({ "pedalTypes": PedalBoard::get_pedal_types() }));
             }
             Some(_) => {
                 println!("unknown command: {}", msg);

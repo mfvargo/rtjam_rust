@@ -1,0 +1,82 @@
+use super::{pedal::Pedal, tone_stack::ToneStack};
+use serde_json::json;
+
+pub struct PedalBoard {
+    pedals: Vec<Box<dyn Pedal>>,
+}
+
+impl PedalBoard {
+    pub fn new() -> PedalBoard {
+        PedalBoard { pedals: vec![] }
+    }
+    pub fn add_tone_stack(&mut self) -> () {
+        self.pedals.push(Box::new(ToneStack::new()));
+    }
+
+    pub fn get_pedal_types() -> serde_json::Value {
+        json!({
+          "Tone Stack": "Tone controls (3 band)"
+        })
+    }
+
+    pub fn num_pedals(&self) -> usize {
+        self.pedals.len()
+    }
+
+    fn make_pedal(type_name: &str) -> Option<Box<dyn Pedal>> {
+        match type_name {
+            "Tone Stack" => Some(Box::new(ToneStack::new())),
+            _ => {
+                // No pedal for that name
+                println!("Can't create pedal {}", type_name);
+                None
+            }
+        }
+    }
+    pub fn insert_pedal(&mut self, type_name: &str, idx: usize) -> () {
+        match Self::make_pedal(type_name) {
+            Some(p) => {
+                if idx > self.pedals.len() {
+                    self.pedals.push(p)
+                } else {
+                    self.pedals.insert(idx, p)
+                }
+            }
+            None => (),
+        }
+    }
+    pub fn delete_pedal(&mut self, idx: usize) -> () {
+        if idx < self.pedals.len() {
+            self.pedals.remove(idx);
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_pedal_board {
+    use super::*;
+
+    #[test]
+    fn get_types() {
+        let types = PedalBoard::get_pedal_types();
+        assert_eq!(types["Tone Stack"], "Tone controls (3 band)");
+    }
+
+    #[test]
+    fn can_add_one() {
+        let mut board = PedalBoard::new();
+        assert_eq!(board.num_pedals(), 0);
+        board.insert_pedal("Tone Stack", 0);
+        assert_eq!(board.num_pedals(), 1);
+        board.insert_pedal("BogusPedalThatCannotBeMade", 0);
+        assert_eq!(board.num_pedals(), 1);
+    }
+    #[test]
+    fn can_delete_one() {
+        let mut board = PedalBoard::new();
+        board.insert_pedal("Tone Stack", 0);
+        assert_eq!(board.num_pedals(), 1);
+        board.delete_pedal(0);
+        assert_eq!(board.num_pedals(), 0);
+    }
+}

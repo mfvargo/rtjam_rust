@@ -13,11 +13,11 @@ pub enum FilterType {
 }
 
 pub struct BiQuadFilter {
-    pub filter_type: FilterType,
-    pub sample_rate: f64,
-    pub cutoff_freq: f64,
-    pub cut_boost: f64,
-    pub q: f64,
+    filter_type: FilterType,
+    sample_rate: f64,
+    cutoff_freq: f64,
+    cut_boost: f64,
+    q: f64,
     // coeffs used to run the biquad
     a0: f64,
     a1: f64,

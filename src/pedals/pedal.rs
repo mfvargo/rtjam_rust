@@ -19,6 +19,8 @@ pub trait Pedal {
         false
     }
 
+    fn set_my_bypass(&mut self, val: bool) -> ();
+
     fn make_bypass(&self) -> serde_json::Value {
         json!({
             "index": 0,
@@ -35,4 +37,25 @@ pub trait Pedal {
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> ();
 
     fn as_json(&self, index: usize) -> serde_json::Value;
+
+    fn change_setting(&mut self, setting: serde_json::Value) -> () {
+        match setting["name"].as_str() {
+            Some(v) => match v {
+                "bypass" => match setting["value"].as_bool() {
+                    Some(b) => {
+                        self.set_my_bypass(b);
+                    }
+                    None => (),
+                },
+                _ => {
+                    self.do_change_a_value(v, &setting["value"]);
+                    self.load_from_settings();
+                }
+            },
+            None => (),
+        }
+    }
+
+    fn do_change_a_value(&mut self, name: &str, value: &serde_json::Value) -> ();
+    fn load_from_settings(&mut self) -> ();
 }

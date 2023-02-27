@@ -304,6 +304,14 @@ impl JamEngine {
                 }
                 self.send_pedal_info();
             }
+            Some(JamParams::SetEffectConfig) => {
+                // Change a parameter on a pedal
+                // TODO
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].change_value(msg.ivalue_2 as usize, &msg.svalue);
+                }
+            }
             Some(JamParams::ConnectionKeepAlive) => {
                 // Sent by web client to let us know they are still there.
                 self.disconnect_timer.reset(self.now);

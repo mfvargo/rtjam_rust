@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use super::{noise_gate::NoiseGate, pedal::Pedal, tone_stack::ToneStack};
 use serde_json::json;
 
@@ -51,6 +53,24 @@ impl PedalBoard {
                 }
             }
             None => (),
+        }
+    }
+    pub fn change_value(&mut self, pedal_index: usize, setting: &str) -> () {
+        // change the value of a setting on a pedal
+
+        // Check range on pedal_index
+        if pedal_index >= self.pedals.len() {
+            return;
+        }
+
+        match serde_json::Value::from_str(setting) {
+            Ok(v) => {
+                self.pedals[pedal_index].change_setting(v);
+            }
+            Err(e) => {
+                // error parsing json to modify a setting
+                dbg!(e);
+            }
         }
     }
     pub fn delete_pedal(&mut self, idx: usize) -> () {

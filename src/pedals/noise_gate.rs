@@ -68,8 +68,29 @@ impl NoiseGate {
         gate.load_from_settings();
         gate
     }
+}
 
-    pub fn load_from_settings(&mut self) -> () {
+impl Pedal for NoiseGate {
+    fn bypass(&self) -> bool {
+        self.bypass
+    }
+    fn set_my_bypass(&mut self, val: bool) -> () {
+        self.bypass = val;
+    }
+    fn do_change_a_value(&mut self, name: &str, val: &serde_json::Value) {
+        // Find the setting using the name, then update it's value
+        match val.as_f64() {
+            Some(f) => {
+                for setting in &mut self.settings {
+                    if setting.get_name() == name {
+                        setting.set_value(f);
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+    fn load_from_settings(&mut self) -> () {
         // change my member variables based on the settings
         for setting in &self.settings {
             match setting.get_name() {
@@ -90,12 +111,6 @@ impl NoiseGate {
         }
         self.attack_hold_release =
             AttackHoldRelease::new(self.attack, self.hold, self.release, 48_000);
-    }
-}
-
-impl Pedal for NoiseGate {
-    fn bypass(&self) -> bool {
-        self.bypass
     }
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut i: usize = 0;

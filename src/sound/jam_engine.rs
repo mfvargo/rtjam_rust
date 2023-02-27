@@ -297,6 +297,13 @@ impl JamEngine {
             Some(JamParams::Disconnect) => {
                 self.disconnect();
             }
+            Some(JamParams::InsertPedal) => {
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].insert_pedal(&msg.svalue, msg.ivalue_2 as usize)
+                }
+                self.send_pedal_info();
+            }
             Some(JamParams::ConnectionKeepAlive) => {
                 // Sent by web client to let us know they are still there.
                 self.disconnect_timer.reset(self.now);
@@ -314,13 +321,7 @@ impl JamEngine {
                 self.update_fallback_timer.reset(self.now);
             }
             Some(JamParams::GetConfigJson) => {
-                let _res = self.status_data_tx.send(json!({
-                    "speaker": "UnitChatRobot",
-                    "pedalInfo": [
-                        self.pedal_boards[0].as_json(0),
-                        self.pedal_boards[1].as_json(1)
-                    ]
-                }));
+                self.send_pedal_info();
             }
             Some(JamParams::GetPedalTypes) => {
                 let _res = self.status_data_tx.send(json!({
@@ -336,6 +337,15 @@ impl JamEngine {
     }
     fn check_index(idx: usize) -> bool {
         idx < MIXER_CHANNELS
+    }
+    fn send_pedal_info(&self) -> () {
+        let _res = self.status_data_tx.send(json!({
+            "speaker": "UnitChatRobot",
+            "pedalInfo": [
+                self.pedal_boards[0].as_json(0),
+                self.pedal_boards[1].as_json(1)
+            ]
+        }));
     }
 }
 

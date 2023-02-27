@@ -1,7 +1,8 @@
 use crate::dsp::attack_hold_release::AttackHoldRelease;
 use serde_json::json;
 
-use super::{controls::PedalSetting, pedal::Pedal};
+use super::controls::{PedalSetting, SettingType, SettingUnit};
+use super::pedal::Pedal;
 
 pub struct NoiseGate {
     bypass: bool,
@@ -25,7 +26,8 @@ impl NoiseGate {
             attack_hold_release: AttackHoldRelease::new(0.0, 0.0, 0.0, 48_000),
         };
         gate.settings.push(PedalSetting::new(
-            super::controls::SettingUnit::DB,
+            SettingUnit::Continuous,
+            SettingType::DB,
             "threshold",
             vec![],
             -50.0,
@@ -34,7 +36,8 @@ impl NoiseGate {
             0.25,
         ));
         gate.settings.push(PedalSetting::new(
-            super::controls::SettingUnit::Msec,
+            SettingUnit::Continuous,
+            SettingType::Msec,
             "attack",
             vec![],
             10.0,
@@ -43,7 +46,8 @@ impl NoiseGate {
             1.0,
         ));
         gate.settings.push(PedalSetting::new(
-            super::controls::SettingUnit::Msec,
+            SettingUnit::Continuous,
+            SettingType::Msec,
             "hold",
             vec![],
             40.0,
@@ -52,7 +56,8 @@ impl NoiseGate {
             1.0,
         ));
         gate.settings.push(PedalSetting::new(
-            super::controls::SettingUnit::Msec,
+            SettingUnit::Continuous,
+            SettingType::Msec,
             "release",
             vec![],
             100.0,
@@ -69,16 +74,16 @@ impl NoiseGate {
         for setting in &self.settings {
             match setting.get_name() {
                 "threshold" => {
-                    self.threshold = setting.units.convert(setting.get_value());
+                    self.threshold = setting.stype.convert(setting.get_value());
                 }
                 "attack" => {
-                    self.attack = setting.units.convert(setting.get_value());
+                    self.attack = setting.stype.convert(setting.get_value());
                 }
                 "hold" => {
-                    self.hold = setting.units.convert(setting.get_value());
+                    self.hold = setting.stype.convert(setting.get_value());
                 }
                 "release" => {
-                    self.release = setting.units.convert(setting.get_value());
+                    self.release = setting.stype.convert(setting.get_value());
                 }
                 _ => (),
             }

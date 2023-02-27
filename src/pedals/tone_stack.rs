@@ -2,7 +2,7 @@ use serde_json::json;
 
 use crate::dsp::biquad::{BiQuadFilter, FilterType};
 
-use super::controls::{PedalSetting, SettingUnit};
+use super::controls::{PedalSetting, SettingType, SettingUnit};
 use super::pedal::Pedal;
 
 pub struct ToneStack {
@@ -29,7 +29,8 @@ impl ToneStack {
             treble_gain: 1.0,
         };
         stack.settings.push(PedalSetting::new(
-            SettingUnit::DB,
+            SettingUnit::Continuous,
+            SettingType::DB,
             "treble",
             vec![],
             0.0,
@@ -38,7 +39,8 @@ impl ToneStack {
             0.25,
         ));
         stack.settings.push(PedalSetting::new(
-            SettingUnit::DB,
+            SettingUnit::Continuous,
+            SettingType::DB,
             "treble",
             vec![],
             0.0,
@@ -47,7 +49,8 @@ impl ToneStack {
             0.25,
         ));
         stack.settings.push(PedalSetting::new(
-            SettingUnit::DB,
+            SettingUnit::Continuous,
+            SettingType::DB,
             "treble",
             vec![],
             0.0,

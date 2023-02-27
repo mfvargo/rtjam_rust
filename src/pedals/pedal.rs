@@ -27,7 +27,7 @@ pub trait Pedal {
             "min": 0,
             "name": "bypass",
             "step": 1,
-            "units": num::ToPrimitive::to_usize(&SettingUnit::Footswitch),
+            "type": num::ToPrimitive::to_usize(&SettingUnit::Footswitch),
             "value": self.bypass(),
         })
     }

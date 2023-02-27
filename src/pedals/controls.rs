@@ -4,25 +4,30 @@ use serde_json::json;
 
 #[derive(ToPrimitive, FromPrimitive)]
 pub enum SettingUnit {
-    Msec = 0,
-    DB,
-    Linear,
+    Continuous,
     Selector,
     Footswitch,
 }
 
-impl SettingUnit {
+pub enum SettingType {
+    Msec,
+    DB,
+    Linear,
+}
+
+impl SettingType {
     pub fn convert(&self, value: f64) -> f64 {
         match self {
-            SettingUnit::DB => to_lin(value),
-            SettingUnit::Msec => value / 1000.0,
+            Self::DB => to_lin(value),
+            Self::Msec => value / 1000.0,
             _ => value,
         }
     }
 }
 
 pub struct PedalSetting<T> {
-    pub units: SettingUnit,
+    pub stype: SettingType,
+    units: SettingUnit,
     name: String,
     labels: Vec<String>,
     value: T,
@@ -34,6 +39,7 @@ pub struct PedalSetting<T> {
 impl<T: PartialOrd + Copy + Serialize> PedalSetting<T> {
     pub fn new(
         units: SettingUnit,
+        stype: SettingType,
         name: &str,
         labels: Vec<String>,
         value: T,
@@ -49,6 +55,7 @@ impl<T: PartialOrd + Copy + Serialize> PedalSetting<T> {
         // create a new thing
         let mut thg = PedalSetting {
             units: units,
+            stype: stype,
             name: String::from(name),
             labels: labels,
             value: min,
@@ -85,7 +92,7 @@ impl<T: PartialOrd + Copy + Serialize> PedalSetting<T> {
             "max": self.max,
             "step": self.step,
             "value": self.value,
-            "units": num::ToPrimitive::to_usize(&self.units),
+            "type": num::ToPrimitive::to_usize(&self.units),
         })
     }
 }
@@ -97,7 +104,16 @@ mod test_pedal_setttings {
 
     #[test]
     fn sthing() {
-        let mut f = PedalSetting::new(SettingUnit::DB, "gain", vec![], -10.0, -60.0, 100.0, 0.5);
+        let mut f = PedalSetting::new(
+            SettingUnit::Continuous,
+            SettingType::DB,
+            "gain",
+            vec![],
+            -10.0,
+            -60.0,
+            100.0,
+            0.5,
+        );
         assert_eq!(f.get_value(), -10.0);
         f.set_value(-120.0);
         assert_eq!(f.get_value(), -60.0);
@@ -105,13 +121,22 @@ mod test_pedal_setttings {
     }
 
     fn build_a_db(val: f64) -> PedalSetting<f64> {
-        PedalSetting::new(SettingUnit::DB, "gain", vec![], val, -60.0, 100.0, 0.5)
+        PedalSetting::new(
+            SettingUnit::Continuous,
+            SettingType::DB,
+            "gain",
+            vec![],
+            val,
+            -60.0,
+            100.0,
+            0.5,
+        )
     }
 
     #[test]
     fn convert() {
         let setting = build_a_db(-10.0);
-        assert_eq!(setting.units.convert(setting.get_value()), 0.1)
+        assert_eq!(setting.stype.convert(setting.get_value()), 0.1)
     }
     #[test]
     fn can_set() {}

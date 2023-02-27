@@ -170,11 +170,15 @@ impl JamEngine {
     }
     // This is where we forward our data to the network (if connected)
     fn send_my_audio(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
-        self.xmit_message.encode_audio(in_a, in_b);
+        let mut a_temp: Vec<f32> = vec![0.0; in_a.len()];
+        let mut b_temp: Vec<f32> = vec![0.0; in_b.len()];
+        self.pedal_boards[0].process(in_a, &mut a_temp);
+        self.pedal_boards[1].process(in_a, &mut b_temp);
+        self.xmit_message.encode_audio(&a_temp, &b_temp);
         let _res = self.sock.send(&mut self.xmit_message);
         // Stuff my buffers into the mixer for local monitoring
-        self.mixer.add_to_channel(0, in_a);
-        self.mixer.add_to_channel(1, in_b);
+        self.mixer.add_to_channel(0, &a_temp);
+        self.mixer.add_to_channel(1, &b_temp);
     }
     fn build_level_event(&self) -> serde_json::Value {
         let mut players: Vec<serde_json::Value> = vec![];
@@ -301,6 +305,22 @@ impl JamEngine {
                 let idx = msg.ivalue_1 as usize;
                 if idx < self.pedal_boards.len() {
                     self.pedal_boards[idx].insert_pedal(&msg.svalue, msg.ivalue_2 as usize)
+                }
+                self.send_pedal_info();
+            }
+            Some(JamParams::DeletePedal) => {
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].delete_pedal(msg.ivalue_2 as usize);
+                }
+                self.send_pedal_info();
+            }
+            Some(JamParams::MovePedal) => {
+                let idx = msg.ivalue_1 as usize;
+                let from_idx: usize = msg.ivalue_2 as usize;
+                let to_idx: usize = msg.fvalue.round() as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].move_pedal(from_idx, to_idx);
                 }
                 self.send_pedal_info();
             }

@@ -17,6 +17,27 @@ impl PedalBoard {
     pub fn new() -> PedalBoard {
         PedalBoard { pedals: vec![] }
     }
+    pub fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
+        let mut buf1: Vec<f32> = input.to_vec();
+        let mut buf2: Vec<f32> = vec![0.0; input.len()];
+
+        let mut i: usize = 0;
+        for pedal in &mut self.pedals {
+            if i % 2 == 0 {
+                pedal.process(&buf1, &mut buf2);
+            } else {
+                pedal.process(&buf2, &mut buf1);
+            }
+            i += 1;
+        }
+        for n in 0..=input.len() - 1 {
+            if i % 2 == 0 {
+                output[n] = buf1[n];
+            } else {
+                output[n] = buf2[n];
+            }
+        }
+    }
     pub fn add_tone_stack(&mut self) -> () {
         self.pedals.push(Box::new(ToneStack::new()));
     }
@@ -55,6 +76,16 @@ impl PedalBoard {
             None => (),
         }
     }
+    pub fn delete_pedal(&mut self, idx: usize) -> () {
+        if idx < self.pedals.len() {
+            self.pedals.remove(idx);
+        }
+    }
+    pub fn move_pedal(&mut self, from_idx: usize, to_idx: usize) -> () {
+        if from_idx != to_idx && from_idx < self.pedals.len() && to_idx < self.pedals.len() {
+            self.pedals.swap(from_idx, to_idx);
+        }
+    }
     pub fn change_value(&mut self, pedal_index: usize, setting: &str) -> () {
         // change the value of a setting on a pedal
 
@@ -71,11 +102,6 @@ impl PedalBoard {
                 // error parsing json to modify a setting
                 dbg!(e);
             }
-        }
-    }
-    pub fn delete_pedal(&mut self, idx: usize) -> () {
-        if idx < self.pedals.len() {
-            self.pedals.remove(idx);
         }
     }
     pub fn as_json(&self, idx: usize) -> serde_json::Value {

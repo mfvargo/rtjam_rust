@@ -1,6 +1,5 @@
 //! Constant power left/right fader
 
-use crate::utils::clip_float;
 use std::fmt;
 
 pub struct Fader {
@@ -19,7 +18,7 @@ impl Fader {
     }
 
     pub fn set(&mut self, v: f32) -> () {
-        let fade = clip_float(v);
+        let fade = f32::clamp(v, -1.0, 1.0);
         self.left = f32::sqrt(1.0 - fade);
         self.right = f32::sqrt(1.0 + fade);
     }

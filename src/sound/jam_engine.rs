@@ -1,9 +1,10 @@
-use std::sync::mpsc;
+use std::{str::FromStr, sync::mpsc};
 
 use serde_json::json;
 
 use crate::{
     common::{box_error::BoxError, jam_packet::JamMessage, stream_time_stat::MicroTimer},
+    pedals::pedal_board::PedalBoard,
     server::player_list::get_micro_time,
     utils::to_db,
 };
@@ -35,6 +36,7 @@ pub struct JamEngine {
     chan_map: ChannelMap,
     git_hash: String,
     now: u128,
+    pedal_boards: Vec<PedalBoard>,
 }
 
 impl JamEngine {
@@ -59,6 +61,7 @@ impl JamEngine {
             chan_map: ChannelMap::new(),
             git_hash: String::from(git_hash),
             now: now,
+            pedal_boards: vec![PedalBoard::new(), PedalBoard::new()],
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -167,11 +170,15 @@ impl JamEngine {
     }
     // This is where we forward our data to the network (if connected)
     fn send_my_audio(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
-        self.xmit_message.encode_audio(in_a, in_b);
+        let mut a_temp: Vec<f32> = vec![0.0; in_a.len()];
+        let mut b_temp: Vec<f32> = vec![0.0; in_b.len()];
+        self.pedal_boards[0].process(in_a, &mut a_temp);
+        self.pedal_boards[1].process(in_a, &mut b_temp);
+        self.xmit_message.encode_audio(&a_temp, &b_temp);
         let _res = self.sock.send(&mut self.xmit_message);
         // Stuff my buffers into the mixer for local monitoring
-        self.mixer.add_to_channel(0, in_a);
-        self.mixer.add_to_channel(1, in_b);
+        self.mixer.add_to_channel(0, &a_temp);
+        self.mixer.add_to_channel(1, &b_temp);
     }
     fn build_level_event(&self) -> serde_json::Value {
         let mut players: Vec<serde_json::Value> = vec![];
@@ -200,8 +207,8 @@ impl JamEngine {
             idx += 2;
         }
         // this is a hack for input gain on channel 0 and 1
-        let in_gain0 = to_db(self.mixer.get_channel_gain(0)).round() as f64;
-        let in_gain1 = to_db(self.mixer.get_channel_gain(1)).round() as f64;
+        let in_gain0 = to_db(self.mixer.get_channel_gain(0)).round();
+        let in_gain1 = to_db(self.mixer.get_channel_gain(1)).round();
         let data = json!({
             "speaker": "UnitChatRobot",
             "levelEvent": json!({
@@ -240,46 +247,46 @@ impl JamEngine {
         let param: Option<JamParams> = num::FromPrimitive::from_i64(msg.param);
         match param {
             Some(JamParams::ChanGain1) => {
-                self.mixer.set_channel_gain(0, msg.fvalue as f32);
+                self.mixer.set_channel_gain(0, msg.fvalue);
             }
             Some(JamParams::ChanGain2) => {
-                self.mixer.set_channel_gain(1, msg.fvalue as f32);
+                self.mixer.set_channel_gain(1, msg.fvalue);
             }
             Some(JamParams::ChanGain3) => {
-                self.mixer.set_channel_gain(2, msg.fvalue as f32);
+                self.mixer.set_channel_gain(2, msg.fvalue);
             }
             Some(JamParams::ChanGain4) => {
-                self.mixer.set_channel_gain(3, msg.fvalue as f32);
+                self.mixer.set_channel_gain(3, msg.fvalue);
             }
             Some(JamParams::ChanGain5) => {
-                self.mixer.set_channel_gain(4, msg.fvalue as f32);
+                self.mixer.set_channel_gain(4, msg.fvalue);
             }
             Some(JamParams::ChanGain6) => {
-                self.mixer.set_channel_gain(5, msg.fvalue as f32);
+                self.mixer.set_channel_gain(5, msg.fvalue);
             }
             Some(JamParams::ChanGain7) => {
-                self.mixer.set_channel_gain(6, msg.fvalue as f32);
+                self.mixer.set_channel_gain(6, msg.fvalue);
             }
             Some(JamParams::ChanGain8) => {
-                self.mixer.set_channel_gain(7, msg.fvalue as f32);
+                self.mixer.set_channel_gain(7, msg.fvalue);
             }
             Some(JamParams::ChanGain9) => {
-                self.mixer.set_channel_gain(8, msg.fvalue as f32);
+                self.mixer.set_channel_gain(8, msg.fvalue);
             }
             Some(JamParams::ChanGain10) => {
-                self.mixer.set_channel_gain(9, msg.fvalue as f32);
+                self.mixer.set_channel_gain(9, msg.fvalue);
             }
             Some(JamParams::ChanGain11) => {
-                self.mixer.set_channel_gain(10, msg.fvalue as f32);
+                self.mixer.set_channel_gain(10, msg.fvalue);
             }
             Some(JamParams::ChanGain12) => {
-                self.mixer.set_channel_gain(11, msg.fvalue as f32);
+                self.mixer.set_channel_gain(11, msg.fvalue);
             }
             Some(JamParams::ChanGain13) => {
-                self.mixer.set_channel_gain(12, msg.fvalue as f32);
+                self.mixer.set_channel_gain(12, msg.fvalue);
             }
             Some(JamParams::ChanGain14) => {
-                self.mixer.set_channel_gain(13, msg.fvalue as f32);
+                self.mixer.set_channel_gain(13, msg.fvalue);
             }
             Some(JamParams::SetFader) => {
                 if Self::check_index(msg.ivalue_1 as usize) {
@@ -293,6 +300,51 @@ impl JamEngine {
             }
             Some(JamParams::Disconnect) => {
                 self.disconnect();
+            }
+            Some(JamParams::InsertPedal) => {
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].insert_pedal(&msg.svalue, msg.ivalue_2 as usize)
+                }
+                self.send_pedal_info();
+            }
+            Some(JamParams::DeletePedal) => {
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].delete_pedal(msg.ivalue_2 as usize);
+                }
+                self.send_pedal_info();
+            }
+            Some(JamParams::MovePedal) => {
+                let idx = msg.ivalue_1 as usize;
+                let from_idx: usize = msg.ivalue_2 as usize;
+                let to_idx: usize = msg.fvalue.round() as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].move_pedal(from_idx, to_idx);
+                }
+                self.send_pedal_info();
+            }
+            Some(JamParams::LoadBoard) => {
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    self.pedal_boards[idx].load_from_json(&msg.svalue);
+                }
+                self.send_pedal_info();
+            }
+            Some(JamParams::SetEffectConfig) => {
+                // Change a parameter on a pedal
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    match serde_json::Value::from_str(&msg.svalue) {
+                        Ok(setting) => {
+                            self.pedal_boards[idx].change_value(msg.ivalue_2 as usize, &setting);
+                        }
+                        Err(e) => {
+                            // error parsing json to modify a setting
+                            dbg!(e);
+                        }
+                    }
+                }
             }
             Some(JamParams::ConnectionKeepAlive) => {
                 // Sent by web client to let us know they are still there.
@@ -310,6 +362,15 @@ impl JamEngine {
                 self.update_timer.set_interval(interval);
                 self.update_fallback_timer.reset(self.now);
             }
+            Some(JamParams::GetConfigJson) => {
+                self.send_pedal_info();
+            }
+            Some(JamParams::GetPedalTypes) => {
+                let _res = self.status_data_tx.send(json!({
+                    "speaker": "UnitChatRobot",
+                    "pedalTypes": PedalBoard::get_pedal_types()
+                }));
+            }
             Some(_) => {
                 println!("unknown command: {}", msg);
             }
@@ -318,6 +379,15 @@ impl JamEngine {
     }
     fn check_index(idx: usize) -> bool {
         idx < MIXER_CHANNELS
+    }
+    fn send_pedal_info(&self) -> () {
+        let _res = self.status_data_tx.send(json!({
+            "speaker": "UnitChatRobot",
+            "pedalInfo": [
+                self.pedal_boards[0].as_json(0),
+                self.pedal_boards[1].as_json(1)
+            ]
+        }));
     }
 }
 

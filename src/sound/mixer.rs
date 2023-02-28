@@ -10,7 +10,7 @@ use std::fmt;
 pub const MIXER_CHANNELS: usize = 24;
 
 pub struct Mixer {
-    master_vol: f32,
+    master_vol: f64,
     master_level: PowerMeter,
     strips: Vec<ChannelStrip>,
 }
@@ -27,10 +27,10 @@ impl Mixer {
         }
         mixer
     }
-    pub fn get_master(&self) -> f32 {
+    pub fn get_master(&self) -> f64 {
         self.master_vol
     }
-    pub fn set_master(&mut self, v: f32) -> () {
+    pub fn set_master(&mut self, v: f64) -> () {
         self.master_vol = v;
     }
     pub fn get_master_level_avg(&self) -> f64 {
@@ -56,10 +56,10 @@ impl Mixer {
     pub fn get_depth_in_msec(&self, idx: usize) -> f64 {
         self.strips[idx].get_depth() / 48.0 // Convert to msec
     }
-    pub fn set_channel_gain(&mut self, idx: usize, val: f32) -> () {
+    pub fn set_channel_gain(&mut self, idx: usize, val: f64) -> () {
         self.strips[idx].set_gain(to_lin(val));
     }
-    pub fn get_channel_gain(&self, idx: usize) -> f32 {
+    pub fn get_channel_gain(&self, idx: usize) -> f64 {
         self.strips[idx].get_gain()
     }
     pub fn set_channel_fade(&mut self, idx: usize, val: f32) -> () {

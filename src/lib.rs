@@ -8,6 +8,7 @@ extern crate num_derive;
 
 pub mod common;
 pub mod dsp;
+pub mod pedals;
 pub mod server;
 pub mod sound;
 pub mod utils;

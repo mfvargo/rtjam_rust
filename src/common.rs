@@ -1,3 +1,4 @@
+//! These modules are shared among both the client and server executables for rtjam.
 pub mod box_error;
 pub mod config;
 pub mod jam_nation_api;

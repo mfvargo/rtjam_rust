@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use super::{noise_gate::NoiseGate, pedal::Pedal, tone_stack::ToneStack};
+use super::{bass_di::BassDI, noise_gate::NoiseGate, pedal::Pedal, tone_stack::ToneStack};
 use serde_json::{json, Value};
 
 type BoxedPedal = std::boxed::Box<
@@ -50,6 +50,7 @@ impl PedalBoard {
         json!({
           "Tone Stack": "Tone controls (3 band)",
           "Noise Gate": "Noise Gate",
+          "Bass DI": "Bass Guitar Tone Shaping",
         })
     }
 
@@ -61,6 +62,7 @@ impl PedalBoard {
         match type_name {
             "Tone Stack" => Some(Box::new(ToneStack::new())),
             "Noise Gate" => Some(Box::new(NoiseGate::new())),
+            "Bass DI" => Some(Box::new(BassDI::new())),
             _ => {
                 // No pedal for that name
                 println!("Can't create pedal {}", type_name);

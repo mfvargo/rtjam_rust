@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::{str::FromStr, sync::mpsc};
 
 use serde_json::json;
 
@@ -324,12 +324,26 @@ impl JamEngine {
                 }
                 self.send_pedal_info();
             }
-            Some(JamParams::SetEffectConfig) => {
-                // Change a parameter on a pedal
-                // TODO
+            Some(JamParams::LoadBoard) => {
                 let idx = msg.ivalue_1 as usize;
                 if idx < self.pedal_boards.len() {
-                    self.pedal_boards[idx].change_value(msg.ivalue_2 as usize, &msg.svalue);
+                    self.pedal_boards[idx].load_from_json(&msg.svalue);
+                }
+                self.send_pedal_info();
+            }
+            Some(JamParams::SetEffectConfig) => {
+                // Change a parameter on a pedal
+                let idx = msg.ivalue_1 as usize;
+                if idx < self.pedal_boards.len() {
+                    match serde_json::Value::from_str(&msg.svalue) {
+                        Ok(setting) => {
+                            self.pedal_boards[idx].change_value(msg.ivalue_2 as usize, &setting);
+                        }
+                        Err(e) => {
+                            // error parsing json to modify a setting
+                            dbg!(e);
+                        }
+                    }
                 }
             }
             Some(JamParams::ConnectionKeepAlive) => {

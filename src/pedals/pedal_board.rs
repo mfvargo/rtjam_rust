@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::{noise_gate::NoiseGate, pedal::Pedal, tone_stack::ToneStack};
-use serde_json::json;
+use serde_json::{json, Value};
 
 type BoxedPedal = std::boxed::Box<
     dyn Pedal
@@ -11,11 +11,15 @@ type BoxedPedal = std::boxed::Box<
 
 pub struct PedalBoard {
     pedals: Vec<BoxedPedal>,
+    board_id: i64,
 }
 
 impl PedalBoard {
     pub fn new() -> PedalBoard {
-        PedalBoard { pedals: vec![] }
+        PedalBoard {
+            pedals: vec![],
+            board_id: -1,
+        }
     }
     pub fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut buf1: Vec<f32> = input.to_vec();
@@ -64,16 +68,49 @@ impl PedalBoard {
             }
         }
     }
-    pub fn insert_pedal(&mut self, type_name: &str, idx: usize) -> () {
-        match Self::make_pedal(type_name) {
-            Some(p) => {
-                if idx > self.pedals.len() {
-                    self.pedals.push(p)
-                } else {
-                    self.pedals.insert(idx, p)
+    pub fn load_from_json(&mut self, raw: &str) -> () {
+        // First thing clear out existing pedals
+        self.pedals.clear();
+        // parse the json
+        match serde_json::Value::from_str(raw) {
+            Ok(v) => {
+                if let Some(i) = v["id"].as_i64() {
+                    self.board_id = i;
+                }
+                if let Some(configs) = v["config"].as_array() {
+                    // We have an array of pedals configs
+                    for config in configs {
+                        if let Some(ptype) = config["name"].as_str() {
+                            // The config entry has a pedal name.  Try to construct one
+                            if let Some(mut pedal) = Self::make_pedal(ptype) {
+                                // We have a pedal.  Now let's set the settings
+                                if let Some(settings) = config["settings"].as_array() {
+                                    // We have an array of settings to apply
+                                    for setting in settings {
+                                        pedal.change_setting(setting);
+                                    }
+                                }
+                                // Put the pedal at the end of the chain
+                                // TODO:  This really should sort the configs by config["index"] before runnint the list
+                                self.pedals.push(pedal);
+                            }
+                        }
+                    }
                 }
             }
-            None => (),
+            Err(e) => {
+                // error parsing json to modify a setting
+                dbg!(e);
+            }
+        }
+    }
+    pub fn insert_pedal(&mut self, type_name: &str, idx: usize) -> () {
+        if let Some(p) = Self::make_pedal(type_name) {
+            if idx > self.pedals.len() {
+                self.pedals.push(p)
+            } else {
+                self.pedals.insert(idx, p)
+            }
         }
     }
     pub fn delete_pedal(&mut self, idx: usize) -> () {
@@ -86,22 +123,10 @@ impl PedalBoard {
             self.pedals.swap(from_idx, to_idx);
         }
     }
-    pub fn change_value(&mut self, pedal_index: usize, setting: &str) -> () {
+    pub fn change_value(&mut self, pedal_index: usize, setting: &Value) -> () {
         // change the value of a setting on a pedal
-
-        // Check range on pedal_index
-        if pedal_index >= self.pedals.len() {
-            return;
-        }
-
-        match serde_json::Value::from_str(setting) {
-            Ok(v) => {
-                self.pedals[pedal_index].change_setting(v);
-            }
-            Err(e) => {
-                // error parsing json to modify a setting
-                dbg!(e);
-            }
+        if pedal_index < self.pedals.len() {
+            self.pedals[pedal_index].change_setting(setting);
         }
     }
     pub fn as_json(&self, idx: usize) -> serde_json::Value {
@@ -112,7 +137,7 @@ impl PedalBoard {
             i += 1;
         }
         json!({
-            "boardId": -1,
+            "boardId": self.board_id,
             "channel": idx,
             "name": format!("channel_{}", idx),
             "effects": rval,

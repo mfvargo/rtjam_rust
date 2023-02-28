@@ -38,21 +38,14 @@ pub trait Pedal {
 
     fn as_json(&self, index: usize) -> serde_json::Value;
 
-    fn change_setting(&mut self, setting: serde_json::Value) -> () {
-        match setting["name"].as_str() {
-            Some(v) => match v {
-                "bypass" => match setting["value"].as_bool() {
-                    Some(b) => {
-                        self.set_my_bypass(b);
-                    }
-                    None => (),
-                },
-                _ => {
-                    self.do_change_a_value(v, &setting["value"]);
-                    self.load_from_settings();
-                }
-            },
-            None => (),
+    fn change_setting(&mut self, setting: &serde_json::Value) -> () {
+        if let Some(v) = setting["name"].as_str() {
+            if let Some(b) = setting["value"].as_bool() {
+                self.set_my_bypass(b);
+            } else {
+                self.do_change_a_value(v, &setting["value"]);
+                self.load_from_settings();
+            }
         }
     }
 

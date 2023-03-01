@@ -11,9 +11,6 @@ pub struct ToneStack {
     bass_filter: BiQuadFilter,
     mid_filter: BiQuadFilter,
     treble_filter: BiQuadFilter,
-    bass_gain: f32,
-    mid_gain: f32,
-    treble_gain: f32,
 }
 
 impl ToneStack {
@@ -24,9 +21,6 @@ impl ToneStack {
             bass_filter: BiQuadFilter::new(),
             mid_filter: BiQuadFilter::new(),
             treble_filter: BiQuadFilter::new(),
-            bass_gain: 1.0,
-            mid_gain: 1.0,
-            treble_gain: 1.0,
         };
         stack.settings.push(PedalSetting::new(
             SettingUnit::Continuous,
@@ -92,13 +86,31 @@ impl Pedal for ToneStack {
             if setting.dirty {
                 match setting.get_name() {
                     "treble" => {
-                        self.treble_gain = setting.stype.convert(setting.get_value()) as f32;
+                        self.treble_filter.init(
+                            FilterType::HighShelf,
+                            2000.0,
+                            setting.get_value(),
+                            1.0,
+                            48000.0,
+                        );
                     }
                     "mid" => {
-                        self.mid_gain = setting.stype.convert(setting.get_value()) as f32;
+                        self.mid_filter.init(
+                            FilterType::Peaking,
+                            700.0,
+                            setting.get_value(),
+                            2.0,
+                            48000.0,
+                        );
                     }
                     "bass" => {
-                        self.bass_gain = setting.stype.convert(setting.get_value()) as f32;
+                        self.bass_filter.init(
+                            FilterType::LowShelf,
+                            200.0,
+                            setting.get_value(),
+                            1.0,
+                            48000.0,
+                        );
                     }
                     _ => (),
                 }
@@ -110,10 +122,9 @@ impl Pedal for ToneStack {
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut i: usize = 0;
         for samp in input {
-            output[i] = self.bass_gain * self.bass_filter.get_sample(samp);
-            output[i] += self.mid_gain * self.mid_filter.get_sample(samp);
-            output[i] += self.treble_gain * self.treble_filter.get_sample(samp);
-            output[i] /= 3.0;
+            let mut value = self.bass_filter.get_sample(samp);
+            value = self.mid_filter.get_sample(&value);
+            output[i] = self.treble_filter.get_sample(&value);
             i += 1;
         }
     }

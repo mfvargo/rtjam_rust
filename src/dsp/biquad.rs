@@ -81,10 +81,10 @@ impl BiQuadFilter {
         self.cutoff_freq = cutoff;
         self.cut_boost = boost;
         self.q = q;
-        self.x1 = 0.0;
-        self.x2 = 0.0;
-        self.y1 = 0.0;
-        self.y2 = 0.0;
+        // self.x1 = 0.0;
+        // self.x2 = 0.0;
+        // self.y1 = 0.0;
+        // self.y2 = 0.0;
         match self.filter_type {
             FilterType::LowPass => {
                 self.calc_intermediate(1.0, self.q);

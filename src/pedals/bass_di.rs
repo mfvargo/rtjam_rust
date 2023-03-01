@@ -32,7 +32,7 @@ impl BassDI {
             vec![],
             0.0,
             -10.0,
-            15.0,
+            10.0,
             0.25,
         ));
         di_box.settings.push(PedalSetting::new(
@@ -65,16 +65,8 @@ impl BassDI {
             35.0,
             0.25,
         ));
-        // Initialize the filters
-        di_box
-            .bass_filter
-            .init(FilterType::LowShelf, 70.0, 1.0, 0.707, 48000.0);
-        di_box
-            .mid_filter
-            .init(FilterType::Peaking, 180.0, 1.0, 0.707, 48000.0);
-        di_box
-            .treble_filter
-            .init(FilterType::HighShelf, 350.0, 1.0, 0.707, 48000.0);
+        // Initialize from settings
+        di_box.load_from_settings();
         di_box
     }
 }
@@ -105,25 +97,25 @@ impl Pedal for BassDI {
                         self.treble_filter.init(
                             FilterType::HighShelf,
                             350.0,
-                            setting.stype.convert(setting.get_value()),
+                            setting.get_value(),
                             0.707,
                             48000.0,
                         );
                     }
                     "Mid" => {
-                        self.treble_filter.init(
-                            FilterType::HighShelf,
-                            350.0,
-                            setting.stype.convert(setting.get_value()),
+                        self.mid_filter.init(
+                            FilterType::Peaking,
+                            180.0,
+                            setting.get_value(),
                             0.707,
                             48000.0,
                         );
                     }
                     "Bass" => {
-                        self.treble_filter.init(
-                            FilterType::HighShelf,
-                            350.0,
-                            setting.stype.convert(setting.get_value()),
+                        self.bass_filter.init(
+                            FilterType::LowShelf,
+                            70.0,
+                            setting.get_value(),
                             0.707,
                             48000.0,
                         );
@@ -143,7 +135,6 @@ impl Pedal for BassDI {
             value = self.treble_filter.get_sample(&value);
             value = clip_sample(crate::dsp::clip::ClipType::Soft, value);
             output[i] = self.gain * value;
-            output[i] /= 3.0;
             i += 1;
         }
     }

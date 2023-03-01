@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use super::{
-    bass_di::BassDI, noise_gate::NoiseGate, pedal::Pedal, speaker_sim_iir::SpeakerSimIIR,
-    tone_stack::ToneStack,
+    bass_di::BassDI, noise_gate::NoiseGate, pedal::Pedal, sigma_reverb::SigmaReverb,
+    speaker_sim_iir::SpeakerSimIIR, tone_stack::ToneStack,
 };
 use serde_json::{json, Value};
 
@@ -55,6 +55,7 @@ impl PedalBoard {
           "Noise Gate": "Noise Gate",
           "Bass DI": "Bass Guitar Tone Shaping",
           "Speaker Sim": "Speaker Cabinet Simulator",
+          "Sigma Reverb": "Sigma Reverb",
         })
     }
 
@@ -68,6 +69,7 @@ impl PedalBoard {
             "Noise Gate" => Some(Box::new(NoiseGate::new())),
             "Bass DI" => Some(Box::new(BassDI::new())),
             "Speaker Sim" => Some(Box::new(SpeakerSimIIR::new())),
+            "Sigma Reverb" => Some(Box::new(SigmaReverb::new())),
             _ => {
                 // No pedal for that name
                 println!("Can't create pedal {}", type_name);

@@ -1,3 +1,4 @@
+pub mod allpass_delay;
 pub mod attack_hold_release;
 pub mod biquad;
 pub mod clip;

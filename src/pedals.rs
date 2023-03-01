@@ -1,4 +1,5 @@
 pub mod bass_di;
+pub mod compressor;
 pub mod controls;
 pub mod noise_gate;
 pub mod pedal;

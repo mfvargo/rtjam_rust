@@ -7,6 +7,18 @@ pub struct PeakDetector {
 }
 
 impl PeakDetector {
+    pub fn new() -> PeakDetector {
+        PeakDetector {
+            attack_coef: Self::get_coef(0.01, 48_000),
+            release_coef: Self::get_coef(0.1, 48000),
+            peak_detector: 0.0,
+            last_output: 0.0,
+        }
+    }
+    pub fn init(&mut self, attack: f64, release: f64, sample_rate: u32) {
+        self.attack_coef = Self::get_coef(attack, sample_rate);
+        self.release_coef = Self::get_coef(release, sample_rate);
+    }
     pub fn build(attack: f64, release: f64, sample_rate: u32) -> PeakDetector {
         PeakDetector {
             attack_coef: Self::get_coef(attack, sample_rate),

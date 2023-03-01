@@ -173,7 +173,7 @@ impl JamEngine {
         let mut a_temp: Vec<f32> = vec![0.0; in_a.len()];
         let mut b_temp: Vec<f32> = vec![0.0; in_b.len()];
         self.pedal_boards[0].process(in_a, &mut a_temp);
-        self.pedal_boards[1].process(in_a, &mut b_temp);
+        self.pedal_boards[1].process(in_b, &mut b_temp);
         self.xmit_message.encode_audio(&a_temp, &b_temp);
         let _res = self.sock.send(&mut self.xmit_message);
         // Stuff my buffers into the mixer for local monitoring

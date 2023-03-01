@@ -1,72 +1,77 @@
 use serde_json::json;
 
 use crate::dsp::biquad::{BiQuadFilter, FilterType};
+use crate::dsp::clip::clip_sample;
 
 use super::controls::{PedalSetting, SettingType, SettingUnit};
 use super::pedal::Pedal;
 
-pub struct ToneStack {
+pub struct BassDI {
     pub bypass: bool,
     settings: Vec<PedalSetting<f64>>,
     bass_filter: BiQuadFilter,
     mid_filter: BiQuadFilter,
     treble_filter: BiQuadFilter,
+    gain: f32,
 }
 
-impl ToneStack {
-    pub fn new() -> ToneStack {
-        let mut stack = ToneStack {
+impl BassDI {
+    pub fn new() -> BassDI {
+        let mut di_box = BassDI {
             bypass: false,
             settings: Vec::new(),
             bass_filter: BiQuadFilter::new(),
             mid_filter: BiQuadFilter::new(),
             treble_filter: BiQuadFilter::new(),
+            gain: 1.0,
         };
-        stack.settings.push(PedalSetting::new(
+        di_box.settings.push(PedalSetting::new(
             SettingUnit::Continuous,
             SettingType::DB,
-            "treble",
+            "Volume",
             vec![],
             0.0,
-            -20.0,
-            20.0,
+            -10.0,
+            10.0,
             0.25,
         ));
-        stack.settings.push(PedalSetting::new(
+        di_box.settings.push(PedalSetting::new(
             SettingUnit::Continuous,
             SettingType::DB,
-            "mid",
+            "Bass",
             vec![],
             0.0,
-            -20.0,
-            20.0,
+            -35.0,
+            35.0,
             0.25,
         ));
-        stack.settings.push(PedalSetting::new(
+        di_box.settings.push(PedalSetting::new(
             SettingUnit::Continuous,
             SettingType::DB,
-            "bass",
+            "Mid",
             vec![],
             0.0,
-            -20.0,
-            20.0,
+            -35.0,
+            35.0,
             0.25,
         ));
-        // Initialize the filters
-        stack
-            .bass_filter
-            .init(FilterType::LowShelf, 200.0, 1.0, 1.0, 48000.0);
-        stack
-            .mid_filter
-            .init(FilterType::Peaking, 700.0, 1.0, 2.0, 48000.0);
-        stack
-            .treble_filter
-            .init(FilterType::HighShelf, 2000.0, 1.0, 1.0, 48000.0);
-        stack
+        di_box.settings.push(PedalSetting::new(
+            SettingUnit::Continuous,
+            SettingType::DB,
+            "Treble",
+            vec![],
+            0.0,
+            -35.0,
+            35.0,
+            0.25,
+        ));
+        // Initialize from settings
+        di_box.load_from_settings();
+        di_box
     }
 }
 
-impl Pedal for ToneStack {
+impl Pedal for BassDI {
     fn do_change_a_value(&mut self, name: &str, val: &serde_json::Value) {
         // Find the setting using the name, then update it's value
         match val.as_f64() {
@@ -85,30 +90,33 @@ impl Pedal for ToneStack {
         for setting in &mut self.settings {
             if setting.dirty {
                 match setting.get_name() {
-                    "treble" => {
+                    "Volume" => {
+                        self.gain = setting.stype.convert(setting.get_value()) as f32;
+                    }
+                    "Treble" => {
                         self.treble_filter.init(
                             FilterType::HighShelf,
-                            2000.0,
+                            350.0,
                             setting.get_value(),
-                            1.0,
+                            0.707,
                             48000.0,
                         );
                     }
-                    "mid" => {
+                    "Mid" => {
                         self.mid_filter.init(
                             FilterType::Peaking,
-                            700.0,
+                            180.0,
                             setting.get_value(),
-                            2.0,
+                            0.707,
                             48000.0,
                         );
                     }
-                    "bass" => {
+                    "Bass" => {
                         self.bass_filter.init(
                             FilterType::LowShelf,
-                            200.0,
+                            70.0,
                             setting.get_value(),
-                            1.0,
+                            0.707,
                             48000.0,
                         );
                     }
@@ -124,7 +132,9 @@ impl Pedal for ToneStack {
         for samp in input {
             let mut value = self.bass_filter.get_sample(samp);
             value = self.mid_filter.get_sample(&value);
-            output[i] = self.treble_filter.get_sample(&value);
+            value = self.treble_filter.get_sample(&value);
+            value = clip_sample(crate::dsp::clip::ClipType::Soft, value);
+            output[i] = self.gain * value;
             i += 1;
         }
     }
@@ -145,7 +155,7 @@ impl Pedal for ToneStack {
         }
         json!({
             "index": idx,
-            "name": "Tone Stack",
+            "name": "Bass DI",
             "settings": settings,
         })
     }
@@ -158,16 +168,16 @@ mod test_tonestack {
 
     #[test]
     fn can_build() {
-        let mut ts = ToneStack::new();
+        let mut di = BassDI::new();
         let input: Vec<f32> = vec![0.2, 0.3, 0.4];
         let mut output: Vec<f32> = vec![0.0; 3];
-        ts.process(&input, &mut output);
+        di.process(&input, &mut output);
         // Need a way to see if the output is what is should be!
         println!("output: {:?}", output);
         // assert_eq!(output[0], 0.0);
-        ts.bypass = true;
-        ts.process(&input, &mut output);
+        di.bypass = true;
+        di.process(&input, &mut output);
         assert_eq!(output[0], 0.2);
-        println!("json: {}", ts.as_json(23));
+        println!("json: {}", di.as_json(23));
     }
 }

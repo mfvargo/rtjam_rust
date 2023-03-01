@@ -36,8 +36,7 @@ impl AttackHoldRelease {
             {
                 // release if hold time expired
                 self.hold_time_count = self.max_hold_time_count; // hold count reset when re-triggered
-                self.attack_release_ouput =
-                    self.release_coef * 2.0 + (1.0 - self.release_coef) * self.last_output;
+                self.attack_release_ouput = (1.0 - self.release_coef) * self.last_output;
             }
         }
 

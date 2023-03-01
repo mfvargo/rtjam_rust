@@ -15,12 +15,9 @@ pub trait Pedal {
         }
     }
 
-    fn bypass(&self) -> bool {
-        false
-    }
-
+    // These functions are related to bypass
+    fn bypass(&self) -> bool;
     fn set_my_bypass(&mut self, val: bool) -> ();
-
     fn make_bypass(&self) -> serde_json::Value {
         json!({
             "index": 0,

@@ -158,23 +158,23 @@ impl Pedal for SigmaReverb {
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut i: usize = 0;
         for samp in input {
-            let reverbIn = 1.0 * samp; // scale by .2 to match FV-1 impementations
+            let reverb_in = 1.0 * samp; // scale by .2 to match FV-1 impementations
 
             // read samples from end of each delay line
-            let delay1Out = self.delay1[self.delay1_idx];
-            let delay2Out = self.delay2[self.delay2_idx];
+            let delay1_out = self.delay1[self.delay1_idx];
+            let delay2_out = self.delay2[self.delay2_idx];
 
             // TODO - commets/mods for test only
             // process first allpass chain - lap1->lap4
-            let mut value = self.lap1.get_sample(reverbIn);
+            let mut value = self.lap1.get_sample(reverb_in);
             value = self.lap2.get_sample(value);
             value = self.lap3.get_sample(value);
             value = self.lap4.get_sample(value);
 
-            let sum1Out = value + (delay2Out * self.reverb_time);
+            let sum1_out = value + (delay2_out * self.reverb_time);
 
             // process stretched all-pass Chain 2 - AP1->AP1B
-            value = self.apd1.get_sample(sum1Out);
+            value = self.apd1.get_sample(sum1_out);
             value = self.apd1b.get_sample(value);
 
             // write result to delay line 1
@@ -183,7 +183,7 @@ impl Pedal for SigmaReverb {
             self.delay1_idx %= 4853;
 
             // read from end of delay line 1
-            value = delay1Out * self.reverb_time;
+            value = delay1_out * self.reverb_time;
 
             // process streched all-pass Chain 3 - AP2->AP2B
             // input to Chain 3 is delay 1 output * reverb time
@@ -200,7 +200,7 @@ impl Pedal for SigmaReverb {
             self.delay2_idx %= 5888;
 
             // reverb output = sum of two delay taps
-            value = delay1Out + delay2Out;
+            value = delay1_out + delay2_out;
 
             // add in reverb to dry signal
             output[i] = samp + value * self.reverb_level;

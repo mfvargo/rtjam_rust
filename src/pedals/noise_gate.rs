@@ -92,21 +92,24 @@ impl Pedal for NoiseGate {
     }
     fn load_from_settings(&mut self) -> () {
         // change my member variables based on the settings
-        for setting in &self.settings {
-            match setting.get_name() {
-                "threshold" => {
-                    self.threshold = setting.stype.convert(setting.get_value());
+        for setting in &mut self.settings {
+            if setting.dirty {
+                match setting.get_name() {
+                    "threshold" => {
+                        self.threshold = setting.stype.convert(setting.get_value());
+                    }
+                    "attack" => {
+                        self.attack = setting.stype.convert(setting.get_value());
+                    }
+                    "hold" => {
+                        self.hold = setting.stype.convert(setting.get_value());
+                    }
+                    "release" => {
+                        self.release = setting.stype.convert(setting.get_value());
+                    }
+                    _ => (),
                 }
-                "attack" => {
-                    self.attack = setting.stype.convert(setting.get_value());
-                }
-                "hold" => {
-                    self.hold = setting.stype.convert(setting.get_value());
-                }
-                "release" => {
-                    self.release = setting.stype.convert(setting.get_value());
-                }
-                _ => (),
+                setting.dirty = false;
             }
         }
         self.attack_hold_release =

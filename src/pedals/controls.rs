@@ -26,6 +26,7 @@ impl SettingType {
 }
 
 pub struct PedalSetting<T> {
+    pub dirty: bool,
     pub stype: SettingType,
     units: SettingUnit,
     name: String,
@@ -54,6 +55,7 @@ impl<T: PartialOrd + Copy + Serialize> PedalSetting<T> {
         }
         // create a new thing
         let mut thg = PedalSetting {
+            dirty: true,
             units: units,
             stype: stype,
             name: String::from(name),
@@ -77,6 +79,7 @@ impl<T: PartialOrd + Copy + Serialize> PedalSetting<T> {
         } else {
             self.value = value;
         }
+        self.dirty = true;
     }
 
     pub fn get_value(&self) -> T {

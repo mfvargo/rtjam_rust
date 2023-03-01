@@ -95,39 +95,42 @@ impl Pedal for BassDI {
     }
     fn load_from_settings(&mut self) -> () {
         // change my member variables based on the settings
-        for setting in &self.settings {
-            match setting.get_name() {
-                "Volume" => {
-                    self.gain = setting.stype.convert(setting.get_value()) as f32;
+        for setting in &mut self.settings {
+            if setting.dirty {
+                match setting.get_name() {
+                    "Volume" => {
+                        self.gain = setting.stype.convert(setting.get_value()) as f32;
+                    }
+                    "Treble" => {
+                        self.treble_filter.init(
+                            FilterType::HighShelf,
+                            350.0,
+                            setting.stype.convert(setting.get_value()),
+                            0.707,
+                            48000.0,
+                        );
+                    }
+                    "Mid" => {
+                        self.treble_filter.init(
+                            FilterType::HighShelf,
+                            350.0,
+                            setting.stype.convert(setting.get_value()),
+                            0.707,
+                            48000.0,
+                        );
+                    }
+                    "Bass" => {
+                        self.treble_filter.init(
+                            FilterType::HighShelf,
+                            350.0,
+                            setting.stype.convert(setting.get_value()),
+                            0.707,
+                            48000.0,
+                        );
+                    }
+                    _ => (),
                 }
-                "Treble" => {
-                    self.treble_filter.init(
-                        FilterType::HighShelf,
-                        350.0,
-                        setting.stype.convert(setting.get_value()),
-                        0.707,
-                        48000.0,
-                    );
-                }
-                "Mid" => {
-                    self.treble_filter.init(
-                        FilterType::HighShelf,
-                        350.0,
-                        setting.stype.convert(setting.get_value()),
-                        0.707,
-                        48000.0,
-                    );
-                }
-                "Bass" => {
-                    self.treble_filter.init(
-                        FilterType::HighShelf,
-                        350.0,
-                        setting.stype.convert(setting.get_value()),
-                        0.707,
-                        48000.0,
-                    );
-                }
-                _ => (),
+                setting.dirty = false;
             }
         }
     }

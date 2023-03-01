@@ -88,18 +88,21 @@ impl Pedal for ToneStack {
     }
     fn load_from_settings(&mut self) -> () {
         // change my member variables based on the settings
-        for setting in &self.settings {
-            match setting.get_name() {
-                "treble" => {
-                    self.treble_gain = setting.stype.convert(setting.get_value()) as f32;
+        for setting in &mut self.settings {
+            if setting.dirty {
+                match setting.get_name() {
+                    "treble" => {
+                        self.treble_gain = setting.stype.convert(setting.get_value()) as f32;
+                    }
+                    "mid" => {
+                        self.mid_gain = setting.stype.convert(setting.get_value()) as f32;
+                    }
+                    "bass" => {
+                        self.bass_gain = setting.stype.convert(setting.get_value()) as f32;
+                    }
+                    _ => (),
                 }
-                "mid" => {
-                    self.mid_gain = setting.stype.convert(setting.get_value()) as f32;
-                }
-                "bass" => {
-                    self.bass_gain = setting.stype.convert(setting.get_value()) as f32;
-                }
-                _ => (),
+                setting.dirty = false;
             }
         }
     }

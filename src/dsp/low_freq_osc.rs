@@ -21,7 +21,7 @@ impl<T: Float + FromPrimitive> LowFreqOsc<T> {
             shape: WaveShape::Sine,
             amp: T::from_f64(1.0).unwrap(),
             phase_inc: T::from_f64(0.01).unwrap(),
-            phase: T::from_f64(1.0).unwrap(),
+            phase: Zero::zero(),
             pi: T::from_f64(std::f64::consts::PI).unwrap(),
             two_pi: T::from_f64(std::f64::consts::PI * 2.0).unwrap(),
         }
@@ -30,7 +30,6 @@ impl<T: Float + FromPrimitive> LowFreqOsc<T> {
         self.shape = shape;
         self.phase_inc = self.two_pi * freq / sample_rate;
         self.amp = amp;
-        self.phase = Zero::zero();
     }
     pub fn get_sample(&mut self) -> T {
         let val = match self.shape {

@@ -1,9 +1,15 @@
 pub mod bass_di;
 pub mod compressor;
 pub mod controls;
+pub mod delay;
+pub mod delay_base;
+pub mod distortion_base;
 pub mod noise_gate;
 pub mod pedal;
 pub mod pedal_board;
 pub mod sigma_reverb;
+pub mod soul_drive;
 pub mod speaker_sim_iir;
 pub mod tone_stack;
+pub mod tremelo;
+pub mod tube_drive;

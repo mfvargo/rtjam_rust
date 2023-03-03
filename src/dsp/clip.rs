@@ -5,7 +5,7 @@ pub enum ClipType {
     Even,
 }
 
-pub fn clip_sample(ctype: ClipType, sample_in: f32) -> f32 {
+pub fn clip_sample(ctype: &ClipType, sample_in: f32) -> f32 {
     match ctype {
         ClipType::Hard => sample_in.clamp(-0.5, 0.5),
         ClipType::Soft => sample_in / (1.0 + sample_in.abs()),

@@ -11,7 +11,7 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
     // let's open up a jack port
     loop {
         match jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER) {
-            Ok((client, status)) => {
+            Ok((client, _status)) => {
                 let in_a = client.register_port("rtjam_in_1", jack::AudioIn::default())?;
                 let in_b = client.register_port("rtjam_in_2", jack::AudioIn::default())?;
                 let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;

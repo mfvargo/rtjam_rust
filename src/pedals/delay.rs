@@ -171,7 +171,7 @@ impl Pedal for Delay {
 
 #[cfg(test)]
 
-mod test_tonestack {
+mod test_delay_pedal {
     use super::*;
 
     #[test]

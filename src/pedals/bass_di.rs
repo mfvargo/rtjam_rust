@@ -1,7 +1,7 @@
 use serde_json::json;
 
 use crate::dsp::biquad::{BiQuadFilter, FilterType};
-use crate::dsp::clip::clip_sample;
+use crate::dsp::clip::{clip_sample, ClipType};
 
 use super::controls::{PedalSetting, SettingType, SettingUnit};
 use super::pedal::Pedal;
@@ -133,7 +133,7 @@ impl Pedal for BassDI {
             let mut value = self.bass_filter.get_sample(samp);
             value = self.mid_filter.get_sample(&value);
             value = self.treble_filter.get_sample(&value);
-            value = clip_sample(crate::dsp::clip::ClipType::Soft, value);
+            value = clip_sample(&ClipType::Soft, value);
             output[i] = self.gain * value;
             i += 1;
         }

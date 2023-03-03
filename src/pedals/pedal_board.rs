@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use super::{
-    bass_di::BassDI, compressor::Compressor, noise_gate::NoiseGate, pedal::Pedal,
+    bass_di::BassDI, compressor::Compressor, delay::Delay, noise_gate::NoiseGate, pedal::Pedal,
     sigma_reverb::SigmaReverb, speaker_sim_iir::SpeakerSimIIR, tone_stack::ToneStack,
     tremelo::Tremelo,
 };
@@ -59,6 +59,7 @@ impl PedalBoard {
           "Sigma Reverb": "Sigma Reverb",
           "Compressor": "Compressor Pedal",
           "Tremelo": "Tremelo ala Fender",
+          "Delay": "Delay Pedal",
         })
     }
 
@@ -75,6 +76,7 @@ impl PedalBoard {
             "Sigma Reverb" => Some(Box::new(SigmaReverb::new())),
             "Compressor" => Some(Box::new(Compressor::new())),
             "Tremelo" => Some(Box::new(Tremelo::new())),
+            "Delay" => Some(Box::new(Delay::new())),
             _ => {
                 // No pedal for that name
                 println!("Can't create pedal {}", type_name);

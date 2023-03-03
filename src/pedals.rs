@@ -1,6 +1,8 @@
 pub mod bass_di;
 pub mod compressor;
 pub mod controls;
+pub mod delay;
+pub mod delay_base;
 pub mod noise_gate;
 pub mod pedal;
 pub mod pedal_board;

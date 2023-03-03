@@ -9,47 +9,57 @@ use super::jam_engine::JamEngine;
 
 pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
     // let's open up a jack port
-    let (client, _status) = jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER)?;
-
-    let in_a = client.register_port("rtjam_in_1", jack::AudioIn::default())?;
-    let in_b = client.register_port("rtjam_in_2", jack::AudioIn::default())?;
-    let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;
-    let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
-
-    // The callback gets called by jack whenever we have a frame
-    let process_callback = move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
-        let in_a_p = in_a.as_slice(ps);
-        let in_b_p = in_b.as_slice(ps);
-        let out_a_p = out_a.as_mut_slice(ps);
-        let out_b_p = out_b.as_mut_slice(ps);
-
-        // Let the engine process it
-        let _res = engine.process(in_a_p, in_b_p, out_a_p, out_b_p);
-
-        jack::Control::Continue
-    };
-    let process = jack::ClosureProcessHandler::new(process_callback);
-
-    // Activate the client, which starts the processing.
-    let active_client = client.activate_async(Notifications, process)?;
-
-    // Connect system inputs to us and our puts to playback
-    active_client
-        .as_client()
-        .connect_ports_by_name("system:capture_1", "rtjam_rust:rtjam_in_1")?;
-    active_client
-        .as_client()
-        .connect_ports_by_name("system:capture_2", "rtjam_rust:rtjam_in_2")?;
-    active_client
-        .as_client()
-        .connect_ports_by_name("rtjam_rust:rtjam_out_l", "system:playback_1")?;
-    active_client
-        .as_client()
-        .connect_ports_by_name("rtjam_rust:rtjam_out_r", "system:playback_2")?;
-
     loop {
+        match jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER) {
+            Ok((client, status)) => {
+                let in_a = client.register_port("rtjam_in_1", jack::AudioIn::default())?;
+                let in_b = client.register_port("rtjam_in_2", jack::AudioIn::default())?;
+                let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;
+                let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
+
+                // The callback gets called by jack whenever we have a frame
+                let process_callback =
+                    move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
+                        let in_a_p = in_a.as_slice(ps);
+                        let in_b_p = in_b.as_slice(ps);
+                        let out_a_p = out_a.as_mut_slice(ps);
+                        let out_b_p = out_b.as_mut_slice(ps);
+
+                        // Let the engine process it
+                        let _res = engine.process(in_a_p, in_b_p, out_a_p, out_b_p);
+
+                        jack::Control::Continue
+                    };
+                let process = jack::ClosureProcessHandler::new(process_callback);
+
+                // Activate the client, which starts the processing.
+                let active_client = client.activate_async(Notifications, process)?;
+
+                // Connect system inputs to us and our puts to playback
+                active_client
+                    .as_client()
+                    .connect_ports_by_name("system:capture_1", "rtjam_rust:rtjam_in_1")?;
+                active_client
+                    .as_client()
+                    .connect_ports_by_name("system:capture_2", "rtjam_rust:rtjam_in_2")?;
+                active_client
+                    .as_client()
+                    .connect_ports_by_name("rtjam_rust:rtjam_out_l", "system:playback_1")?;
+                active_client
+                    .as_client()
+                    .connect_ports_by_name("rtjam_rust:rtjam_out_r", "system:playback_2")?;
+
+                loop {
+                    sleep(Duration::new(2, 0));
+                }
+            }
+            Err(e) => {
+                println!("jack start error: {}", e);
+            }
+        }
         sleep(Duration::new(2, 0));
     }
+
     // active_client.deactivate()?;
     // Ok(())
 }

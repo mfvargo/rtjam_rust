@@ -25,7 +25,7 @@ pub struct DelayBase {
     pub level: f32,
     pub drift: f32,
     pub drift_rate: f32,
-    gain: f32,
+    pub gain: f32,
     pub delay_mode: DelayMode,
     sample_rate: f32,
 }

@@ -14,10 +14,11 @@ echo "getting local version"
 cmp -s $WEBVER $LOCALVER
 if [ "$?" -ne "0" ]; then
   echo "Updating rtjam software"
-  /usr/bin/systemctl stop rtjam_sound
-  /usr/bin/wget $(NATION)/rtjam_sound
+  /usr/bin/systemctl stop rtjam-sound
+  /usr/bin/wget -O rtjam_sound $NATION/rtjam_sound
   /usr/bin/chmod +x rtjam_sound
-  /usr/bin/systemctl start rtjam_sound
+  /usr/bin/systemctl restart rtjam_jack
+  /usr/bin/systemctl start rtjam-sound
 else
   echo "No update needed"
 fi

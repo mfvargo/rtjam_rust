@@ -63,7 +63,7 @@ impl Tuner {
         let mut value = input;
         let mut batch_ready = false;
 
-        // Run the filterstack to knock down f > 370 before the down sample
+        // Run the filterstack to knock down f > 350 before the down sample
         for filter in &mut self.filter_stack {
             value = filter.get_sample(&value);
         }
@@ -71,7 +71,7 @@ impl Tuner {
         if self.down_sample_count % DOWN_COUNT == 0 {
             self.down_sample_count = 0;
             // put every 48th sample into the fft (downsample) but gain up for missing vals
-            self.fft_out[self.fft_bin].re = value * 48.0 * self.window[self.fft_bin];
+            self.fft_out[self.fft_bin].re = value * DOWN_COUNT as f32 * self.window[self.fft_bin];
             self.fft_out[self.fft_bin].im = 0.0;
             self.fft_bin += 1;
             // set flag when we have filled up the fft buffer

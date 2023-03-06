@@ -179,7 +179,7 @@ impl JamEngine {
         self.tuners[0].add_samples(in_a);
         self.tuners[0].get_note();
         self.tuners[1].add_samples(in_b);
-        self.tuners[0].get_note();
+        self.tuners[1].get_note();
         self.pedal_boards[0].process(in_a, &mut a_temp);
         self.pedal_boards[1].process(in_b, &mut b_temp);
         self.xmit_message.encode_audio(&a_temp, &b_temp);

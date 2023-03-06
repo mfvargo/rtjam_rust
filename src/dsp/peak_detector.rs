@@ -1,52 +1,44 @@
-use std::fmt;
-pub struct PeakDetector {
-    attack_coef: f64,
-    release_coef: f64,
-    peak_detector: f64,
-    last_output: f64,
+use num::{Float, FromPrimitive, Zero};
+use std::fmt::{self, Display};
+
+use crate::utils::get_coef;
+
+pub struct PeakDetector<T> {
+    attack_coef: T,
+    release_coef: T,
+    peak_detector: T,
+    last_output: T,
 }
 
-impl PeakDetector {
-    pub fn new() -> PeakDetector {
+impl<T: Float + FromPrimitive> PeakDetector<T> {
+    pub fn build(attack: T, release: T, sample_rate: T) -> PeakDetector<T> {
         PeakDetector {
-            attack_coef: Self::get_coef(0.01, 48_000),
-            release_coef: Self::get_coef(0.1, 48000),
-            peak_detector: 0.0,
-            last_output: 0.0,
+            attack_coef: get_coef(attack, sample_rate),
+            release_coef: get_coef(release, sample_rate),
+            peak_detector: Zero::zero(),
+            last_output: Zero::zero(),
         }
     }
-    pub fn init(&mut self, attack: f64, release: f64, sample_rate: u32) {
-        self.attack_coef = Self::get_coef(attack, sample_rate);
-        self.release_coef = Self::get_coef(release, sample_rate);
-    }
-    pub fn build(attack: f64, release: f64, sample_rate: u32) -> PeakDetector {
-        PeakDetector {
-            attack_coef: Self::get_coef(attack, sample_rate),
-            release_coef: Self::get_coef(release, sample_rate),
-            peak_detector: 0.0,
-            last_output: 0.0,
-        }
-    }
-    fn get_coef(val: f64, rate: u32) -> f64 {
-        // calculate a filter coef,  Darius secret formula
-        27.0 * (1.0 - f64::exp(-1.0 * (1.0 / (6.28 * val * rate as f64))))
+    pub fn init(&mut self, attack: T, release: T, sample_rate: T) -> () {
+        self.attack_coef = get_coef(attack, sample_rate);
+        self.release_coef = get_coef(release, sample_rate);
     }
 
-    pub fn get(&mut self, input: f64) -> f64 {
+    pub fn get(&mut self, input: T) -> T {
         let inp = input; // .abs();
         if self.peak_detector < inp {
-            self.peak_detector =
-                inp * self.attack_coef + (1.0 - self.attack_coef) * self.last_output;
+            self.peak_detector = inp * self.attack_coef
+                + (T::from_f64(1.0).unwrap() - self.attack_coef) * self.last_output;
         } else {
-            self.peak_detector =
-                input * self.release_coef + (1.0 - self.release_coef) * self.last_output;
+            self.peak_detector = input * self.release_coef
+                + (T::from_f64(1.0).unwrap() - self.release_coef) * self.last_output;
         }
         self.last_output = self.peak_detector;
         self.peak_detector
     }
 }
 
-impl fmt::Display for PeakDetector {
+impl<T: Float + FromPrimitive + Display> Display for PeakDetector<T> {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -63,7 +55,7 @@ mod test_peak_detector {
 
     #[test]
     fn get_value() {
-        let mut detector = PeakDetector::build(0.1, 2.5, 2666);
+        let mut detector: PeakDetector<f32> = PeakDetector::build(0.1, 2.5, 2666.6);
         println!("init: {}", detector);
         // It shoujld start at 0
         assert_eq!(detector.get(0.0), 0.0);

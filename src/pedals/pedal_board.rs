@@ -1,8 +1,9 @@
 use std::str::FromStr;
 
 use super::{
-    bass_di::BassDI, chorus::Chorus, compressor::Compressor, delay::Delay, noise_gate::NoiseGate,
-    pedal::Pedal, sigma_reverb::SigmaReverb, soul_drive::SoulDrive, speaker_sim_iir::SpeakerSimIIR,
+    bass_di::BassDI, bass_envelope::BassEnvelope, chorus::Chorus, compressor::Compressor,
+    delay::Delay, guitar_envelope::GuitarEnvelope, noise_gate::NoiseGate, pedal::Pedal,
+    sigma_reverb::SigmaReverb, soul_drive::SoulDrive, speaker_sim_iir::SpeakerSimIIR,
     tone_stack::ToneStack, tremelo::Tremelo, tube_drive::TubeDrive,
 };
 use serde_json::{json, Value};
@@ -52,17 +53,19 @@ impl PedalBoard {
 
     pub fn get_pedal_types() -> serde_json::Value {
         json!({
-          "Tone Stack": "Tone controls (3 band)",
-          "Noise Gate": "Noise Gate",
-          "Bass DI": "Bass Guitar Tone Shaping",
-          "Speaker Sim": "Speaker Cabinet Simulator",
-          "Sigma Reverb": "Sigma Reverb",
-          "Compressor": "Compressor Pedal",
-          "Tremelo": "Tremelo ala Fender",
-          "Delay": "Delay Pedal",
-          "TubeDrive": "Tube Overdrive",
-          "SoulDrive": "Soul Overdrive",
-          "Chorus": "Chorus",
+           "Tone Stack": "Tone controls (3 band)",
+           "Noise Gate": "Noise Gate",
+           "Bass DI": "Bass Guitar Tone Shaping",
+           "Speaker Sim": "Speaker Cabinet Simulator",
+           "Sigma Reverb": "Sigma Reverb",
+           "Compressor": "Compressor Pedal",
+           "Tremelo": "Tremelo ala Fender",
+           "Delay": "Delay Pedal",
+           "TubeDrive": "Tube Overdrive",
+           "SoulDrive": "Soul Overdrive",
+           "Chorus": "Chorus",
+           "Bass Envelope": "Bass Envelope Filter Pedal",
+           "Guitar Envelope": "Guitar Envelope Filter Pedal (auto-wah)",
         })
     }
 
@@ -83,6 +86,8 @@ impl PedalBoard {
             "SoulDrive" => Some(Box::new(SoulDrive::new())),
             "TubeDrive" => Some(Box::new(TubeDrive::new())),
             "Chorus" => Some(Box::new(Chorus::new())),
+            "Bass Envelope" => Some(Box::new(BassEnvelope::new())),
+            "Guitar Envelope" => Some(Box::new(GuitarEnvelope::new())),
             _ => {
                 // No pedal for that name
                 println!("Can't create pedal {}", type_name);

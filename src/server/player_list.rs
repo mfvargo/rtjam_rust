@@ -33,7 +33,7 @@ impl Player {
             client_id: id,
             keep_alive: now_time,
             address: addr.clone(),
-            loop_stat: SmoothingFilter::build(0.5, 2666),
+            loop_stat: SmoothingFilter::build(0.5, 2666.6),
         }
     }
     pub fn age(&self, now_time: u128) -> u128 {

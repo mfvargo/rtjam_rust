@@ -1,4 +1,5 @@
 use crate::common::box_error::BoxError;
+use num::{Float, FromPrimitive};
 use std::env;
 use std::fs;
 
@@ -37,11 +38,27 @@ pub fn to_lin(v: f64) -> f64 {
     f64::powf(10.0, v / 10.0)
 }
 
+pub fn get_coef<T: Float + FromPrimitive>(val: T, rate: T) -> T {
+    // calculate a filter coef,  Darius secret formula
+    let one = T::from_f64(1.0).unwrap();
+    let neg_one = T::from_f64(-1.0).unwrap();
+    let tau = T::from_f64(2.0 * std::f64::consts::PI).unwrap();
+    T::from_i32(27).unwrap() * (one - T::exp(neg_one / (tau * val * rate)))
+    // 27.0 * (1.0 - f64::exp(-1.0 * (1.0 / (6.28 * val * rate as f64))))
+}
+
 #[cfg(test)]
 
 mod test_utils {
     use super::*;
 
+    #[test]
+    fn get_coefficient() {
+        let c: f32 = get_coef(0.1, 2666.0);
+        println!("Coef: {}", c);
+        let c: f64 = get_coef(0.1, 2666.0);
+        println!("Coef: {}", c);
+    }
     #[test]
     fn get_mac_address() {
         let mac = get_my_mac_address("anbox0").unwrap();

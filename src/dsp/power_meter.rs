@@ -4,7 +4,7 @@ use super::{peak_detector::PeakDetector, smoothing_filter::SmoothingFilter};
 
 ///! Calculates the peak and avg power in dB
 pub struct PowerMeter {
-    peak: PeakDetector,
+    peak: PeakDetector<f64>,
     avg: SmoothingFilter,
     last_peak: f64,
     last_avg: f64,
@@ -13,8 +13,8 @@ pub struct PowerMeter {
 impl PowerMeter {
     pub fn new() -> PowerMeter {
         PowerMeter {
-            peak: PeakDetector::build(0.01, 0.1, 2666),
-            avg: SmoothingFilter::build(0.01, 2666),
+            peak: PeakDetector::build(0.01, 0.1, 2666.6),
+            avg: SmoothingFilter::build(0.01, 2666.6),
             last_peak: 0.0,
             last_avg: 0.0,
         }

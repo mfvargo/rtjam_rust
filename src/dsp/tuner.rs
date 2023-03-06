@@ -22,7 +22,7 @@ impl Tuner {
     pub fn new() -> Tuner {
         let mut tuner = Tuner {
             enable: false,
-            freq: SmoothingFilter::build(0.01, (48_000 / DOWN_COUNT) as u32),
+            freq: SmoothingFilter::build(0.01, (48_000 / DOWN_COUNT) as f64),
             filter_stack: [
                 BiQuadFilter::new(),
                 BiQuadFilter::new(),

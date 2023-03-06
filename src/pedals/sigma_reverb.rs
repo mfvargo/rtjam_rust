@@ -17,14 +17,14 @@ pub struct SigmaReverb {
     delay2_idx: usize,
     reverb_time: f32,
     reverb_level: f32,
-    lap1: AllpassDelay,
-    lap2: AllpassDelay,
-    lap3: AllpassDelay,
-    lap4: AllpassDelay,
-    apd1: AllpassDelay,
-    apd1b: AllpassDelay,
-    apd2: AllpassDelay,
-    apd2b: AllpassDelay,
+    lap1: AllpassDelay<f32>,
+    lap2: AllpassDelay<f32>,
+    lap3: AllpassDelay<f32>,
+    lap4: AllpassDelay<f32>,
+    apd1: AllpassDelay<f32>,
+    apd1b: AllpassDelay<f32>,
+    apd2: AllpassDelay<f32>,
+    apd2b: AllpassDelay<f32>,
 }
 
 impl SigmaReverb {

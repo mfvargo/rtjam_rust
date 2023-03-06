@@ -1,33 +1,35 @@
-use std::fmt;
-pub struct AttackHoldRelease {
-    attack_coef: f64,
-    release_coef: f64,
-    attack_release_ouput: f64,
+use std::fmt::{self, Display};
+
+use num::{Float, FromPrimitive, Zero};
+
+use crate::utils::get_coef;
+pub struct AttackHoldRelease<T> {
+    attack_coef: T,
+    release_coef: T,
+    attack_release_ouput: T,
     hold_time_count: usize,
     max_hold_time_count: usize,
-    last_output: f64,
+    last_output: T,
 }
 
-impl AttackHoldRelease {
-    pub fn new(attack: f64, hold: f64, release: f64, sample_rate: usize) -> AttackHoldRelease {
+impl<T: Float + FromPrimitive> AttackHoldRelease<T> {
+    pub fn one() -> T {
+        T::from_i64(1).unwrap()
+    }
+    pub fn new(attack: T, hold: T, release: T, sample_rate: T) -> AttackHoldRelease<T> {
         AttackHoldRelease {
-            attack_coef: Self::get_coef(attack, sample_rate),
-            release_coef: Self::get_coef(release, sample_rate),
-            attack_release_ouput: 0.0,
+            attack_coef: get_coef(attack, sample_rate),
+            release_coef: get_coef(release, sample_rate),
+            attack_release_ouput: Zero::zero(),
             hold_time_count: 0,
-            max_hold_time_count: (hold * sample_rate as f64).round() as usize,
-            last_output: 0.0,
+            max_hold_time_count: (hold * sample_rate).round().to_usize().unwrap(),
+            last_output: Zero::zero(),
         }
     }
-    fn get_coef(val: f64, rate: usize) -> f64 {
-        // calculate a filter coef,  Darius secret formula
-        27.0 * (1.0 - f64::exp(-1.0 * (1.0 / (6.28 * val * rate as f64))))
-    }
-
-    pub fn get(&mut self, trigger: bool) -> f32 {
+    pub fn get(&mut self, trigger: bool) -> T {
         if trigger == true {
             self.attack_release_ouput =
-                self.attack_coef + (1.0 - self.attack_coef) * self.last_output;
+                self.attack_coef + (Self::one() - self.attack_coef) * self.last_output;
             self.hold_time_count = 0; // reset hold time
         } else {
             self.hold_time_count += 1;
@@ -36,17 +38,17 @@ impl AttackHoldRelease {
             {
                 // release if hold time expired
                 self.hold_time_count = self.max_hold_time_count; // hold count reset when re-triggered
-                self.attack_release_ouput = (1.0 - self.release_coef) * self.last_output;
+                self.attack_release_ouput = (Self::one() - self.release_coef) * self.last_output;
             }
         }
 
         self.last_output = self.attack_release_ouput; // trigger(n-1) = trigger(n)
 
-        self.attack_release_ouput as f32
+        self.attack_release_ouput
     }
 }
 
-impl fmt::Display for AttackHoldRelease {
+impl<T: Float + FromPrimitive + Display> Display for AttackHoldRelease<T> {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
@@ -63,7 +65,7 @@ mod test_peak_detector {
 
     #[test]
     fn get_value() {
-        let mut detector = AttackHoldRelease::new(0.1, 0.5, 2.5, 2666);
+        let mut detector = AttackHoldRelease::new(0.1, 0.5, 2.5, 2666.6);
         println!("init: {}", detector);
         // It should start at 0
         assert!(detector.get(true) > 0.0);

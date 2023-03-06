@@ -11,7 +11,7 @@ pub struct NoiseGate {
     attack: f64,
     hold: f64,
     release: f64,
-    attack_hold_release: AttackHoldRelease,
+    attack_hold_release: AttackHoldRelease<f64>,
 }
 
 impl NoiseGate {
@@ -121,7 +121,7 @@ impl Pedal for NoiseGate {
             output[i] = samp
                 * self
                     .attack_hold_release
-                    .get(samp.abs() > self.threshold as f32);
+                    .get(samp.abs() as f64 > self.threshold) as f32;
             i += 1;
         }
     }

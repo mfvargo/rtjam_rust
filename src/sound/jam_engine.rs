@@ -4,6 +4,7 @@ use serde_json::json;
 
 use crate::{
     common::{box_error::BoxError, jam_packet::JamMessage, stream_time_stat::MicroTimer},
+    dsp::tuner::Tuner,
     pedals::pedal_board::PedalBoard,
     server::player_list::get_micro_time,
     utils::to_db,
@@ -37,6 +38,7 @@ pub struct JamEngine {
     git_hash: String,
     now: u128,
     pedal_boards: Vec<PedalBoard>,
+    tuners: [Tuner; 2],
 }
 
 impl JamEngine {
@@ -62,6 +64,7 @@ impl JamEngine {
             git_hash: String::from(git_hash),
             now: now,
             pedal_boards: vec![PedalBoard::new(), PedalBoard::new()],
+            tuners: [Tuner::new(), Tuner::new()],
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -116,7 +119,8 @@ impl JamEngine {
                 self.update_timer.set_interval(IDLE_REFRESH);
             }
             // send level updates
-            let _res = self.status_data_tx.send(self.build_level_event());
+            let event = self.build_level_event();
+            let _res = self.status_data_tx.send(event);
             // println!("disconnect: {}", self.disconnect_timer.since(self.now));
             // println!("mixer: {}", self.mixer);
         }
@@ -172,6 +176,10 @@ impl JamEngine {
     fn send_my_audio(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
         let mut a_temp: Vec<f32> = vec![0.0; in_a.len()];
         let mut b_temp: Vec<f32> = vec![0.0; in_b.len()];
+        self.tuners[0].add_samples(in_a);
+        self.tuners[0].get_note();
+        self.tuners[1].add_samples(in_b);
+        self.tuners[1].get_note();
         self.pedal_boards[0].process(in_a, &mut a_temp);
         self.pedal_boards[1].process(in_b, &mut b_temp);
         self.xmit_message.encode_audio(&a_temp, &b_temp);
@@ -180,7 +188,7 @@ impl JamEngine {
         self.mixer.add_to_channel(0, &a_temp);
         self.mixer.add_to_channel(1, &b_temp);
     }
-    fn build_level_event(&self) -> serde_json::Value {
+    fn build_level_event(&mut self) -> serde_json::Value {
         let mut players: Vec<serde_json::Value> = vec![];
         players.push(json!(
             {
@@ -228,10 +236,10 @@ impl JamEngine {
                   "roomPeakLeft": self.mixer.get_channel_power_peak(0),
                   "roomPeakRight": self.mixer.get_channel_power_peak(1),
                   // TODO  These are stubs for now
-                  "inputLeftFreq": 220.0,
-                  "inputRightFreq": 222.0,
-                  "leftTunerOn": false,
-                  "rightTunerOn": false,
+                  "inputLeftFreq": self.tuners[0].freq.get_last_output(),
+                  "inputRightFreq": self.tuners[1].freq.get_last_output(),
+                  "leftTunerOn": self.tuners[0].enable,
+                  "rightTunerOn": self.tuners[1].enable,
                   "leftRoomMute": false,
                   "rightRoomMute": false,
                   "beat": 0,
@@ -330,6 +338,12 @@ impl JamEngine {
                     self.pedal_boards[idx].load_from_json(&msg.svalue);
                 }
                 self.send_pedal_info();
+            }
+            Some(JamParams::TuneChannel) => {
+                let idx = msg.ivalue_1 as usize;
+                if idx < 2 {
+                    self.tuners[idx].enable = msg.ivalue_2 == 1;
+                }
             }
             Some(JamParams::SetEffectConfig) => {
                 // Change a parameter on a pedal

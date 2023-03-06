@@ -18,6 +18,9 @@ impl Client {
             keep_alive: 0,
         }
     }
+    pub fn is_empty(&self) -> bool {
+        self.client_id == EMPTY_SLOT
+    }
 }
 
 pub struct ChannelMap {

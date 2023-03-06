@@ -202,16 +202,18 @@ impl JamEngine {
         ));
         let mut idx: usize = 2;
         for c in self.chan_map.get_clients() {
-            players.push(json!(
-                {
-                    "clientId": c.client_id,
-                    "depth": self.mixer.get_depth_in_msec(idx),
-                    "level0": self.mixer.get_channel_power_avg(idx),
-                    "level1": self.mixer.get_channel_power_avg(idx+1),
-                    "peak0": self.mixer.get_channel_power_peak(idx),
-                    "peak1": self.mixer.get_channel_power_peak(idx+1),
-                }
-            ));
+            if !c.is_empty() {
+                players.push(json!(
+                    {
+                        "clientId": c.client_id,
+                        "depth": self.mixer.get_depth_in_msec(idx),
+                        "level0": self.mixer.get_channel_power_avg(idx),
+                        "level1": self.mixer.get_channel_power_avg(idx+1),
+                        "peak0": self.mixer.get_channel_power_peak(idx),
+                        "peak1": self.mixer.get_channel_power_peak(idx+1),
+                    }
+                ));
+            }
             idx += 2;
         }
         // this is a hack for input gain on channel 0 and 1

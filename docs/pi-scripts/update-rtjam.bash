@@ -17,7 +17,7 @@ if [ "$?" -ne "0" ]; then
   /usr/bin/systemctl stop rtjam-sound
   /usr/bin/wget -O rtjam_sound $NATION/rtjam_sound
   /usr/bin/chmod +x rtjam_sound
-  /usr/bin/systemctl restart rtjam_jack
+  /usr/bin/systemctl restart rtjam-jack
   /usr/bin/systemctl start rtjam-sound
 else
   echo "No update needed"

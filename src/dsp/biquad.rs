@@ -201,16 +201,19 @@ impl BiQuadFilter {
         self.a0 = 1.0;
     }
 
-    pub fn get_sample(&mut self, input: &f32) -> f32 {
-        let samp = *input as f64;
-        let value: f64 = self.b0 * samp + self.b1 * self.x1 + self.b2 * self.x2
+    pub fn get_sample_64(&mut self, input: &f64) -> f64 {
+        let value: f64 = self.b0 * input + self.b1 * self.x1 + self.b2 * self.x2
             - self.a1 * self.y1
             - self.a2 * self.y2;
         self.x2 = self.x1;
-        self.x1 = samp;
+        self.x1 = *input;
         self.y2 = self.y1;
         self.y1 = value;
-        value as f32
+        value
+    }
+    pub fn get_sample(&mut self, input: &f32) -> f32 {
+        let samp = *input as f64;
+        self.get_sample_64(&samp) as f32
     }
 }
 

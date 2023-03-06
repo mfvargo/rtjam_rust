@@ -1,21 +1,18 @@
 use std::fmt;
 
+use crate::utils::get_coef;
+
 pub struct SmoothingFilter {
     coef: f64,
     last_output: f64,
 }
 
 impl SmoothingFilter {
-    pub fn build(time_const: f64, sample_rate: u32) -> SmoothingFilter {
+    pub fn build(time_const: f64, sample_rate: f64) -> SmoothingFilter {
         SmoothingFilter {
-            coef: Self::get_coef(time_const, sample_rate),
+            coef: get_coef(time_const, sample_rate),
             last_output: 0.0,
         }
-    }
-
-    fn get_coef(val: f64, rate: u32) -> f64 {
-        // calculate a filter coef,  Darius secret formula
-        27.0 * (1.0 - f64::exp(-1.0 * (1.0 / (6.28 * val * rate as f64))))
     }
 
     pub fn get(&mut self, input: f64) -> f64 {
@@ -43,7 +40,7 @@ mod test_smoothing_filter {
 
     #[test]
     fn get_value() {
-        let mut filter = SmoothingFilter::build(2.5, 2666);
+        let mut filter = SmoothingFilter::build(2.5, 2666.6);
         println!("init: {}", filter);
         // It shoujld start at 0
         assert_eq!(filter.get(0.0), 0.0);

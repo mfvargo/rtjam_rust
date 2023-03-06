@@ -14,7 +14,7 @@ pub struct Compressor {
     level: f64,
     attack: f64,
     release: f64,
-    peak: PeakDetector,
+    peak: PeakDetector<f64>,
 }
 
 impl Compressor {
@@ -28,7 +28,7 @@ impl Compressor {
             level: 1.0,
             attack: 0.0,
             release: 0.0,
-            peak: PeakDetector::build(0.0, 0.0, 48_000),
+            peak: PeakDetector::build(0.0, 0.0, 48_000.0),
         };
         comp.settings.push(PedalSetting::new(
             SettingUnit::Continuous,
@@ -135,7 +135,7 @@ impl Pedal for Compressor {
             }
         }
         self.slope = 1.0 - (1.0 / self.ratio);
-        self.peak.init(self.attack, self.release, 48_000);
+        self.peak.init(self.attack, self.release, 48_000.0);
     }
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut i: usize = 0;

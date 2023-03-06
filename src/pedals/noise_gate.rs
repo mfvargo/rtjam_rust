@@ -23,7 +23,7 @@ impl NoiseGate {
             attack: 0.0,
             hold: 0.0,
             release: 0.0 / 1000.0,
-            attack_hold_release: AttackHoldRelease::new(0.0, 0.0, 0.0, 48_000),
+            attack_hold_release: AttackHoldRelease::new(0.0, 0.0, 0.0, 48_000.0),
         };
         gate.settings.push(PedalSetting::new(
             SettingUnit::Continuous,
@@ -113,7 +113,7 @@ impl Pedal for NoiseGate {
             }
         }
         self.attack_hold_release =
-            AttackHoldRelease::new(self.attack, self.hold, self.release, 48_000);
+            AttackHoldRelease::new(self.attack, self.hold, self.release, 48_000.0);
     }
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut i: usize = 0;

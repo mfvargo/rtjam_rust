@@ -12,7 +12,7 @@ pub struct JitterBuffer {
     filling: bool,
     underruns: usize,
     overruns: usize,
-    depth_filter: PeakDetector,
+    depth_filter: PeakDetector<f64>,
     puts: usize,
     gets: usize,
 }
@@ -41,7 +41,7 @@ impl JitterBuffer {
             filling: true,
             underruns: 0,
             overruns: 0,
-            depth_filter: PeakDetector::build(0.1, 2.5, 48000 / 128),
+            depth_filter: PeakDetector::build(0.1, 2.5, 48000.0 / 128.0),
             puts: 0,
             gets: 0,
         }

@@ -9,7 +9,7 @@ const DOWN_COUNT: usize = 48;
 
 pub struct Tuner {
     pub enable: bool,
-    pub freq: SmoothingFilter,
+    pub freq: SmoothingFilter<f64>,
     pub last_note: f64,
     filter_stack: [BiQuadFilter; 4],
     down_sample_count: usize,

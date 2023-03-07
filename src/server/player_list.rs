@@ -21,7 +21,7 @@ pub struct Player {
     pub client_id: u32,
     pub keep_alive: u128,
     pub address: SocketAddr,
-    pub loop_stat: SmoothingFilter,
+    pub loop_stat: SmoothingFilter<f64>,
 }
 
 // Only measure loop times up to 100msec

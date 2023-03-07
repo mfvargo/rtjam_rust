@@ -1,30 +1,32 @@
-use std::fmt;
+use num::{Float, FromPrimitive, Zero};
+use std::fmt::{self, Display};
 
 use crate::utils::get_coef;
 
-pub struct SmoothingFilter {
-    coef: f64,
-    last_output: f64,
+pub struct SmoothingFilter<T> {
+    coef: T,
+    last_output: T,
 }
 
-impl SmoothingFilter {
-    pub fn build(time_const: f64, sample_rate: f64) -> SmoothingFilter {
+impl<T: Float + FromPrimitive> SmoothingFilter<T> {
+    pub fn build(time_const: T, sample_rate: T) -> SmoothingFilter<T> {
         SmoothingFilter {
             coef: get_coef(time_const, sample_rate),
-            last_output: 0.0,
+            last_output: Zero::zero(),
         }
     }
 
-    pub fn get(&mut self, input: f64) -> f64 {
-        self.last_output = input * self.coef + (1.0 - self.coef) * self.last_output;
+    pub fn get(&mut self, input: T) -> T {
+        let one = T::from_i32(1).unwrap();
+        self.last_output = input * self.coef + (one - self.coef) * self.last_output;
         self.last_output
     }
-    pub fn get_last_output(&self) -> f64 {
+    pub fn get_last_output(&self) -> T {
         self.last_output
     }
 }
 
-impl fmt::Display for SmoothingFilter {
+impl<T: Float + FromPrimitive + Display> Display for SmoothingFilter<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,

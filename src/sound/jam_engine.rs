@@ -238,8 +238,8 @@ impl JamEngine {
                   "roomPeakLeft": self.mixer.get_channel_power_peak(0),
                   "roomPeakRight": self.mixer.get_channel_power_peak(1),
                   // TODO  These are stubs for now
-                  "inputLeftFreq": self.tuners[0].freq.get_last_output(),
-                  "inputRightFreq": self.tuners[1].freq.get_last_output(),
+                  "inputLeftFreq": self.tuners[0].get_note(),
+                  "inputRightFreq": self.tuners[1].get_note(),
                   "leftTunerOn": self.tuners[0].enable,
                   "rightTunerOn": self.tuners[1].enable,
                   "leftRoomMute": false,

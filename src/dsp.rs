@@ -1,3 +1,5 @@
+//! Modules related to DSP algorithms, ie: BiQuad Filter, PowerMeter, etc.
+
 pub mod allpass_delay;
 pub mod attack_hold_release;
 pub mod biquad;

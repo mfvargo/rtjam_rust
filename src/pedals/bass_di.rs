@@ -1,3 +1,10 @@
+//! Bass DI pedal simulator.  Goal is to approximate the tone stack and
+//! compression style of an Ampeg bass head.
+//!
+//! The pedal consists of 3 tone controls and a level control (aka "Volume")
+//! It is implemented with 3 BiQuad filters and the "soft" clip algorithm.
+//!
+//! All settings are passed in via JSON and units are dB
 use serde_json::json;
 
 use crate::dsp::biquad::{BiQuadFilter, FilterType};

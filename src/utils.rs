@@ -1,3 +1,4 @@
+//! grab bag of functions used across the board.  Why are these not in common?
 use crate::common::box_error::BoxError;
 use num::{Float, FromPrimitive};
 use std::env;

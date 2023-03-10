@@ -1,3 +1,10 @@
+//! effect pedals that can be chained into a pedal board
+//!
+//! Pedals can be added to the processing stream of the client software.  This is
+//! done by having all pedals implement the [`Pedal`](crate::pedals::pedal::Pedal) trait.
+//! the trait provides the top down look to the different pedal implementation.  This way the
+//! [`PedalBoard`](crate::pedals::pedal_board::PedalBoard) can have an arbitrary set of
+//! pedals connected in a chain.
 pub mod bass_di;
 pub mod bass_envelope;
 pub mod chorus;

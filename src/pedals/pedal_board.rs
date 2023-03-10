@@ -1,3 +1,15 @@
+//! container for the various pedals.
+//!
+//! The PedalBoard will sequentially call through its collection of pedals applying them to the
+//! audio data frames.  It will build the pedals (factory) and can arrange them in order.
+//!
+//! It can also save itself out as a bunch of json that can also be used to construct a pedal
+//! board.  This json has all the pedals and their individual controls.  Saved pedal boards in
+//! the rtjam-nation website can be reloaded using that interface.
+//!
+//! When creating a new pedal, the pedal must be added to the privat make_pedal function.  Each new
+//! pedal must have a unique pedal type that will be used to construct a default pedal of that type.
+//!
 use std::str::FromStr;
 
 use super::{

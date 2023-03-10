@@ -1,3 +1,4 @@
+//! components used to make the rtjam_sound client
 pub mod channel_map;
 pub mod channel_strip;
 pub mod client;

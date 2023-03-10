@@ -1,10 +1,7 @@
 use num::Complex;
 use rustfft::{algorithm::Radix4, Fft, FftDirection};
 
-use super::{
-    biquad::{BiQuadFilter, FilterType},
-    smoothing_filter::SmoothingFilter,
-};
+use super::biquad::{BiQuadFilter, FilterType};
 
 const FFT_SIZE: usize = 1024;
 const FFT_OVERLAP: usize = 256;

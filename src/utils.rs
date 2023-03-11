@@ -25,7 +25,6 @@ pub fn get_git_hash() -> String {
 /// # Example
 ///
 /// ```
-/// use rtjam_rust::utils::get_frame_power_in_db;
 ///
 /// use rtjam_rust::utils::get_frame_power_in_db;
 ///

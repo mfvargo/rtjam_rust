@@ -50,7 +50,7 @@ impl JamEngine {
     ) -> Result<JamEngine, BoxError> {
         let now = get_micro_time();
         let mut engine = JamEngine {
-            sock: JamSocket::build(9991)?,
+            sock: JamSocket::new(9991)?,
             recv_message: JamMessage::build(),
             xmit_message: JamMessage::build(),
             status_data_tx: tx,

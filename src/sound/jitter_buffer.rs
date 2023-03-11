@@ -1,3 +1,20 @@
+//! adaptive buffer used to smooth incoming network audio data
+//!
+//! Allow for gap free playback with the minimum amount of delay.
+//!
+//! Nature of the buffer is that the writes to it have varying degrees of jitter.  Reads
+//! from the buffer are clocked from the underlying audio engine and therefore have very
+//! low jitter.  Jittery input, smooth output.
+//!
+//! Adaptation is based on measuring the deviation in the buffers depth.  This
+//! relates directly to the inter-arrival variance of network packets.  A large variance
+//! requires a deeper buffer to prevent starves on reads.
+//!
+//! Another adaptation is that when the buffer overflows (large write delay followed by
+//! burst of write calls), the next read call will drain the excess data off the front
+//! of the buffer (oldest data gets thrown out) and then return data.  This prevents the
+//! buffer depth from driving to the largest inter packet delay.  Net effect is this
+//! allows for some gaps in playback in order to drive buffer latency down.
 use crate::{common::stream_time_stat::StreamTimeStat, dsp::peak_detector::PeakDetector};
 use std::fmt;
 
@@ -5,6 +22,9 @@ const MIN_DEPTH: usize = 512;
 const MAX_DEPTH: usize = 8192;
 const MIN_SIGMA: f64 = 7.0;
 
+/// Adaptive buffer for smoothing network audio data
+///
+/// Note that all adaptation functions are performed on buffer read.  
 pub struct JitterBuffer {
     buffer: Vec<f32>,
     depth_stats: StreamTimeStat,
@@ -33,7 +53,8 @@ impl fmt::Display for JitterBuffer {
 }
 
 impl JitterBuffer {
-    pub fn build() -> JitterBuffer {
+    /// Build a new default jitterbuffer.  It will adapt from here
+    pub fn new() -> JitterBuffer {
         JitterBuffer {
             buffer: Vec::<f32>::new(),
             depth_stats: StreamTimeStat::build(50),
@@ -46,27 +67,33 @@ impl JitterBuffer {
             gets: 0,
         }
     }
+    /// retrieves the current number of samples in the buffer  (just for testing)
     pub fn length(&self) -> usize {
         self.buffer.len()
     }
+    /// gets the mean depth for the buffer
     pub fn avg_depth(&self) -> f64 {
         self.depth_stats.get_mean()
     }
+    /// How many times has the buffer overflowed (no room at the inn)
     pub fn get_overruns(&self) -> usize {
         self.overruns
     }
+    /// How many times has the buffer starved (no water in the bottle)
     pub fn get_underruns(&self) -> usize {
         self.underruns
     }
+    /// is the buffer filling to it's target depth
     pub fn is_filling(&self) -> bool {
         self.filling
     }
+    /// append data to the buffer
     pub fn append(&mut self, audio: &[f32]) -> () {
         self.puts += 1;
         self.buffer.extend_from_slice(audio);
     }
-    // get will retrieve data from the jitter buffer.  It will always give you a full vector but
-    // it might have zeros if there is no data.
+    /// get will retrieve data from the jitter buffer.  It will always give you a full vector but
+    /// it might have zeros if there is no data or the buffer is still filling
     pub fn get(&mut self, count: usize) -> Vec<f32> {
         // It should get some data off the buffer
         self.gets += 1;
@@ -133,19 +160,19 @@ mod test_jitter_buffer {
     #[test]
     fn build() {
         // you should be able to build a jitter buffer
-        let buf = JitterBuffer::build();
+        let buf = JitterBuffer::new();
         assert_eq!(buf.length(), 0);
     }
     #[test]
     fn avg_depth() {
         // It should tell you it's avg depth
-        let buf = JitterBuffer::build();
+        let buf = JitterBuffer::new();
         assert_eq!(buf.avg_depth(), 0.0);
     }
     #[test]
     fn put() {
         // It should have an append
-        let mut buf = JitterBuffer::build();
+        let mut buf = JitterBuffer::new();
         let samples: Vec<f32> = vec![0.2, 0.3, 0.4];
         buf.append(&samples);
         assert_eq!(buf.length(), 3);
@@ -153,7 +180,7 @@ mod test_jitter_buffer {
     #[test]
     fn get_normal() {
         // It should have a get function
-        let mut buf = JitterBuffer::build();
+        let mut buf = JitterBuffer::new();
         let samples: Vec<f32> = vec![0.2; MIN_DEPTH];
         assert!(buf.is_filling());
         buf.append(&samples);
@@ -164,7 +191,7 @@ mod test_jitter_buffer {
 
     #[test]
     fn get_from_empty() {
-        let mut buf = JitterBuffer::build();
+        let mut buf = JitterBuffer::new();
         let res = buf.get(4);
         assert_eq!(res.len(), 4);
         assert_eq!(res, vec![0.0; 4]);
@@ -172,7 +199,7 @@ mod test_jitter_buffer {
     }
     #[test]
     fn overrun_measure() {
-        let mut buf = JitterBuffer::build();
+        let mut buf = JitterBuffer::new();
         let samps = vec![0.1; MIN_DEPTH + 10];
         buf.append(&samps);
         let samps = vec![0.1; MIN_DEPTH + 10];

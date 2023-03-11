@@ -1,4 +1,17 @@
 //! Structure used to pass messages to the audio engine from the websocket
+//!
+//! The ParamMessage is used to define the API to the sound engine from the outside
+//! world.  Interpretation of this message is by the
+//! [`JamEngine`](crate::sound::jam_engine::JamEngine).
+//!
+//! A ParamMessage consist of a param value [`JamParam`](crate::sound::jam_params::JamParams), and 4
+//! other values.  interpretation of the values is dependent on the nature of the command.
+//!
+//! other values are ivalue_1: integer, ivalue_2: integer, fvalue: float, and svalue: string.
+//!
+//! ### TODO
+//! This encoding needs to get normalized.  But it will require coordination between the u/x and the
+//! sound unit.
 
 use serde_json::json;
 use simple_error::bail;

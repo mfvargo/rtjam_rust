@@ -6,6 +6,8 @@ use std::fs;
 
 // utility functions
 
+/// function used to get the mac address from the local system.  This address is used to uniquely identify this
+/// unit to the rtjam-nation.  TODO:  maybe there is a better way to do this?
 pub fn get_my_mac_address(iface: &str) -> Result<String, BoxError> {
     // Get the mac address
     let fcontent = fs::read_to_string(format!("/sys/class/net/{}/address", iface))?;
@@ -17,6 +19,21 @@ pub fn get_git_hash() -> String {
     String::from(sha)
 }
 
+/// Get frame power in dB of a slice of samples
+///
+/// results are clipped an -60dB which is essentially silence
+/// # Example
+///
+/// ```
+///
+/// fn main() {
+///     let frame = [0.0; 128];
+///     assert_eq!(get_frame_power_in_db(&frame), -60.0);
+///     let frame = [0.5; 128];
+///     assert_eq!(get_frame_power_in_db(&frame).round(), -6.0);
+/// }
+/// ```
+///
 pub fn get_frame_power_in_db(frame: &[f32]) -> f64 {
     // linear calcution.  sum of the squares / number of values
     if frame.len() == 0 {
@@ -39,6 +56,7 @@ pub fn to_lin(v: f64) -> f64 {
     f64::powf(10.0, v / 10.0)
 }
 
+/// calculate a filter coefficient give a time constant and sample rate (Darius secret formula)
 pub fn get_coef<T: Float + FromPrimitive>(val: T, rate: T) -> T {
     // calculate a filter coef,  Darius secret formula
     let one = T::from_f64(1.0).unwrap();

@@ -1,17 +1,17 @@
 //! grab bag of functions used across the board.  Why are these not in common?
 use crate::common::box_error::BoxError;
+use mac_address::get_mac_address;
 use num::{Float, FromPrimitive};
 use std::env;
-use std::fs;
-
 // utility functions
 
 /// function used to get the mac address from the local system.  This address is used to uniquely identify this
 /// unit to the rtjam-nation.  TODO:  maybe there is a better way to do this?
-pub fn get_my_mac_address(iface: &str) -> Result<String, BoxError> {
-    // Get the mac address
-    let fcontent = fs::read_to_string(format!("/sys/class/net/{}/address", iface))?;
-    Ok(String::from(fcontent.trim()))
+pub fn get_my_mac_address() -> Result<String, BoxError> {
+    match get_mac_address()? {
+        Some(addr) => Ok(addr.to_string().to_lowercase()),
+        None => Ok("".to_string()),
+    }
 }
 
 pub fn get_git_hash() -> String {
@@ -25,6 +25,8 @@ pub fn get_git_hash() -> String {
 /// # Example
 ///
 /// ```
+///
+/// use rtjam_rust::utils::get_frame_power_in_db;
 ///
 /// fn main() {
 ///     let frame = [0.0; 128];
@@ -80,7 +82,7 @@ mod test_utils {
     }
     #[test]
     fn get_mac_address() {
-        let mac = get_my_mac_address("anbox0").unwrap();
+        let mac = get_my_mac_address().unwrap();
         println!("mac: {}", mac);
     }
     #[test]

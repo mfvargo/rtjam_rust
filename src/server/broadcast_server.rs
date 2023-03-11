@@ -23,7 +23,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let port: u32 = config.get_u32_value("port", 7891);
     println!("port: {}", port);
     let room_port = port.clone();
-    let mac_address = utils::get_my_mac_address(config.get_value("networkInterface", "eth0"))?;
+    let mac_address = utils::get_my_mac_address()?;
     // Create an api endpoint and register this server
     // TODO: figure out way to get lan ip and mac address
     let mut api = JamNationApi::new(

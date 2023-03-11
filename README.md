@@ -39,10 +39,14 @@ The server just listens for packets from rtjam clients. The server dynamically c
 
 The server should run on any OS that has a std rust compiler.
 
-## Where is the U/X?
+## System Architecture
+
+![Architecture](docs/system_diagram.png)
+
+## Where is the U/X? Web-App
 
 The rtjam_sound and rtjam_broadcast components are the audio pieces of the rtjam-nation project. This is hosted at rtjam-nation.basscelftech.com. The site provides the mechanism to coordinate all the rtjam_sound and rtjam_broadcast entities into a network. The U/X to manage the devices is hosted there.
-It is written in ReactJs and talks to the rtjam-nation api for user authentication, and component
+It is written in React/NextJs and talks to the rtjam-nation api for user authentication, and component
 management. It also uses websockets to communicate directly with the broadcast and sound components.
 
 ### rtjam-nation REST API

@@ -21,7 +21,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         String::from(config.get_value("api_url", "http://rtjam-nation.basscleftech.com/api/1/"));
     let ws_url =
         String::from(config.get_value("ws_url", "ws://rtjam-nation.basscleftech.com/primus"));
-    let mac_address = utils::get_my_mac_address(config.get_value("networkInterface", "eth0"))?;
+    let mac_address = utils::get_my_mac_address()?;
 
     // Create an api endpoint and register this jamUnit
     let mut api = JamNationApi::new(

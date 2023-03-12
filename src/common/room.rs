@@ -59,14 +59,8 @@ impl Room {
         stream.set_read_timeout(Some(Duration::new(0, 200_000_000)))?; // poll 5 times per second
         Ok(stream)
     }
-    fn connect_to_some(addrs: &[SocketAddr], uri: &Uri) -> Result<TcpStream, Error> {
-        for addr in addrs {
-            dbg!("Trying to contact {} at {}...", uri, addr);
-            if let Ok(stream) = TcpStream::connect(addr) {
-                return Ok(stream);
-            }
-        }
-        Err(Error::Url(UrlError::UnableToConnect(uri.to_string())))
+    fn connect_to_some(addrs: &[SocketAddr], uri: &Uri) -> Result<TcpStream, BoxError> {
+        Ok(TcpStream::connect(addrs[0])?)
     }
     pub fn join_room(&mut self) -> () {
         let msg = json!({

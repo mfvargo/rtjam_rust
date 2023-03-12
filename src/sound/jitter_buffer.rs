@@ -57,7 +57,7 @@ impl JitterBuffer {
     pub fn new() -> JitterBuffer {
         JitterBuffer {
             buffer: Vec::<f32>::new(),
-            depth_stats: StreamTimeStat::build(50),
+            depth_stats: StreamTimeStat::new(50),
             target_depth: MIN_DEPTH,
             filling: true,
             underruns: 0,

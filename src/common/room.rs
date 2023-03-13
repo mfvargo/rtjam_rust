@@ -167,3 +167,13 @@ impl Room {
         }
     }
 }
+
+#[cfg(test)]
+mod test_room {
+    use super::*;
+
+    #[test]
+    fn can_build() {
+        let _room = Room::new("foobar", "ws://rtjam-nation.com/primus");
+    }
+}

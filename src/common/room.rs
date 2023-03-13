@@ -154,7 +154,9 @@ impl Room {
             Err(e) => {
                 match e {
                     Error::Io(ioerr) => {
-                        if ioerr.kind() == std::io::ErrorKind::WouldBlock {
+                        if ioerr.kind() == std::io::ErrorKind::WouldBlock
+                            || ioerr.kind() == std::io::ErrorKind::TimedOut
+                        {
                             // timeout reading the websocket
                             return Ok(None);
                         } else {

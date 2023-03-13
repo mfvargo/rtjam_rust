@@ -9,7 +9,7 @@ use std::{
 fn main() -> Result<(), BoxError> {
     // most simple app to test websocket
 
-    let (to_ws_tx, to_ws_rx): (
+    let (_to_ws_tx, to_ws_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,
     ) = mpsc::channel();

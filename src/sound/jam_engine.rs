@@ -51,8 +51,8 @@ impl JamEngine {
         let now = get_micro_time();
         let mut engine = JamEngine {
             sock: JamSocket::new(9991)?,
-            recv_message: JamMessage::build(),
-            xmit_message: JamMessage::build(),
+            recv_message: JamMessage::new(),
+            xmit_message: JamMessage::new(),
             status_data_tx: tx,
             command_rx: rx,
             update_timer: MicroTimer::new(now, IDLE_REFRESH),

@@ -1,8 +1,13 @@
+//! Thread used to read/write messages to/from the room abstract in rtjam-nation
 use crate::common::box_error::BoxError;
 use crate::common::room::Room;
 
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
+/// start a thread with this function.  Pass it the token (name of the room), the
+/// websocket uri to use, and two channels.  the first will be used to forward messages
+/// received on the websocket to the thread to called us.  The second will be used to
+/// read messages from the calling thread that will be written to the room.
 pub fn websocket_thread(
     token: &str,                              // Token for the chat room name
     ws_url: &str,                             // URL to connect to the server

@@ -50,14 +50,14 @@ impl JamEngine {
     ) -> Result<JamEngine, BoxError> {
         let now = get_micro_time();
         let mut engine = JamEngine {
-            sock: JamSocket::build(9991)?,
+            sock: JamSocket::new(9991)?,
             recv_message: JamMessage::build(),
             xmit_message: JamMessage::build(),
             status_data_tx: tx,
             command_rx: rx,
-            update_timer: MicroTimer::build(now, IDLE_REFRESH),
-            update_fallback_timer: MicroTimer::build(now, IDLE_REFRESH * 5),
-            disconnect_timer: MicroTimer::build(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
+            update_timer: MicroTimer::new(now, IDLE_REFRESH),
+            update_fallback_timer: MicroTimer::new(now, IDLE_REFRESH * 5),
+            disconnect_timer: MicroTimer::new(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
             token: String::from(tok),
             mixer: Mixer::build(),
             chan_map: ChannelMap::new(),

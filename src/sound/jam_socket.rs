@@ -1,3 +1,16 @@
+//! UDP socket use to send and receive audio data to the room
+//!
+//! although the socke it UDP based, it does have a connect/disconnect
+//! function which basically holds the state of which server the thing
+//! is pointed at.
+//!
+//! the socket is nonblocking which allows the sound side to poll for packets
+//! on the audio process loop, stuff them into buffers, and then continue on.
+//! So the network data is buffered in the socket until the process loop comes
+//! around and then gets shoved into jitter buffer.  Then the process loop will
+//! pull out a mix and feed it to the audio output.
+//!
+//! This prevents the jitter buffer from having to have any mutexes. (one writer, one reader)
 use simple_error::bail;
 
 use crate::common::box_error::BoxError;
@@ -6,6 +19,7 @@ use crate::server::player_list::get_micro_time;
 use std::fmt;
 use std::net::UdpSocket;
 
+/// re-connectable udp socket to talk to the broadcast server
 pub struct JamSocket {
     sock: UdpSocket,
     client_id: Option<i64>,
@@ -14,7 +28,8 @@ pub struct JamSocket {
 }
 
 impl JamSocket {
-    pub fn build(port: i64) -> Result<JamSocket, BoxError> {
+    /// Build a new socket
+    pub fn new(port: i64) -> Result<JamSocket, BoxError> {
         let sock = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
         sock.set_nonblocking(true)?;
         // make it non-blocking
@@ -25,19 +40,23 @@ impl JamSocket {
             seq_no: 0,
         })
     }
+    /// Connect the socket to a specific broadcast unit
     pub fn connect(&mut self, host: &str, port: i64, id: i64) -> Result<(), BoxError> {
         self.server = format!("{}:{}", host, port);
         self.client_id = Some(id);
         Ok(())
     }
+    /// clear out server state data.
     pub fn disconnect(&mut self) -> () {
         self.server.clear();
         self.client_id = None;
         self.seq_no = 0;
     }
+    /// Are we currently linked to a broadcast unit
     pub fn is_connected(&self) -> bool {
         !self.client_id.is_none()
     }
+    /// Send a JamMesssage to the room.
     pub fn send(&mut self, packet: &mut JamMessage) -> Result<usize, BoxError> {
         match self.client_id {
             Some(id) => {
@@ -56,6 +75,7 @@ impl JamSocket {
             }
         }
     }
+    /// Read a packet into a JamMessage,  returns an Err result if there is nothing there to read.
     pub fn recv(&self, packet: &mut JamMessage) -> Result<(), BoxError> {
         let (nbytes, _addr) = self.sock.recv_from(packet.get_buffer())?;
         packet.set_nbytes(nbytes)?;
@@ -77,14 +97,14 @@ mod test_jam_socket {
 
     #[test]
     fn build_socket() {
-        let sock = JamSocket::build(19990).unwrap();
+        let sock = JamSocket::new(19990).unwrap();
         println!("sock: {}", sock);
         assert!(true);
     }
     #[test]
     fn connecting() {
         // It should be able to connect
-        let mut sock = JamSocket::build(19991).unwrap();
+        let mut sock = JamSocket::new(19991).unwrap();
         assert!(!sock.is_connected());
         sock.connect("10.0.0.9", 48481, 3949384).unwrap();
         assert!(sock.is_connected());
@@ -94,7 +114,7 @@ mod test_jam_socket {
     #[test]
     fn sending() {
         // It shoudl be able to send a jam packet
-        let mut sock = JamSocket::build(9993).unwrap();
+        let mut sock = JamSocket::new(9993).unwrap();
         let mut packet = JamMessage::build();
         sock.connect("10.0.0.9", 48481, 3949384).unwrap();
         assert_eq!(sock.send(&mut packet).unwrap(), JAM_HEADER_SIZE);

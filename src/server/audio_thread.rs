@@ -16,7 +16,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
     sock.set_read_timeout(Some(Duration::new(1, 0)))?;
     let mut players = PlayerList::build();
     let mut msg = JamMessage::build();
-    let mut latency_update_timer = MicroTimer::build(get_micro_time(), 2_000_000);
+    let mut latency_update_timer = MicroTimer::new(get_micro_time(), 2_000_000);
 
     loop {
         let res = sock.recv_from(msg.get_buffer());

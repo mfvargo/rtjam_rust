@@ -16,7 +16,8 @@ impl Fader {
         f.set(0.0);
         f
     }
-
+    /// call this with a value from -1.0 (hard pan left) to +1.0 (hard pan right)
+    /// 0.0 means pan center.  
     pub fn set(&mut self, v: f32) -> () {
         let fade = f32::clamp(v, -1.0, 1.0);
         self.left = f32::sqrt(1.0 - fade);

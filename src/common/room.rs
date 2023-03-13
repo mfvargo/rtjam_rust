@@ -1,14 +1,21 @@
+//! Chat room hosted on rtjam-nation that used to communicate with the u/x
+//!
+//! (meet me in the middle)  The sound or broadcast components will create a room with the
+//! token pass in on the rtjam-nation server.  The u/x will also join this same room
+//! allowing them to communicate.
+//!
+//! The room is used by the websocket thread.  By creating the websocket thread you
+//! are creating a room and the full duplex message channel to communicate with it
 use crate::common::box_error::BoxError;
 use serde_json::{json, Value};
 use std::{
-    net::{SocketAddr, TcpStream, ToSocketAddrs},
+    net::{TcpStream, ToSocketAddrs},
     thread::sleep,
     time::Duration,
 };
 use tungstenite::{
     client,
     error::{Error, UrlError},
-    http::Uri,
     stream::{Mode, NoDelay},
     Message, WebSocket,
 };
@@ -20,6 +27,7 @@ enum RoomState {
     Inside,
 }
 
+/// Holds the room state and the websocket connection to rtjam-nation
 pub struct Room {
     state: RoomState,
     token: String,
@@ -27,14 +35,15 @@ pub struct Room {
     msg_id: u64,
 }
 impl Room {
-    pub fn new(toke: &str, url: &str) -> Result<Self, BoxError> {
+    /// Create a new room named by the token variable.  THe url string should point to the rtjam-nation server(s)
+    pub fn new(token: &str, url: &str) -> Result<Self, BoxError> {
         let stream = Self::make_stream(url)?;
         let (sock, _resp) = client::client(Url::parse(url).unwrap(), stream)?;
 
         // let (sock, _resp) = connect(Url::parse(url).unwrap())?;
         Ok(Room {
             state: RoomState::Idle,
-            token: String::from(toke),
+            token: String::from(token),
             sock: sock,
             msg_id: 0,
         })
@@ -54,14 +63,16 @@ impl Room {
             Mode::Tls => 443,
         });
         let addrs = (host, port).to_socket_addrs()?;
-        let mut stream = Self::connect_to_some(addrs.as_slice(), request.uri())?;
+        let mut stream = TcpStream::connect(addrs.as_slice())?;
         NoDelay::set_nodelay(&mut stream, true)?;
         stream.set_read_timeout(Some(Duration::new(0, 200_000_000)))?; // poll 5 times per second
         Ok(stream)
     }
-    fn connect_to_some(addrs: &[SocketAddr], uri: &Uri) -> Result<TcpStream, BoxError> {
-        Ok(TcpStream::connect(addrs[0])?)
-    }
+    /// once connected via the websocket, you can join the room on the nation server.  This code
+    /// will always first try to create the room (for the case where it does not yet exist).  It will
+    /// then send the message to join it.
+    ///
+    /// The room is managed by the actionHero server running on rtjam-nation
     pub fn join_room(&mut self) -> () {
         let msg = json!({
           "event": "action",
@@ -87,6 +98,7 @@ impl Room {
         let _res = self.sock.write_message(Message::Text(msg.to_string()));
         self.state = RoomState::Inside;
     }
+    /// This is called to clear the room state.  Done when the websocket connection breaks down.
     pub fn reset(&mut self) -> () {
         self.state = RoomState::Idle;
     }
@@ -107,6 +119,7 @@ impl Room {
         is_bool
     }
 
+    /// used by websocket thread to send a message to the chat room
     pub fn send_message(&mut self, msg: &Value) -> () {
         let msg = json!({
             "event": "say",
@@ -119,6 +132,9 @@ impl Room {
         let _res = self.sock.write_message(Message::Text(msg.to_string()));
     }
 
+    /// Used by the websocket thread to read any pending messages from the room.
+    /// This code filters out primus ping housekeeping messages.  Also any non-user messages
+    /// will be filtered out.  this blocks for up to 200msec
     pub fn get_message(&mut self) -> Result<Option<Value>, BoxError> {
         match self.sock.read_message() {
             Ok(msg) => {

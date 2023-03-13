@@ -1,3 +1,4 @@
+//! This module defines the commands for the interface between U/X and sound unit
 #[derive(FromPrimitive)]
 pub enum JamParams {
     ChanGain1 = 0,

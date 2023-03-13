@@ -70,7 +70,7 @@ impl JamEngine {
             update_fallback_timer: MicroTimer::new(now, IDLE_REFRESH * 5),
             disconnect_timer: MicroTimer::new(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
             token: String::from(tok),
-            mixer: Mixer::build(),
+            mixer: Mixer::new(),
             chan_map: ChannelMap::new(),
             git_hash: String::from(git_hash),
             now: now,

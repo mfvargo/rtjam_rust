@@ -1,3 +1,6 @@
+//! the JamEngine aggregates all the sound components into a single structure.  
+//!
+//! The engine drives off the [`JamEngine::process`] function
 use std::{str::FromStr, sync::mpsc};
 
 use serde_json::json;
@@ -42,7 +45,15 @@ pub struct JamEngine {
 }
 
 impl JamEngine {
-    pub fn build(
+    /// create a JamEngine with this call.  The engine requires a mpsc Sender that it will
+    /// use to send json formatted status messages that will get routed to the websocket
+    /// so the U/X can display the engine and its settings.  It also requires a mpsc Receiver
+    /// to get commands to modify it's behavior.  See [`ParamMessage`] for details. It needs the
+    /// token to pass through to the U/X so it can be sure it's talking to the right device.
+    /// And it needs the git_hash to pass through to the U/X for software update checking.
+    ///
+    /// See [`crate::sound::client`]
+    pub fn new(
         tx: mpsc::Sender<serde_json::Value>,
         rx: mpsc::Receiver<ParamMessage>,
         tok: &str,
@@ -70,6 +81,10 @@ impl JamEngine {
         engine.xmit_message.set_client_id(4321);
         Ok(engine)
     }
+    /// This is the function that the audio engine will call with frames of data.  The four arguments are the
+    /// two input channels for the component, and the stereo output.
+    ///
+    /// All control messages should be sent via the mpsc::Receiver passed into new above.
     pub fn process(
         &mut self,
         in_a: &[f32],
@@ -423,7 +438,7 @@ mod test_jam_engine {
         let (_command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
             mpsc::channel();
 
-        JamEngine::build(status_data_tx, command_rx, "someToken", "some_git_hash").unwrap()
+        JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash").unwrap()
     }
 
     #[test]

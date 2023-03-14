@@ -22,7 +22,7 @@ The Makefile just calls cargo build for the two example programs.
 
 ## Components
 
-### rtjam_jack library
+### rtjam_rust library
 
 This is the library of all the components used to make the rtjam_sound and rtjam_broadcast executables.
 

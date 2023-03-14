@@ -1,3 +1,8 @@
+//! REST API to the rtjam-nation to register and activate sound and broadcast elements
+//!
+//! Super simple.  elements will obtain a token by using the register function for them.
+//! This token is then returned so that elements can create websocket chat room with the
+//! same name.  This then allows the "meet me in the middle" protocol used by the U/X
 use std::collections::HashMap;
 
 use crate::common::box_error::BoxError;
@@ -5,6 +10,7 @@ use json::JsonValue;
 use reqwest::blocking::Client;
 // use serde::{Deserialize, Serialize};
 
+/// The structure that holds state about the api connection
 pub struct JamNationApi {
     url_base: String,
     token: String,
@@ -15,6 +21,12 @@ pub struct JamNationApi {
 }
 
 impl JamNationApi {
+    /// used to build the api.  The fields are
+    ///
+    /// - base: url base for the api.  (something like <http://rtjam-nation.basscleftech.com/api/1/>)
+    /// - lan_ip: legacy parameter.  Should be deprecasted (TODO)
+    /// - mac_address: the mac address of the component. Used to uniquely identify the componet
+    /// - git_hash: the current git hash string for the build.  Lets the nation know what software component has
     pub fn new(base: &str, lan_ip: &str, mac_address: &str, git_hash: &str) -> JamNationApi {
         JamNationApi {
             token: String::new(),
@@ -24,16 +36,19 @@ impl JamNationApi {
             git_hash: git_hash.to_string(),
         }
     }
+    /// returns the token for the component once it has registered
     pub fn get_token(&self) -> &str {
         self.token.as_str()
     }
+    /// Clear the token.  used if the network fails and reconnects
     pub fn forget_token(&mut self) -> () {
         self.token = "".to_string();
     }
+    /// Indicates the component has successfully registered
     pub fn has_token(&self) -> bool {
         !self.token.is_empty()
     }
-    pub fn build_def_args(&self) -> HashMap<&str, String> {
+    fn build_def_args(&self) -> HashMap<&str, String> {
         let mut args = HashMap::new();
         args.insert("token", self.token.clone());
         args.insert("lanIp", self.lan_ip.clone());
@@ -41,7 +56,7 @@ impl JamNationApi {
         args.insert("gitHash", self.git_hash.clone());
         args
     }
-    pub fn get(&self, pth: &str) -> Result<JsonValue, BoxError> {
+    fn get(&self, pth: &str) -> Result<JsonValue, BoxError> {
         let response = Client::new()
             .get(format!("{}{}", self.url_base, pth))
             .send()?;
@@ -51,7 +66,7 @@ impl JamNationApi {
         }
         Ok(json::parse(response.text()?.as_str())?)
     }
-    pub fn put(&self, pth: &str, args: &HashMap<&str, String>) -> Result<JsonValue, BoxError> {
+    fn put(&self, pth: &str, args: &HashMap<&str, String>) -> Result<JsonValue, BoxError> {
         let client = Client::new();
         let request_url = format!("{}{}", self.url_base, pth);
         let response = client.put(request_url).json(args).send()?;
@@ -61,7 +76,7 @@ impl JamNationApi {
         }
         Ok(json::parse(response.text()?.as_str())?)
     }
-    pub fn post(&self, pth: &str, args: &HashMap<&str, String>) -> Result<JsonValue, BoxError> {
+    fn post(&self, pth: &str, args: &HashMap<&str, String>) -> Result<JsonValue, BoxError> {
         let client = Client::new();
         let request_url = format!("{}{}", self.url_base, pth);
         let response = client.post(request_url).json(args).send()?;
@@ -71,28 +86,22 @@ impl JamNationApi {
         }
         Ok(json::parse(response.text()?.as_str())?)
     }
-    // pub fn check_response(&self, response: &Response) -> Result<JsonValue, BoxError> {
-    // let status = response.status();
-    // let data = JsonValue::new_object();
-    // if status.is_server_error() {
-    //     // Server error, just return empty json
-    //     let dat = JsonValue::new_object();
-    //     return Ok(dat);
-    // }
-    // Ok(json::parse(response.text()?.as_str())?)
-    // }
+    /// call this to just see if the API endpoint is working.
     pub fn get_status(&self) -> Result<JsonValue, BoxError> {
         Ok(self.get("status")?)
     }
+    /// Let the nation know the broadcast component is working
     pub fn broadcast_unit_ping(&self) -> Result<JsonValue, BoxError> {
         let args = self.build_def_args();
         Ok(self.put("broadcastUnit/ping", &args)?)
     }
+    /// Tell the rtjam-nation that the broadcast component has a room
     pub fn activate_room(&self, port: u32) -> Result<JsonValue, BoxError> {
         let mut args = self.build_def_args();
         args.insert("port", format!("{}", port));
         Ok(self.post("room", &args)?)
     }
+    /// Tell the rtjam-nation the broadcast component exists
     pub fn broadcast_unit_register(&mut self) -> Result<JsonValue, BoxError> {
         let args = self.build_def_args();
         let result = self.post("broadcastUnit", &args)?;
@@ -104,6 +113,7 @@ impl JamNationApi {
         }
         Ok(result)
     }
+    /// Tell the rtjam-nation the sound component exists
     pub fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError> {
         let mut args = self.build_def_args();
         args.insert("canTalkOnWebsocket", String::from("true"));
@@ -116,6 +126,7 @@ impl JamNationApi {
         }
         Ok(result)
     }
+    /// Tell the nation the sound component is alive
     pub fn jam_unit_ping(&self) -> Result<JsonValue, BoxError> {
         let args = self.build_def_args();
         Ok(self.put("jamUnit/ping", &args)?)

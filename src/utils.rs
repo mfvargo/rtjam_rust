@@ -5,7 +5,9 @@ use num::{Float, FromPrimitive};
 use std::env;
 // utility functions
 
-/// function used to get the mac address from the local system.  This address is used to uniquely identify this
+/// function used to get the mac address from the local system.
+/// 
+/// This address is used to uniquely identify this
 /// unit to the rtjam-nation.  TODO:  maybe there is a better way to do this?
 pub fn get_my_mac_address() -> Result<String, BoxError> {
     match get_mac_address()? {
@@ -14,6 +16,7 @@ pub fn get_my_mac_address() -> Result<String, BoxError> {
     }
 }
 
+/// Retrieve the hash this software was built from.  Uses the vergen crate in the build.rs script
 pub fn get_git_hash() -> String {
     let sha = env!("VERGEN_GIT_SHA");
     String::from(sha)
@@ -48,12 +51,12 @@ pub fn get_frame_power_in_db(frame: &[f32]) -> f64 {
     to_db(pow / (frame.len() as f64))
 }
 
-// Convert a linear to db
+/// Convert a linear to db
 pub fn to_db(v: f64) -> f64 {
     return (10.0 * f64::log10(v)).clamp(-60.0, 100.0);
 }
 
-// convert db to linear
+/// convert db to linear
 pub fn to_lin(v: f64) -> f64 {
     f64::powf(10.0, v / 10.0)
 }

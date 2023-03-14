@@ -1,3 +1,32 @@
+//! Base implementation of delay effect
+//!
+//!```text
+//!
+//!  Digital Delay Effect - Signal Flow Diagram
+//!
+//!  Delay with modulation and filter.
+//!  LPF for analog delay simulation
+//!  HPF for "thinning delay"
+//!
+//!          ┌───────────────────────────────────────────┐
+//!          │                                           │
+//!          │             ┌────────────┐                ▼
+//!          │    ┌────┐   │            │    ┌─────┐   ┌────┐
+//!  Input───┴───►│Sum ├──►│   Delay    ├─┬─►│Level├──►│Sum ├───► Output
+//!               └────┘   │            │ │  └─────┘   └────┘
+//!                 ▲      └────────────┘ │
+//!                 │            ▲        │
+//!                 │            │        │
+//!              ┌──┴───┐     ┌──┴──┐     │
+//!      LPF/HPF │Filter│     │ Mod │     │
+//!              └──────┘     └─────┘     │
+//!                 ▲                     │
+//!                 │        ┌────────┐   │
+//!                 └────────┤Feedback│◄──┘
+//!                          └────────┘
+//!                            0-1.2
+//!```
+
 use std::fmt;
 
 use crate::{
@@ -90,30 +119,6 @@ impl DelayBase {
         self.buffer_depth =
             ((1.0 + self.drift) * self.current_delay_time * self.sample_rate) as i32;
     }
-    //  Digital Delay Effect - Signal Flow Diagram
-    //
-    //  Delay with modulation and filter.
-    //  LPF for analog delay simulation
-    //  HPF for "thinning delay"
-    //
-    //          ┌───────────────────────────────────────────┐
-    //          │                                           │
-    //          │             ┌────────────┐                ▼
-    //          │    ┌────┐   │            │    ┌─────┐   ┌────┐
-    //  Input───┴───►│Sum ├──►│   Delay    ├─┬─►│Level├──►│Sum ├───► Output
-    //               └────┘   │            │ │  └─────┘   └────┘
-    //                 ▲      └────────────┘ │
-    //                 │            ▲        │
-    //                 │            │        │
-    //              ┌──┴───┐     ┌──┴──┐     │
-    //      LPF/HPF │Filter│     │ Mod │     │
-    //              └──────┘     └─────┘     │
-    //                 ▲                     │
-    //                 │        ┌────────┐   │
-    //                 └────────┤Feedback│◄──┘
-    //                          └────────┘
-    //                            0-1.2
-    //
     pub fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
         // Implement the delay
         let mut i = 0;

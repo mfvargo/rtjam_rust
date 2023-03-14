@@ -1,3 +1,4 @@
+//! Nice reverb that can be used for both guitar and vocal applications
 use serde_json::json;
 
 use crate::dsp::allpass_delay::AllpassDelay;

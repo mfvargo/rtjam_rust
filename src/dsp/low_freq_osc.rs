@@ -1,3 +1,6 @@
+//! generates a periodic signal with a specific Shape, frequency, and amplitude
+//!
+//! Used to drive effects in pedals like Delay, Chorus, Tremelo
 use num::{Float, FromPrimitive, Zero};
 
 pub enum WaveShape {

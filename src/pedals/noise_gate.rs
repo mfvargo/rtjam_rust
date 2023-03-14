@@ -1,3 +1,7 @@
+//! Noise gate
+//!
+//! use this at the start of the pedal chain to quiet the input unless there is some
+//! signal.  Useful in high gain pedalboards
 use crate::dsp::attack_hold_release::AttackHoldRelease;
 use serde_json::json;
 

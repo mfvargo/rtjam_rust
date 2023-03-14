@@ -1,3 +1,6 @@
+//! Tremelo effect (ala Fender)
+//!
+//! LFO driving gain control.  Sinusoidal shape.  Adjustable rate, depth
 use serde_json::json;
 
 use crate::dsp::low_freq_osc::{LowFreqOsc, WaveShape};

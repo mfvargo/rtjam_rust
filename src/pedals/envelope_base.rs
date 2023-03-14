@@ -1,3 +1,33 @@
+//! Base asbtraction for an envelop filter.
+//!
+//!```text
+//!  Envelope Filter Effect - Block Diagram
+//!
+//!
+//!                              +----------+
+//!            ----------------->| Dry Gain |------------------------
+//!            |                 |          |                       |
+//!            |                 +----------+                       |
+//!            |                                                    |
+//!            |                                                    |
+//!            |               +---------------+                    |
+//!            |               | Biquad Filter |                    |
+//!            |               |      (2)      |                    v
+//!  Input ------------------->| - 4 pole      |     +-----+    +------+
+//!               |            | - LPF/BPF/HPF |---->|level|--->| sum  |---> Output
+//!               |            |               |     +-----+    +------+
+//!               |            |               |
+//!               |            +---------------+
+//!               |                     ^
+//!               |                     |
+//!               v              +--------------+
+//!        +----------------+    |Coeff Control |
+//!        | Peak Detector  |    |              |
+//!        |                |--->| Sens/Freq/Q  |
+//!        | -attack/release|    |              |
+//!        +----------------+    | - Fs/4       |
+//!                              +--------------+
+//!```
 use std::fmt;
 
 use crate::dsp::{
@@ -46,35 +76,6 @@ impl EnvelopeBase {
         self.peak.init(self.attack, self.release, 48_000.0);
     }
 
-    //
-    //  Envelope Filter Effect - Block Diagram
-    //
-    //
-    //                              +----------+
-    //            ----------------->| Dry Gain |------------------------
-    //            |                 |          |                       |
-    //            |                 +----------+                       |
-    //            |                                                    |
-    //            |                                                    |
-    //            |               +---------------+                    |
-    //            |               | Biquad Filter |                    |
-    //            |               |      (2)      |                    v
-    // Input -------------------->| - 4 pole      |     +-----+    +------+
-    //               |            | - LPF/BPF/HPF |---->|level|--->| sum  |---> Output
-    //               |            |               |     +-----+    +------+
-    //               |            |               |
-    //               |            +---------------+
-    //               |                     ^
-    //               |                     |
-    //               v              +--------------+
-    //        +----------------+    |Coeff Control |
-    //        | Peak Detector  |    |              |
-    //        |                |--->| Sens/Freq/Q  |
-    //        | -attack/release|    |              |
-    //        +----------------+    | - Fs/4       |
-    //                              +--------------+
-    //
-    //
     pub fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
         // Implement the delay
         let mut i = 0;

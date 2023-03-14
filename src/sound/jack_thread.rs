@@ -1,3 +1,11 @@
+//! function to create the jack audio thread that will drive audio through the system
+//!
+//! This thread have a JamEngine moved into it.  That JamEngine will then be called
+//! with audio frames from the jack audio system.
+//!
+//! If a different audio interface were to be used, this code will be replace with some other.
+//! The main thing is that the system will callback with frames of input/output audio that get
+//! passed into the JamEngine.
 use crate::common::box_error::BoxError;
 
 use jack;
@@ -7,6 +15,9 @@ use std::time::Duration;
 
 use super::jam_engine::JamEngine;
 
+/// call this to start up jack and feed the engine
+///
+/// it will never return (unless jack blows up)  TODO: Add jack failure recovery
 pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
     // let's open up a jack port
     loop {

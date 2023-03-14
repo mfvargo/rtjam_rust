@@ -1,3 +1,4 @@
+//! used to track peak envelope using separate attack and release time constants
 use num::{Float, FromPrimitive, Zero};
 use std::fmt::{self, Display};
 

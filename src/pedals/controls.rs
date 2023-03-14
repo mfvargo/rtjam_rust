@@ -1,3 +1,4 @@
+//! Abstraction of all the settings on Pedals.
 use crate::utils::to_lin;
 use serde::Serialize;
 use serde_json::json;

@@ -1,3 +1,7 @@
+//! Allows configuration stuff to be read from settings.json
+//!
+//! Only use for this now is to allow me to override some of the
+//! configuration values for testing locally instead of in the cloud
 use json::JsonValue;
 use std::{
     fs::File,

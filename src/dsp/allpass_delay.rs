@@ -1,3 +1,4 @@
+//! Variable length delay with gain
 use num::{Float, FromPrimitive, Zero};
 
 pub struct AllpassDelay<T> {

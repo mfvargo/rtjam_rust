@@ -1,3 +1,4 @@
+//! averaging filter use to smooth sequences
 use std::fmt;
 
 use crate::utils::get_coef;

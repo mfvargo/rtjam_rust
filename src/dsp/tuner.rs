@@ -1,3 +1,11 @@
+//! pitch detector used to extract primary frequency of incoming frames
+//!
+//! Used the rustfft to find the peak frequency in the inputs.  This is done by
+//! - applying stack of 3 BiQuad LoPass filters
+//! - downsample the incoming stream
+//! - supply overalapping frame of data with raised cosine window to fft
+//! - find magnitudes of largest frequency components
+//! - parapolic interpolation to get better frequency resolution
 use num::Complex;
 use rustfft::{algorithm::Radix4, Fft, FftDirection};
 
@@ -65,7 +73,7 @@ impl Tuner {
         }
     }
 
-    pub fn process_sample(&mut self, input: f32) -> () {
+    fn process_sample(&mut self, input: f32) -> () {
         let mut value = input;
 
         // Extract note (only does something if we have enough samples)

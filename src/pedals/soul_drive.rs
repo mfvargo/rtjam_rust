@@ -1,3 +1,4 @@
+//! Overdrive pedal built from [`DistortionBase`] to model the MXR sugar pedal
 use serde_json::json;
 
 use crate::dsp::clip::ClipType;

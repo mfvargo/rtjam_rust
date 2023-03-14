@@ -1,3 +1,9 @@
+//! Envelope tracking pedal (auto-wah) Implemented using the [`EnvelopeBase`] module.  
+//!
+//! has specific features for guitar
+//! TODO:  Figure out if there are any, otherwise just use one pedal for
+//! both bass and guitar
+
 use num::FromPrimitive;
 use serde_json::json;
 

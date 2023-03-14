@@ -1,3 +1,6 @@
+//! listen for packets from sound components and multicast them to people in the room
+//!
+//! The socket read is non-blocking.
 use crate::{
     common::{
         box_error::BoxError,
@@ -14,7 +17,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
     // So let's create a UDP socket and listen for shit
     let sock = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
     sock.set_read_timeout(Some(Duration::new(1, 0)))?;
-    let mut players = PlayerList::build();
+    let mut players = PlayerList::new();
     let mut msg = JamMessage::new();
     let mut latency_update_timer = MicroTimer::new(get_micro_time(), 2_000_000);
 
@@ -64,6 +67,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
             }
             Err(e) => match e.kind() {
                 ErrorKind::WouldBlock => {}
+                ErrorKind::TimedOut => {}
                 other_error => {
                     panic!("my socket went nuts! {}", other_error);
                 }

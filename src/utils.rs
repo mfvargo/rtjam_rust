@@ -5,7 +5,9 @@ use num::{Float, FromPrimitive};
 use std::env;
 // utility functions
 
-/// function used to get the mac address from the local system.  This address is used to uniquely identify this
+/// function used to get the mac address from the local system.
+/// 
+/// This address is used to uniquely identify this
 /// unit to the rtjam-nation.  TODO:  maybe there is a better way to do this?
 pub fn get_my_mac_address() -> Result<String, BoxError> {
     match get_mac_address()? {

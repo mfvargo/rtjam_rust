@@ -1,3 +1,6 @@
+//! calculates peak and average power of data frames
+//!
+//! used by [`crate::sound::channel_strip::ChannelStrip`]
 use crate::utils::{get_frame_power_in_db, to_db};
 
 use super::{peak_detector::PeakDetector, smoothing_filter::SmoothingFilter};

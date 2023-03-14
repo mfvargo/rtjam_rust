@@ -1,3 +1,4 @@
+//! Audio compressor pedal  for hi ratios it is effectively a limiter
 use crate::dsp::peak_detector::PeakDetector;
 use crate::utils::{to_db, to_lin};
 use serde_json::json;

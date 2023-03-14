@@ -1,7 +1,11 @@
 //!
 //! mixer used to combine all speakers into a stereo channel
 //!
+//! The mixer is comprised of MIXER_CHANNELS number of [`crate::sound::channel_strip::ChannelStrip`] strips.  This is
+//! set to 24 so this will support 12 people in a single jam room
 //!
+//! the [`crate::sound::jam_engine::JamEngine`] has a mixer that it uses to mix audio from
+//! room members into a stereo feed for the audio output device.
 use crate::{dsp::power_meter::PowerMeter, utils::to_lin};
 
 use super::channel_strip::ChannelStrip;
@@ -16,7 +20,8 @@ pub struct Mixer {
 }
 
 impl Mixer {
-    pub fn build() -> Mixer {
+    /// Build a new mixer.  All the channels have default settings (gain 1.0, fade 0.0)
+    pub fn new() -> Mixer {
         let mut mixer = Mixer {
             master_vol: 1.0,
             strips: vec![],
@@ -27,18 +32,23 @@ impl Mixer {
         }
         mixer
     }
+    /// master volume for the overall mix
     pub fn get_master(&self) -> f64 {
         self.master_vol
     }
+    /// set master volume for the overall mix
     pub fn set_master(&mut self, v: f64) -> () {
         self.master_vol = v;
     }
+    /// retrieve avg power of the total mix
     pub fn get_master_level_avg(&self) -> f64 {
         self.master_level.get_avg()
     }
+    /// retrieve peak power of the total mix
     pub fn get_master_level_peak(&self) -> f64 {
         self.master_level.get_peak()
     }
+    /// retrieve the avg power for a particular channel
     pub fn get_channel_power_avg(&self, idx: usize) -> f64 {
         let mut pow = self.strips[idx].get_power_avg().round();
         if pow < -60.0 {
@@ -46,6 +56,7 @@ impl Mixer {
         }
         pow
     }
+    /// retrieve peak power for a particular channel
     pub fn get_channel_power_peak(&self, idx: usize) -> f64 {
         let mut pow = self.strips[idx].get_power_peak().round();
         if pow < -60.0 {
@@ -53,18 +64,26 @@ impl Mixer {
         }
         pow
     }
+    /// get the jitter buffer avg depth for a channel
     pub fn get_depth_in_msec(&self, idx: usize) -> f64 {
         self.strips[idx].get_depth() / 48.0 // Convert to msec
     }
+    /// set gain on a particular channel
     pub fn set_channel_gain(&mut self, idx: usize, val: f64) -> () {
         self.strips[idx].set_gain(to_lin(val));
     }
+    /// get the gain setting for a particular channel
     pub fn get_channel_gain(&self, idx: usize) -> f64 {
         self.strips[idx].get_gain()
     }
+    /// set pan for a specific channel
     pub fn set_channel_fade(&mut self, idx: usize, val: f32) -> () {
         self.strips[idx].set_fade(val);
     }
+    /// get a frame of audio from the mixer.  this will
+    /// - pull audio from all jitter buffers for all channels
+    /// - apply channel strip fade and gain
+    /// - apply master gain to final mix
     pub fn get_mix(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
         // Zero out the out buffer
         for i in 0..out_a.len() {
@@ -78,6 +97,7 @@ impl Mixer {
         // get the output volume
         self.master_level.add_frame(out_a, self.master_vol);
     }
+    /// call this to stuff data into one of the channels jitter buffer
     pub fn add_to_channel(&mut self, chan_no: usize, audio: &[f32]) -> () {
         if chan_no > MIXER_CHANNELS {
             return;
@@ -103,7 +123,7 @@ mod test_mixer {
 
     #[test]
     fn build_mixer() {
-        let mut mixer = Mixer::build();
+        let mut mixer = Mixer::new();
         assert_eq!(mixer.get_master(), 1.0);
         mixer.set_master(0.5);
         assert_eq!(mixer.get_master(), 0.5);

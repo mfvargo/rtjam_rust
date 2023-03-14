@@ -1,3 +1,29 @@
+//! top level entry point called by main to run the sound component
+//!
+//! This function will never return (except on panic) and will start all the pieces to
+//! run the rtjam_sound component.
+//!
+//! It will first use the [`JamNationApi`] to register the component.  This will return a token
+//! from the rtjam-nation.  This token will then be passed to the [`websocket::websocket_thread`] so it
+//! can create a room on the rtjam-nation server to be used to communicate with the U/X
+//!
+//! The same token will be passed to a [`JamEngine`] object that will be moved into the
+//! [`jack_thread::run`] function.  The jack_thread code will connect jack inputs and outputs and
+//! use the JamEngine to process the audio data.
+//!
+//! A final thread will be started to wake up every 10 seconds to ping the rtjam-nation server to
+//! indicate the component is still alive.
+//!
+//! Initial thread will then loop relaying mpsc messages between the various threads.
+//!
+//! All threads and components will return to a reconnect mode in the case that they cannot talk to their
+//! necessary systems.  If rtjam-nation goes down for some reason, the websocket will go into
+//! reconnect loop till it comes back.  Likewise the ping thread will go into a loop, re-register, and then
+//! continue the ping loop. Lastly the jack thread will loop if it comes up before the jack system has
+//! started.  Once it can connect to jack for audio, it will continue.
+//!
+//! TODO:  jack_thread does not recover from jack being stopped after it's already running.  Need to
+//! have it re-initialize into acquire more if jack falls down in the middle.
 use crate::{
     common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
     sound::{jack_thread, jam_engine::JamEngine, param_message::ParamMessage},
@@ -9,6 +35,10 @@ use std::{
     time::Duration,
 };
 
+/// call this from the main function to start the whole thing running.
+///
+/// note the git_hash string allows the software to tell rtjam-nation what version of code it
+/// is currently running.
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // This is the entry rtjam client
     println!("rtjam client");
@@ -65,7 +95,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
-    let engine = JamEngine::build(status_data_tx, command_rx, api.get_token(), git_hash)?;
+    let engine = JamEngine::new(status_data_tx, command_rx, api.get_token(), git_hash)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);
     });

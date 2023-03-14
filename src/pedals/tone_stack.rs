@@ -1,3 +1,4 @@
+//! Three [`crate::dsp::biquad::BiQuadFilter`] filters to implement a tone stack similar to that on a Fender amp
 use serde_json::json;
 
 use crate::dsp::biquad::{BiQuadFilter, FilterType};

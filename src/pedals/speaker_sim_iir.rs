@@ -1,3 +1,4 @@
+//! IIR based model to model Speaker cabinets.  Darius secret filter points
 use num::FromPrimitive;
 use serde_json::json;
 

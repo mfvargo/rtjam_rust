@@ -1,3 +1,7 @@
+//! List of current players in the room.  Used to multicast to them
+//!
+//! The broadcast component will add/remove sound components to the room using
+//! this list.
 use std::collections::HashMap;
 use std::fmt;
 use std::net::SocketAddr;
@@ -16,7 +20,12 @@ pub fn get_micro_time() -> u128 {
 // This is how long a player lasts until we boot them (if they go silent)
 const SERVER_EXPIRATION_IN_MICROSECONDS: u128 = 500000;
 
-// make the player serialize to json
+///  structure that represents a player.  The players have
+///
+/// - client_id - assigned by the rtjam-nation to the player when they join a room
+/// - keep_alive - microsecond timestamp of the last time we saw this person
+/// - address - IP address to where we will forward packets
+/// - loop_stat - timing statistics for the player.
 pub struct Player {
     pub client_id: u32,
     pub keep_alive: u128,
@@ -28,7 +37,7 @@ pub struct Player {
 pub const MAX_LOOP_TIME: u128 = 100_000;
 
 impl Player {
-    pub fn build(now_time: u128, id: u32, addr: SocketAddr) -> Player {
+    pub fn new(now_time: u128, id: u32, addr: SocketAddr) -> Player {
         Player {
             client_id: id,
             keep_alive: now_time,
@@ -75,22 +84,30 @@ mod test_player {
     #[test]
     fn build_player() {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
-        let player = Player::build(get_micro_time(), 44, socket);
+        let player = Player::new(get_micro_time(), 44, socket);
         println!("player: {}", player);
         assert_eq!(player.address, socket);
     }
 }
+/// Structure to hold the list of players
 pub struct PlayerList {
     pub players: Vec<Player>,
 }
 
 impl PlayerList {
-    pub fn build() -> PlayerList {
+    pub fn new() -> PlayerList {
         PlayerList { players: vec![] }
     }
+    /// tell if the player is allowed in the room
+    ///
+    /// TODO: Needs to be implemented.  Right now everybody is allowed.  Need to have
+    /// a list of allowed players that will be retrieved from rtjam-nation
     pub fn is_allowed(&self, _id: u32) -> bool {
         true
     }
+    /// update the keepalive for this player (found by ip address)
+    ///
+    /// called when we receive a packet from a player
     pub fn update_player(
         &mut self,
         now_time: u128,
@@ -106,17 +123,22 @@ impl PlayerList {
             }
         }
         // If we got here, we don't know this guy.  add him
-        self.players.push(Player::build(now_time, id, addr));
+        self.players.push(Player::new(now_time, id, addr));
     }
+    /// look for any player entries that have timed out
     pub fn prune(&mut self, now_time: u128) -> () {
         // this function will age out any old Players
         self.players
             .retain(|p| p.keep_alive + SERVER_EXPIRATION_IN_MICROSECONDS > now_time);
     }
+    /// Get a list of players to iterate though
     pub fn get_players(&self) -> &Vec<Player> {
         &self.players
     }
 
+    /// Get a json representation of the players in the room and their current latency
+    ///
+    /// used to update other players in the room about the status of everybody's connection
     pub fn get_latency(&mut self) -> serde_json::Value {
         let mut lmap: HashMap<u32, f64> = HashMap::new();
         for p in &self.players {
@@ -146,7 +168,7 @@ mod test_playerlist {
     #[test]
     fn build() {
         // you should be able to build a PlayerList
-        let plist = PlayerList::build();
+        let plist = PlayerList::new();
         println!("plist: {}", plist.players.len());
         assert!(true);
     }
@@ -154,13 +176,13 @@ mod test_playerlist {
     fn is_allowed() {
         // TODO:  no id verification yet.  Must implement ability to filter data to just those
         // clients who have joined the room on the server
-        let plist = PlayerList::build();
+        let plist = PlayerList::new();
         assert_eq!(plist.is_allowed(44455), true);
     }
     #[test]
     fn update_player() {
         // functions to add/update players to the list
-        let mut plist = PlayerList::build();
+        let mut plist = PlayerList::new();
         let now_time = get_micro_time();
         let loop_time = now_time - 2400;
         let id = 55533;
@@ -183,7 +205,7 @@ mod test_playerlist {
     #[test]
     fn prune() {
         // This function will age out a player when they get too old
-        let mut plist = PlayerList::build();
+        let mut plist = PlayerList::new();
         let now_time = get_micro_time();
         let id = 55533;
         let addr: SocketAddr = "182.1.1.1:33345"
@@ -198,7 +220,7 @@ mod test_playerlist {
     }
     #[test]
     fn get_latency() {
-        let mut plist = PlayerList::build();
+        let mut plist = PlayerList::new();
         let now_time = get_micro_time();
         let id = 55533;
         let addr: SocketAddr = "182.1.1.1:33345"

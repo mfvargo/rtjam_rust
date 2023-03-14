@@ -1,3 +1,8 @@
+//! Defines the trait for a Pedal.  
+//!
+//! By implementing this trait the PedalBoard can
+//! have lots of different types of effect pedals without needing the details of
+//! each pedals implementation
 use serde_json::json;
 
 use super::controls::SettingUnit;

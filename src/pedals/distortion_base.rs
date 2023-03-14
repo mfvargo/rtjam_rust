@@ -1,3 +1,7 @@
+//! base implementation of an overdrive pedal.  THe various overdrives are just skins on this base pedal
+//!
+//! comprised of two gain stages with a clipping function a number of filters pre/post clip
+//! and an overall EQ at the end.
 use crate::dsp::{
     biquad::{BiQuadFilter, FilterType},
     clip::{clip_sample, ClipType},
@@ -23,14 +27,19 @@ pub struct DistortionBase {
     m_tone_mid: BiQuadFilter,    // mid control frequency
     m_tone_treble: BiQuadFilter, // treble control frequency
 
-    pub clip1_type: ClipType, // clip funciton type for stage 1
-    pub clip2_type: ClipType, // clip funciton type for stage 2
-
+    /// clip funciton type for stage 1
+    pub clip1_type: ClipType,
+    /// clip funciton type for stage 2
+    pub clip2_type: ClipType,
+    /// stage1 gain
     pub gain1: f32, // gain before clip functions
+    /// stage2 gain
     pub gain2: f32, // gain before clip functions
 
+    /// Number of stages of gain to apply (single/dual)
     pub num_stages: i32, // number of overdrive stages (single/dual)
 
+    /// overall gain
     pub level: f32, // Overall level
 
     pub lpf1_freq: f64, // frequency of the first clip block lpf (fixed filter)
@@ -69,6 +78,7 @@ impl DistortionBase {
             m_tone_mid: BiQuadFilter::new(),  // mid control frequency
             m_tone_treble: BiQuadFilter::new(), // treble control frequency
 
+            /// type of clipping for stage 1
             clip1_type: ClipType::Soft, // clip funciton type for stage 1
             clip2_type: ClipType::Soft, // clip funciton type for stage 2
 

@@ -1,3 +1,9 @@
+//! entry point called by main to run the broadcast component
+//!
+//! This will create some threads to
+//! - listen for audio packets [`crate::common::jam_packet::JamMessage`] and forward them to others
+//! - listen for messages from the chatRoom for the audio room being hosted
+//! - let the rtjam-nation know this component is registered and alive
 use crate::{
     common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
     server::audio_thread,
@@ -9,6 +15,9 @@ use std::{
     time::Duration,
 };
 
+/// To start a broadcast component, call this function
+///
+/// pass in the git_hash associated with the build so the nation can know what we are running.
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // This is the entry point for the broadcast server
 

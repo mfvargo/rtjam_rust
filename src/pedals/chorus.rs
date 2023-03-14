@@ -1,3 +1,6 @@
+//! Chorus effect  Implemented using the [`DelayBase`] module.  
+//!
+//! This is basically a delay pedal with different ranges for the controls.
 use serde_json::json;
 
 use super::controls::{PedalSetting, SettingType, SettingUnit};

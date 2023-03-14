@@ -1,3 +1,4 @@
+//! object with separate time constants for attack and release and a hold timer
 use std::fmt::{self, Display};
 
 use num::{Float, FromPrimitive, Zero};
@@ -26,6 +27,7 @@ impl<T: Float + FromPrimitive> AttackHoldRelease<T> {
             last_output: Zero::zero(),
         }
     }
+    /// call with bool (true == attack, false == release)
     pub fn get(&mut self, trigger: bool) -> T {
         if trigger == true {
             self.attack_release_ouput =

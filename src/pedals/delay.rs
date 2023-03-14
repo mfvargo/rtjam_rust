@@ -1,3 +1,6 @@
+//! Delay pedal.   Implemented using the [`DelayBase`] module.
+//!
+//! It also has some drift features.  It is a skin on delay_base
 use num::FromPrimitive;
 use serde_json::json;
 

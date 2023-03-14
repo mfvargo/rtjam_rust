@@ -115,7 +115,7 @@ mod test_jam_socket {
     fn sending() {
         // It shoudl be able to send a jam packet
         let mut sock = JamSocket::new(9993).unwrap();
-        let mut packet = JamMessage::build();
+        let mut packet = JamMessage::new();
         sock.connect("10.0.0.9", 48481, 3949384).unwrap();
         assert_eq!(sock.send(&mut packet).unwrap(), JAM_HEADER_SIZE);
     }

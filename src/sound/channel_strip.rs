@@ -55,7 +55,7 @@ impl ChannelStrip {
     }
     /// set the gain on the strip.  note v is linear and not in dB
     pub fn set_gain(&mut self, v: f64) -> () {
-        self.gain = f64::clamp(v, -1.0, 1.0);
+        self.gain = f64::clamp(v, 0.0, 8.0);
     }
     /// retrieve the current gain setting
     pub fn get_gain(&self) -> f64 {

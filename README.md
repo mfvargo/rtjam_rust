@@ -67,6 +67,8 @@ is a "meet me in the middle" approach to allow communication between the web cli
 component. Typical commands are "join the room hosted here" or "turn the volume down on channel 0" or
 "insert a TubeOverdrive pedal on channel 0". see the sound::param_message module.
 
+More [`information`](docs/pedals.md) about Effects and the system.
+
 #### rtjam_broadcast websocket
 
 The room broadcast server uses the websocket to provide real time round trip latency measures to the

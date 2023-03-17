@@ -1,0 +1,65 @@
+{
+  "id": 164,
+  "createdAt": "2023-03-17T19:55:17.000Z",
+  "updatedAt": "2023-03-17T19:55:17.000Z",
+  "name": "ToneStack Only",
+  "description": null,
+  "program": 1,
+  "shared": false,
+  "config": [
+    {
+      "index": 0,
+      "name": "Tone Stack",
+      "settings": [
+        {
+          "index": 0,
+          "labels": [],
+          "max": 1,
+          "min": 0,
+          "name": "bypass",
+          "step": 1,
+          "type": 2,
+          "units": 4,
+          "value": false
+        },
+        {
+          "index": 1,
+          "labels": [],
+          "max": 20,
+          "min": -20,
+          "name": "treble",
+          "step": 0.25,
+          "type": 0,
+          "units": 1,
+          "value": 0
+        },
+        {
+          "index": 2,
+          "labels": [],
+          "max": 20,
+          "min": -20,
+          "name": "mid",
+          "step": 0.25,
+          "type": 0,
+          "units": 1,
+          "value": 0
+        },
+        {
+          "index": 3,
+          "labels": [],
+          "max": 20,
+          "min": -20,
+          "name": "low",
+          "step": 0.25,
+          "type": 0,
+          "units": 1,
+          "value": 0
+        }
+      ]
+    }
+  ],
+  "user": {
+    "name": "Mike V",
+    "id": 1
+  }
+}

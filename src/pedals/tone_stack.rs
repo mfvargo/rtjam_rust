@@ -1,4 +1,8 @@
-//! Three [`crate::dsp::biquad::BiQuadFilter`] filters to implement a tone stack similar to that on a Fender amp
+//! Effect to simulate the Tone controls on a typical amplifier.
+//!
+//! It uses three [`BiQuadFilter`](crate::dsp::biquad::BiQuadFilter) filters to implement a tone stack similar
+//! to that on a Fender amp.  The cutoff frequencies of the filters and their Q are preset.  The settings
+//! here just affect the boost on the filters.
 use serde_json::json;
 
 use crate::dsp::biquad::{BiQuadFilter, FilterType};
@@ -6,8 +10,14 @@ use crate::dsp::biquad::{BiQuadFilter, FilterType};
 use super::controls::{PedalSetting, SettingType, SettingUnit};
 use super::pedal::Pedal;
 
+/// Effect that looks like a 3 band tone control
+///
+/// The ToneStack has 3 settings adjustable from -20 to +20 dB (sorry they don't go to 11)
+/// - treble
+/// - mid
+/// - bass
 pub struct ToneStack {
-    pub bypass: bool,
+    bypass: bool,
     settings: Vec<PedalSetting<f64>>,
     bass_filter: BiQuadFilter,
     mid_filter: BiQuadFilter,
@@ -15,6 +25,7 @@ pub struct ToneStack {
 }
 
 impl ToneStack {
+    /// Construct a new default ToneStack with all three controls at 0dB
     pub fn new() -> ToneStack {
         let mut stack = ToneStack {
             bypass: false,
@@ -68,6 +79,10 @@ impl ToneStack {
 }
 
 impl Pedal for ToneStack {
+    /// This is used by the PedalBoard to change a value from the U/X.
+    ///
+    /// Valid settings are Float values corresponding to settings named "trebel", "mid", or "bass"
+    /// Settings are in dB -20.0 to +20.0
     fn do_change_a_value(&mut self, name: &str, val: &serde_json::Value) {
         // Find the setting using the name, then update it's value
         match val.as_f64() {
@@ -81,6 +96,16 @@ impl Pedal for ToneStack {
             _ => (),
         }
     }
+    /// Called to reconfigure the effect based on the current setting values.
+    ///
+    /// called after a setting change.  Note that settings are marked dirty on
+    /// update so the ToneStatck only needs to tweak those things that have changed.
+    ///
+    /// * A special note, most all settings are linearized when used in the algorithms with the
+    /// exception of the Boost parameter of the BiQuadFilter.  This parameter is passed in as
+    /// dB.  Normally there would be a call the the settings units to convert them, but in
+    /// this case the value is passed directly to the BiQuadFilter.  (great example, huh?)
+
     fn load_from_settings(&mut self) -> () {
         // change my member variables based on the settings
         for setting in &mut self.settings {
@@ -120,6 +145,7 @@ impl Pedal for ToneStack {
         }
     }
 
+    /// Apply the filters to tweak the tones
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut i: usize = 0;
         for samp in input {
@@ -129,12 +155,16 @@ impl Pedal for ToneStack {
             i += 1;
         }
     }
+    /// returns the bypass setting on the pedal
     fn bypass(&self) -> bool {
         self.bypass
     }
+    /// set the bypass on the pedal
     fn set_my_bypass(&mut self, val: bool) -> () {
         self.bypass = val;
     }
+    /// Serialize the pedal and settings.  This allows the PedalBoard to save itself and reconstruct
+    /// from a saved configuration
     fn as_json(&self, idx: usize) -> serde_json::Value {
         // pass in the bypass setting
         let mut settings: Vec<serde_json::Value> = vec![self.make_bypass()];

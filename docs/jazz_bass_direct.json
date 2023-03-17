@@ -1,0 +1,325 @@
+{
+  "id": 39,
+  "createdAt": "2021-08-09T22:45:10.000Z",
+  "updatedAt": "2023-03-09T06:04:21.000Z",
+  "name": "Jazz Bass Direct",
+  "description": null,
+  "program": 1,
+  "shared": false,
+  "config": [
+    {
+      "index": 0,
+      "name": "Noise Gate",
+      "settings": [
+        {
+          "index": 0,
+          "labels": [],
+          "max": 1,
+          "min": 0,
+          "name": "bypass",
+          "step": 1,
+          "type": 2,
+          "value": false
+        },
+        {
+          "index": 1,
+          "labels": [],
+          "max": -35,
+          "min": -70,
+          "name": "threshold",
+          "step": 0.25,
+          "type": 0,
+          "value": -60.54999923706055
+        },
+        {
+          "index": 2,
+          "labels": [],
+          "max": 100,
+          "min": 2,
+          "name": "attack",
+          "step": 1,
+          "type": 0,
+          "value": 10
+        },
+        {
+          "index": 3,
+          "labels": [],
+          "max": 250,
+          "min": 20,
+          "name": "hold",
+          "step": 1,
+          "type": 0,
+          "value": 146.5
+        },
+        {
+          "index": 4,
+          "labels": [],
+          "max": 450,
+          "min": 10,
+          "name": "release",
+          "step": 1,
+          "type": 0,
+          "value": 309.20001220703125
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "name": "Bass Envelope",
+      "settings": [
+        {
+          "index": 0,
+          "labels": [],
+          "max": 1,
+          "min": 0,
+          "name": "bypass",
+          "step": 1,
+          "type": 2,
+          "value": true
+        },
+        {
+          "index": 1,
+          "labels": ["LPF", "BPF", "HPF"],
+          "max": 2,
+          "min": 0,
+          "name": "type",
+          "step": 1,
+          "type": 1,
+          "value": 1
+        },
+        {
+          "index": 2,
+          "labels": [],
+          "max": 2000,
+          "min": 1,
+          "name": "frequency",
+          "step": 5,
+          "type": 0,
+          "value": 20
+        },
+        {
+          "index": 3,
+          "labels": [],
+          "max": 20,
+          "min": 1,
+          "name": "resonance",
+          "step": 0.05,
+          "type": 0,
+          "value": 6.320000171661377
+        },
+        {
+          "index": 4,
+          "labels": [],
+          "max": 100,
+          "min": 0,
+          "name": "sensitivity",
+          "step": 1,
+          "type": 0,
+          "value": 18
+        },
+        {
+          "index": 5,
+          "labels": [],
+          "max": 100,
+          "min": 2,
+          "name": "attack",
+          "step": 0.5,
+          "type": 0,
+          "value": 44.13999938964844
+        },
+        {
+          "index": 6,
+          "labels": [],
+          "max": 1000,
+          "min": 10,
+          "name": "release",
+          "step": 2,
+          "type": 0,
+          "value": 475.2999877929687
+        },
+        {
+          "index": 7,
+          "labels": [],
+          "max": 10,
+          "min": -10,
+          "name": "level",
+          "step": 0.1,
+          "type": 0,
+          "value": 0
+        },
+        {
+          "index": 8,
+          "labels": [],
+          "max": 0,
+          "min": -80,
+          "name": "dry level",
+          "step": 0.1,
+          "type": 0,
+          "value": -5.199999809265137
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "name": "Compressor",
+      "settings": [
+        {
+          "index": 0,
+          "labels": [],
+          "max": 1,
+          "min": 0,
+          "name": "bypass",
+          "step": 1,
+          "type": 2,
+          "value": false
+        },
+        {
+          "index": 1,
+          "labels": [],
+          "max": 20,
+          "min": -80,
+          "name": "threshold",
+          "step": 0.5,
+          "type": 0,
+          "value": -15.5
+        },
+        {
+          "index": 2,
+          "labels": [],
+          "max": 20,
+          "min": 1,
+          "name": "ratio",
+          "step": 0.1,
+          "type": 0,
+          "value": 9.414999961853027
+        },
+        {
+          "index": 3,
+          "labels": [],
+          "max": 20,
+          "min": -20,
+          "name": "level",
+          "step": 0.5,
+          "type": 0,
+          "value": 0
+        },
+        {
+          "index": 4,
+          "labels": [],
+          "max": 200,
+          "min": 2,
+          "name": "attack",
+          "step": 0.5,
+          "type": 0,
+          "value": 20
+        },
+        {
+          "index": 5,
+          "labels": [],
+          "max": 1000,
+          "min": 50,
+          "name": "release",
+          "step": 0.5,
+          "type": 0,
+          "value": 268.5
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "name": "Bass DI",
+      "settings": [
+        {
+          "index": 0,
+          "labels": [],
+          "max": 1,
+          "min": 0,
+          "name": "bypass",
+          "step": 1,
+          "type": 2,
+          "value": false
+        },
+        {
+          "index": 1,
+          "labels": [],
+          "max": 10,
+          "min": -10,
+          "name": "Volume",
+          "step": 0.25,
+          "type": 0,
+          "value": 2.700000047683716
+        },
+        {
+          "index": 2,
+          "labels": [],
+          "max": 35,
+          "min": -35,
+          "name": "Bass",
+          "step": 0.25,
+          "type": 0,
+          "value": 9.1
+        },
+        {
+          "index": 3,
+          "labels": [],
+          "max": 35,
+          "min": -35,
+          "name": "Mid",
+          "step": 0.25,
+          "type": 0,
+          "value": 2.0999999046325684
+        },
+        {
+          "index": 4,
+          "labels": [],
+          "max": 35,
+          "min": -35,
+          "name": "Treble",
+          "step": 0.25,
+          "type": 0,
+          "value": -5.599999904632568
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "name": "Speaker Sim",
+      "settings": [
+        {
+          "index": 0,
+          "labels": [],
+          "max": 1,
+          "min": 0,
+          "name": "bypass",
+          "step": 1,
+          "type": 2,
+          "value": false
+        },
+        {
+          "index": 1,
+          "labels": [],
+          "max": 20,
+          "min": -20,
+          "name": "Level",
+          "step": 0.25,
+          "type": 0,
+          "value": 1.649999976158142
+        },
+        {
+          "index": 2,
+          "labels": ["1x12", "2x12", "4x10", "4x12"],
+          "max": 3,
+          "min": 0,
+          "name": "cabinetType",
+          "step": 1,
+          "type": 1,
+          "value": 2
+        }
+      ]
+    }
+  ],
+  "user": {
+    "name": "Mike V",
+    "id": 1
+  }
+}

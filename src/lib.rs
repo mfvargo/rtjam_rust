@@ -16,7 +16,7 @@
 //!
 //! ## Get The code
 //!
-//! ```
+//! ```text
 //! git clone https://github.com/mfvargo/rtjam_rust.git
 //! cd rtjam_rust
 //! cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --release
@@ -46,6 +46,9 @@ extern crate json;
 extern crate num_derive;
 
 pub use self::pedals::pedal::Pedal;
+pub use self::sound::jam_engine::JamEngine;
+pub use self::sound::param_message::ParamMessage;
+
 pub mod common;
 pub mod dsp;
 pub mod pedals;

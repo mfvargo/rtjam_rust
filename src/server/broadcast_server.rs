@@ -18,6 +18,14 @@ use std::{
 /// To start a broadcast component, call this function
 ///
 /// pass in the git_hash associated with the build so the nation can know what we are running.
+///
+/// This function will start additional threads.  
+/// - websocket thread - creates a websocket connection to rtjam-nation and creates a chatRoom
+/// - audio thread - listens for UDP datagrams and forwards to others in the audio room
+/// - broadcast ping thread - periodically updates rtjam-nation with keepalives so it knows the room is up
+///
+/// the original thread that calls run then loops checking mpsc::channels for messages between the websocket
+/// and the audio_thread.  The broadcast ping thread just runs by itself (fire and forget)
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // This is the entry point for the broadcast server
 

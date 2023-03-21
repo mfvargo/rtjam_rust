@@ -43,12 +43,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let mac_address = utils::get_my_mac_address()?;
     // Create an api endpoint and register this server
     // TODO: figure out way to get lan ip and mac address
-    let mut api = JamNationApi::new(
-        api_url.as_str(),
-        "10.10.10.10",
-        mac_address.as_str(),
-        git_hash,
-    );
+    let mut api = JamNationApi::new(api_url.as_str(), mac_address.as_str(), git_hash);
     while !api.has_token() {
         let _register = api.broadcast_unit_register();
         // Activate the room

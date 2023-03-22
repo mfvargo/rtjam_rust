@@ -24,6 +24,50 @@ use super::{
 pub const IDLE_DISCONNECT: u128 = 15 * 60 * 1000 * 1000; // 15 minutes
 pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 
+/// Aggregates all the sound components into a single structure
+///
+/// Once built, the audio engine should call the process function every 128 samples
+/// to drive the engine.
+///
+/// The JamEngine maintains:
+/// - UDP Socket and Connection state to rooms hosted by broadcast components [`JamSocket`]
+/// - Audio Mixer for room members (including the unit itself) [`Mixer`]
+/// - ChannelMap to map room members to mixer channels [`ChannelMap`]
+/// - PedalBoards for the two local channesl [`PedalBoard`]
+/// - Tuners for both incoming channels (to tune your instruments) [`Tuner`]
+///
+///
+/// To avoid having a mutex around the objects in the process loop, the JamEngine is created
+/// with a mpsc::Sender and mpsc::Receiver.  The Engine will send json formatted status messages
+/// to the Sender and will poll the Receiver every frame for any ParamMessages it should process
+/// every process loop.
+///
+/// # Example
+/// ```
+/// use std::sync::mpsc;
+/// use rtjam_rust::JamEngine;
+/// use rtjam_rust::ParamMessage;
+/// fn main() {
+///     let (status_data_tx, _status_data_rx): (
+///             mpsc::Sender<serde_json::Value>,
+///             mpsc::Receiver<serde_json::Value>,
+///         ) = mpsc::channel();
+///     let (_command_tx, command_rx): (
+///             mpsc::Sender<ParamMessage>,
+///             mpsc::Receiver<ParamMessage>
+///         ) = mpsc::channel();
+///     let mut engine = JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash").expect("oops");
+///     // At this point some audio engine would use engine.process() as the callback for audio frames
+///     let in_a = [0.0;128];
+///     let in_b = [0.0;128];
+///     let mut out_left = [0.0;128];
+///     let mut out_right = [0.0;128];
+///     engine.process(&in_a, &in_b, &mut out_left, &mut out_right);
+/// }
+///
+/// ```
+///
+
 pub struct JamEngine {
     // gonna have some stuff
     sock: JamSocket,

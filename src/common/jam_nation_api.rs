@@ -14,7 +14,6 @@ use reqwest::blocking::Client;
 pub struct JamNationApi {
     url_base: String,
     token: String,
-    lan_ip: String,
     mac_address: String,
     git_hash: String,
     // pub args: NationArgs,
@@ -27,11 +26,10 @@ impl JamNationApi {
     /// - lan_ip: legacy parameter.  Should be deprecasted (TODO)
     /// - mac_address: the mac address of the component. Used to uniquely identify the componet
     /// - git_hash: the current git hash string for the build.  Lets the nation know what software component has
-    pub fn new(base: &str, lan_ip: &str, mac_address: &str, git_hash: &str) -> JamNationApi {
+    pub fn new(base: &str, mac_address: &str, git_hash: &str) -> JamNationApi {
         JamNationApi {
             token: String::new(),
             url_base: base.to_string(),
-            lan_ip: lan_ip.to_string(),
             mac_address: mac_address.to_string(),
             git_hash: git_hash.to_string(),
         }
@@ -51,7 +49,7 @@ impl JamNationApi {
     fn build_def_args(&self) -> HashMap<&str, String> {
         let mut args = HashMap::new();
         args.insert("token", self.token.clone());
-        args.insert("lanIp", self.lan_ip.clone());
+        args.insert("lanIp", "10.0.0.0".to_string());
         args.insert("macAddress", self.mac_address.clone());
         args.insert("gitHash", self.git_hash.clone());
         args
@@ -134,17 +132,11 @@ impl JamNationApi {
 }
 
 #[cfg(test)]
-
 mod test_api {
     use super::*;
 
     fn build_new_api() -> JamNationApi {
-        JamNationApi::new(
-            "http://localhost/api/1/",
-            "10.10.10.10",
-            "test:mac",
-            "gitHashString",
-        )
+        JamNationApi::new("http://localhost/api/1/", "test:mac", "gitHashString")
     }
     #[test]
     fn get_status() {
@@ -162,5 +154,13 @@ mod test_api {
         assert!(!ping["broadcastUnit"]["id"].is_empty());
         let activate = api.activate_room(7891).unwrap();
         println!("activate: {}", activate.pretty(2));
+    }
+    #[test]
+    fn jam_unit_register_and_ping() {
+        let mut api = build_new_api();
+        let reg = api.jam_unit_register().unwrap();
+        assert_eq!(reg["jamUnit"]["token"], api.get_token());
+        let ping = api.jam_unit_ping().unwrap();
+        assert!(!ping["jamUnit"]["id"].is_empty());
     }
 }

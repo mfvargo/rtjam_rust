@@ -18,6 +18,14 @@ use std::{
 /// To start a broadcast component, call this function
 ///
 /// pass in the git_hash associated with the build so the nation can know what we are running.
+///
+/// This function will start additional threads.  
+/// - websocket thread - creates a websocket connection to rtjam-nation and creates a chatRoom
+/// - audio thread - listens for UDP datagrams and forwards to others in the audio room
+/// - broadcast ping thread - periodically updates rtjam-nation with keepalives so it knows the room is up
+///
+/// the original thread that calls run then loops checking mpsc::channels for messages between the websocket
+/// and the audio_thread.  The broadcast ping thread just runs by itself (fire and forget)
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // This is the entry point for the broadcast server
 
@@ -35,12 +43,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let mac_address = utils::get_my_mac_address()?;
     // Create an api endpoint and register this server
     // TODO: figure out way to get lan ip and mac address
-    let mut api = JamNationApi::new(
-        api_url.as_str(),
-        "10.10.10.10",
-        mac_address.as_str(),
-        git_hash,
-    );
+    let mut api = JamNationApi::new(api_url.as_str(), mac_address.as_str(), git_hash);
     while !api.has_token() {
         let _register = api.broadcast_unit_register();
         // Activate the room

@@ -1,14 +1,15 @@
 //! Defines the trait for a Pedal.  
-//!
-//! By implementing this trait the PedalBoard can
-//! have lots of different types of effect pedals without needing the details of
-//! each pedals implementation.  A good exammple of an Effect implementing this
-//! trait is the [`crate::pedals::tone_stack::ToneStack`]
 use serde_json::json;
 
 use super::controls::SettingUnit;
 
 /// trait that Effects (aka Pedals) must define to allow them to be in a [`crate::pedals::pedal_board::PedalBoard`]
+///
+/// By implementing this trait the PedalBoard can
+/// have lots of different types of effect pedals without needing the details of
+/// each pedals implementation.  A good exammple of an Effect implementing this
+/// trait is the [`crate::pedals::tone_stack::ToneStack`]
+
 pub trait Pedal {
     /// called by the PedalBoard to have a frame of audio processed.
     ///

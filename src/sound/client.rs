@@ -26,7 +26,11 @@
 //! have it re-initialize into acquire more if jack falls down in the middle.
 use crate::{
     common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
-    sound::{jack_thread, jam_engine::JamEngine, param_message::ParamMessage},
+    sound::{
+        jack_thread,
+        jam_engine::JamEngine,
+        param_message::{JamParam, ParamMessage},
+    },
     utils,
 };
 use std::{
@@ -112,8 +116,23 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 // println!("websocket message: {}", m);
                 match ParamMessage::from_json(&m) {
                     Ok(msg) => {
-                        // We have a valid param message.  Send it to the jack thread
-                        let _res = command_tx.send(msg);
+                        match msg.param {
+                            JamParam::SetAudioInput => {
+                                // client command
+                            }
+                            JamParam::SetAudioOutput => {
+                                // another client command
+                            }
+                            JamParam::ListAudioConfig => {
+                                // run aplay -L and send back result
+                            }
+                            JamParam::RandomCommand => {
+                                println!("rando: {}", msg);
+                            }
+                            _ => {
+                                let _res = command_tx.send(msg);
+                            }
+                        }
                     }
                     Err(e) => {
                         dbg!(e);

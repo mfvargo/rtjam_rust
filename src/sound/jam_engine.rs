@@ -15,10 +15,9 @@ use crate::{
 
 use super::{
     channel_map::ChannelMap,
-    jam_params::JamParams,
     jam_socket::JamSocket,
     mixer::{Mixer, MIXER_CHANNELS},
-    param_message::ParamMessage,
+    param_message::{JamParam, ParamMessage},
 };
 
 // Set a timer for how long a connect will hold up without a keepalive from the web client
@@ -269,78 +268,77 @@ impl JamEngine {
         data
     }
     fn process_param_command(&mut self, msg: ParamMessage) -> () {
-        let param: Option<JamParams> = num::FromPrimitive::from_i64(msg.param);
-        match param {
-            Some(JamParams::ChanGain1) => {
+        match msg.param {
+            JamParam::ChanGain1 => {
                 self.mixer.set_channel_gain(0, msg.fvalue);
             }
-            Some(JamParams::ChanGain2) => {
+            JamParam::ChanGain2 => {
                 self.mixer.set_channel_gain(1, msg.fvalue);
             }
-            Some(JamParams::ChanGain3) => {
+            JamParam::ChanGain3 => {
                 self.mixer.set_channel_gain(2, msg.fvalue);
             }
-            Some(JamParams::ChanGain4) => {
+            JamParam::ChanGain4 => {
                 self.mixer.set_channel_gain(3, msg.fvalue);
             }
-            Some(JamParams::ChanGain5) => {
+            JamParam::ChanGain5 => {
                 self.mixer.set_channel_gain(4, msg.fvalue);
             }
-            Some(JamParams::ChanGain6) => {
+            JamParam::ChanGain6 => {
                 self.mixer.set_channel_gain(5, msg.fvalue);
             }
-            Some(JamParams::ChanGain7) => {
+            JamParam::ChanGain7 => {
                 self.mixer.set_channel_gain(6, msg.fvalue);
             }
-            Some(JamParams::ChanGain8) => {
+            JamParam::ChanGain8 => {
                 self.mixer.set_channel_gain(7, msg.fvalue);
             }
-            Some(JamParams::ChanGain9) => {
+            JamParam::ChanGain9 => {
                 self.mixer.set_channel_gain(8, msg.fvalue);
             }
-            Some(JamParams::ChanGain10) => {
+            JamParam::ChanGain10 => {
                 self.mixer.set_channel_gain(9, msg.fvalue);
             }
-            Some(JamParams::ChanGain11) => {
+            JamParam::ChanGain11 => {
                 self.mixer.set_channel_gain(10, msg.fvalue);
             }
-            Some(JamParams::ChanGain12) => {
+            JamParam::ChanGain12 => {
                 self.mixer.set_channel_gain(11, msg.fvalue);
             }
-            Some(JamParams::ChanGain13) => {
+            JamParam::ChanGain13 => {
                 self.mixer.set_channel_gain(12, msg.fvalue);
             }
-            Some(JamParams::ChanGain14) => {
+            JamParam::ChanGain14 => {
                 self.mixer.set_channel_gain(13, msg.fvalue);
             }
-            Some(JamParams::SetFader) => {
+            JamParam::SetFader => {
                 if Self::check_index(msg.ivalue_1 as usize) {
                     self.mixer
                         .set_channel_fade(msg.ivalue_1 as usize, msg.fvalue as f32);
                 }
             }
-            Some(JamParams::RoomChange) => {
+            JamParam::RoomChange => {
                 // connect message
                 self.connect(&msg.svalue, msg.ivalue_1, msg.ivalue_2);
             }
-            Some(JamParams::Disconnect) => {
+            JamParam::Disconnect => {
                 self.disconnect();
             }
-            Some(JamParams::InsertPedal) => {
+            JamParam::InsertPedal => {
                 let idx = msg.ivalue_1 as usize;
                 if idx < self.pedal_boards.len() {
                     self.pedal_boards[idx].insert_pedal(&msg.svalue, msg.ivalue_2 as usize)
                 }
                 self.send_pedal_info();
             }
-            Some(JamParams::DeletePedal) => {
+            JamParam::DeletePedal => {
                 let idx = msg.ivalue_1 as usize;
                 if idx < self.pedal_boards.len() {
                     self.pedal_boards[idx].delete_pedal(msg.ivalue_2 as usize);
                 }
                 self.send_pedal_info();
             }
-            Some(JamParams::MovePedal) => {
+            JamParam::MovePedal => {
                 let idx = msg.ivalue_1 as usize;
                 let from_idx: usize = msg.ivalue_2 as usize;
                 let to_idx: usize = msg.fvalue.round() as usize;
@@ -349,20 +347,20 @@ impl JamEngine {
                 }
                 self.send_pedal_info();
             }
-            Some(JamParams::LoadBoard) => {
+            JamParam::LoadBoard => {
                 let idx = msg.ivalue_1 as usize;
                 if idx < self.pedal_boards.len() {
                     self.pedal_boards[idx].load_from_json(&msg.svalue);
                 }
                 self.send_pedal_info();
             }
-            Some(JamParams::TuneChannel) => {
+            JamParam::TuneChannel => {
                 let idx = msg.ivalue_1 as usize;
                 if idx < 2 {
                     self.tuners[idx].enable = msg.ivalue_2 == 1;
                 }
             }
-            Some(JamParams::SetEffectConfig) => {
+            JamParam::SetEffectConfig => {
                 // Change a parameter on a pedal
                 let idx = msg.ivalue_1 as usize;
                 if idx < self.pedal_boards.len() {
@@ -377,11 +375,11 @@ impl JamEngine {
                     }
                 }
             }
-            Some(JamParams::ConnectionKeepAlive) => {
+            JamParam::ConnectionKeepAlive => {
                 // Sent by web client to let us know they are still there.
                 self.disconnect_timer.reset(self.now);
             }
-            Some(JamParams::SetUpdateInterval) => {
+            JamParam::SetUpdateInterval => {
                 // Update the refresh rate
                 let mut interval = (msg.ivalue_1 * 1000) as u128; // convert to msec
                 if interval < 150_000 {
@@ -393,19 +391,18 @@ impl JamEngine {
                 self.update_timer.set_interval(interval);
                 self.update_fallback_timer.reset(self.now);
             }
-            Some(JamParams::GetConfigJson) => {
+            JamParam::GetConfigJson => {
                 self.send_pedal_info();
             }
-            Some(JamParams::GetPedalTypes) => {
+            JamParam::GetPedalTypes => {
                 let _res = self.status_data_tx.send(json!({
                     "speaker": "UnitChatRobot",
                     "pedalTypes": PedalBoard::get_pedal_types()
                 }));
             }
-            Some(_) => {
+            _ => {
                 println!("unknown command: {}", msg);
             }
-            None => (),
         }
     }
     fn check_index(idx: usize) -> bool {

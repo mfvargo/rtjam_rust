@@ -33,7 +33,10 @@ use crate::{
     },
     utils,
 };
+use serde_json::json;
 use std::{
+    io::{ErrorKind, Write},
+    process::Command,
     sync::mpsc,
     thread::{self, sleep},
     time::Duration,
@@ -112,18 +115,28 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 match ParamMessage::from_json(&m) {
                     Ok(msg) => {
                         match msg.param {
+                            // Is this a message we handle right here?
                             JamParam::SetAudioInput => {
                                 // client command
+                                println!("set audio input: {}", msg);
+                                write_string_to_file("soundin.cfg", &msg.svalue);
                             }
                             JamParam::SetAudioOutput => {
                                 // another client command
+                                println!("set audio otuput: {}", msg);
+                                write_string_to_file("soundout.cfg", &msg.svalue);
                             }
                             JamParam::ListAudioConfig => {
                                 // run aplay -L and send back result
+                                let _res = to_ws_tx.send(make_audio_config());
+                            }
+                            JamParam::CheckForUpdate => {
+                                // See if we need to update ourself
                             }
                             JamParam::RandomCommand => {
                                 println!("rando: {}", msg);
                             }
+                            // This message is for the jamEngine to handle
                             _ => {
                                 let _res = command_tx.send(msg);
                             }
@@ -179,5 +192,67 @@ fn jam_unit_ping_thread(mut api: JamNationApi) -> Result<(), BoxError> {
         }
         // This is the timer between registration attempts
         sleep(Duration::new(2, 0));
+    }
+}
+
+fn make_audio_config() -> serde_json::Value {
+    let mut driver = String::from("hw:USB");
+    let mut cards = String::from("");
+    match Command::new("cat").arg("soundin.cfg").output() {
+        Ok(dev) => {
+            driver = String::from_utf8_lossy(&dev.stdout).to_string();
+        }
+        Err(err) => {
+            dbg!(err);
+        }
+    }
+    match Command::new("aplay").arg("-l").output() {
+        Ok(output) => {
+            cards = String::from_utf8_lossy(&output.stdout).to_string();
+        }
+        Err(err) => {
+            dbg!(err);
+        }
+    }
+    json!({
+        "audioHardware": {
+            "driver": driver,
+            "cards": cards,
+        },
+        "speaker": "UnitChatRobot"
+    })
+}
+
+fn write_string_to_file(fname: &str, contents: &str) -> () {
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(fname)
+    {
+        Ok(mut f) => {
+            let _res = f.write_all(contents.as_bytes());
+            let _res = f.sync_all();
+        }
+        Err(error) => {
+            // File open failed.  See if we need to create it
+            match error.kind() {
+                ErrorKind::NotFound => {
+                    // no file, create one
+                    match std::fs::File::create(fname) {
+                        Ok(mut f) => {
+                            let _res = f.write_all(contents.as_bytes());
+                            let _res = f.sync_all();
+                        }
+                        Err(e) => {
+                            dbg!(e);
+                        }
+                    }
+                }
+                other_error => {
+                    dbg!(other_error);
+                    println!("failed to create file: {}", fname);
+                }
+            }
+        }
     }
 }

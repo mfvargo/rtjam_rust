@@ -30,13 +30,13 @@ install-base:
 	sudo cp docs/pi-scripts/rtjam-broadcast.service /etc/systemd/system
 	sudo systemctl daemon-reload
 
-install-sound: install-base:
+install-sound: install-base
 	sudo systemctl start rtjam-jack
 	sudo systemctl start rtjam-sound
 	sudo systemctl enable rtjam-jack
 	sudo systemctl enable rtjam-sound
 
-install-broadcast: install-base:
+install-broadcast: install-base
 	sudo systemctl start rtjam-broadcast
 	sudo systemctl enable rtjam-broadcast
 

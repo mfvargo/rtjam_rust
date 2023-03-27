@@ -26,6 +26,11 @@ The Makefile just calls cargo build for the two example programs.
 
 This is the library of all the components used to make the rtjam_sound and rtjam_broadcast executables.
 
+## Examples
+
+Note that the software runs well on the Raspberry Pi4 aarch64 OS. If you want want info on installing on that platform (pretty much generic debian), you can read more
+[`here`](docs/Pi%2064bit%20aarch64%20setup.md)
+
 ### Jack Standalone (examples/rtjam_sound.rs)
 
 The RTJam software also builds on the Raspberry Pi 4 and can be run as a "standalone JACK" application. This has been the most successful implementation for playing music realtime on the internet. The Pi has a very stable multimedia jack port that can run 64 sample frames with only 2 period of buffer without the dreaded XRUN issues you see on most other platforms.

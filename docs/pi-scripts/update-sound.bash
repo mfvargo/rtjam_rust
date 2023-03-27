@@ -1,5 +1,5 @@
 #!/bin/bash
-NATION=http://rtjam-nation.basscleftech.com/pi/rust
+NATION=http://rtjam-nation.com/pi/rust
 WEBVER=/home/pi/rtjam/version.txt
 LOCALVER=/home/pi/rtjam/version.local.txt
 cd /home/pi/rtjam

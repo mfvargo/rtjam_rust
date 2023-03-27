@@ -5,7 +5,6 @@ pub mod client;
 pub mod fader;
 pub mod jack_thread;
 pub mod jam_engine;
-pub mod jam_params;
 pub mod jam_socket;
 pub mod jitter_buffer;
 pub mod mixer;

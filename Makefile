@@ -13,22 +13,36 @@ deploy: all
 	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_broadcast  ubuntu@rtjam-nation.basscleftech.com:/home/ubuntu/www/html/pi/rust
 	scp -i ~/.ssh/rtjam.cer target/release/examples/version.txt  ubuntu@rtjam-nation.basscleftech.com:/home/ubuntu/www/html/pi/rust
 
-install:
+install-base:
 	mkdir -p $(RTJAM_HOME)
 	wget -O $(RTJAM_HOME)/rtjam_sound $(NATION)/rtjam_sound
 	chmod +x $(RTJAM_HOME)/rtjam_sound
+	wget -O $(RTJAM_HOME)/rtjam_broadcast $(NATION)/rtjam_sound
+	chmod +x $(RTJAM_HOME)/rtjam_broadcast
 	cp docs/pi-scripts/jackrun.bash $(RTJAM_HOME)
 	chmod +x $(RTJAM_HOME)/jackrun.bash
-	cp docs/pi-scripts/update-rtjam.bash $(RTJAM_HOME)
-	chmod +x $(RTJAM_HOME)/update-rtjam.bash
+	cp docs/pi-scripts/update-sound.bash $(RTJAM_HOME)
+	chmod +x $(RTJAM_HOME)/update-sound.bash
+	cp docs/pi-scripts/update-broadcast.bash $(RTJAM_HOME)
+	chmod +x $(RTJAM_HOME)/update-broadcast.bash
 	sudo cp docs/pi-scripts/rtjam-jack.service /etc/systemd/system
 	sudo cp docs/pi-scripts/rtjam-sound.service /etc/systemd/system
+	sudo cp docs/pi-scripts/rtjam-broadcast.service /etc/systemd/system
 	sudo systemctl daemon-reload
-	sudo systemctl start rtjam-jack.service
-	sudo systemctl start rtjam-sound.service
+
+install-sound: install-base:
+	sudo systemctl start rtjam-jack
+	sudo systemctl start rtjam-sound
+	sudo systemctl enable rtjam-jack
+	sudo systemctl enable rtjam-sound
+
+install-broadcast: install-base:
+	sudo systemctl start rtjam-broadcast
+	sudo systemctl enable rtjam-broadcast
 
 uninstall:
 	sudo rm -f /etc/system.d/system/rtjam-jack.service
 	sudo rm -f /etc/system.d/system/rtjam-sound.service
+	sudo rm -f /etc/system.d/system/rtjam-broadcast.service
 	sudo rm -rf $(RTJAM_HOME)
 	sudo systemctl daemon-reload

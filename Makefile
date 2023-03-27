@@ -41,8 +41,14 @@ install-broadcast: install-base:
 	sudo systemctl enable rtjam-broadcast
 
 uninstall:
-	sudo rm -f /etc/system.d/system/rtjam-jack.service
-	sudo rm -f /etc/system.d/system/rtjam-sound.service
-	sudo rm -f /etc/system.d/system/rtjam-broadcast.service
+	sudo systemctl stop rtjam-broadcast
+	sudo systemctl stop rtjam-sound
+	sudo systemctl stop rtjam-jack
+	sudo systemctl disable rtjam-broadcast
+	sudo systemctl disable rtjam-sound
+	sudo systemctl disable rtjam-jack
+	sudo rm -f /etc/systemd/system/rtjam-jack.service
+	sudo rm -f /etc/systemd/system/rtjam-sound.service
+	sudo rm -f /etc/systemd/system/rtjam-broadcast.service
 	sudo rm -rf $(RTJAM_HOME)
 	sudo systemctl daemon-reload

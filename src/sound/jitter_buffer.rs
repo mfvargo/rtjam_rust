@@ -20,7 +20,7 @@ use std::fmt;
 
 const MIN_DEPTH: usize = 512;
 const MAX_DEPTH: usize = 8192;
-const MIN_SIGMA: f64 = 7.0;
+const MIN_SIGMA: f64 = 4.0;
 
 /// Adaptive buffer for smoothing network audio data
 ///
@@ -42,12 +42,12 @@ impl fmt::Display for JitterBuffer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ target: {}, underruns: {}, overruns: {}, depth: {:.2}, puts: {} }}",
+            "{{ target: {}, underruns: {}, overruns: {}, depth: {:.2}, sigma: {:.2} }}",
             self.target_depth,
             self.underruns,
             self.overruns,
             self.depth_stats.get_mean(),
-            self.puts
+            self.depth_stats.get_sigma(),
         )
     }
 }
@@ -57,12 +57,12 @@ impl JitterBuffer {
     pub fn new() -> JitterBuffer {
         JitterBuffer {
             buffer: Vec::<f32>::new(),
-            depth_stats: StreamTimeStat::new(50),
+            depth_stats: StreamTimeStat::new(100),
             target_depth: MIN_DEPTH,
             filling: true,
             underruns: 0,
             overruns: 0,
-            depth_filter: PeakDetector::build(0.1, 2.5, 48000.0 / 128.0),
+            depth_filter: PeakDetector::build(0.2, 3.5, 48000.0 / 128.0),
             puts: 0,
             gets: 0,
         }
@@ -110,7 +110,7 @@ impl JitterBuffer {
 
         // check if we are filling
         if self.filling {
-            if self.buffer.len() >= self.target_depth {
+            if self.buffer.len() >= MIN_DEPTH {
                 self.filling = false;
             }
         }
@@ -123,7 +123,7 @@ impl JitterBuffer {
 
         // Second case see if we have too much data and need to throw some out
         // TODO:  code this to be adaptive
-        if self.buffer.len() > self.target_depth {
+        if self.buffer.len() > self.target_depth + 128 {
             self.overruns += 1;
             self.buffer.drain(..self.buffer.len() - self.target_depth);
         }

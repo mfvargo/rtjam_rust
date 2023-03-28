@@ -78,6 +78,7 @@ pub struct JamEngine {
     update_timer: MicroTimer,
     update_fallback_timer: MicroTimer,
     disconnect_timer: MicroTimer,
+    debug_timer: MicroTimer,
     token: String,
     mixer: Mixer,
     chan_map: ChannelMap,
@@ -112,6 +113,7 @@ impl JamEngine {
             update_timer: MicroTimer::new(now, IDLE_REFRESH),
             update_fallback_timer: MicroTimer::new(now, IDLE_REFRESH * 5),
             disconnect_timer: MicroTimer::new(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
+            debug_timer: MicroTimer::new(now, 1_000_000),
             token: String::from(tok),
             mixer: Mixer::new(),
             chan_map: ChannelMap::new(),
@@ -148,7 +150,15 @@ impl JamEngine {
         self.mixer.get_mix(out_a, out_b);
         // out_a.clone_from_slice(&a[..]);
         // out_b.clone_from_slice(&b[..]);
+        self.debug_output();
         Ok(())
+    }
+    fn debug_output(&mut self) {
+        if self.debug_timer.expired(self.now) {
+            self.debug_timer.reset(self.now);
+            // println!("disconnect: {}", self.disconnect_timer.since(self.now));
+            // println!("mixer: {}", self.mixer);
+        }
     }
     fn set_now(&mut self) -> () {
         self.now = get_micro_time();

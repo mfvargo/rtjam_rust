@@ -48,11 +48,17 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     while room_token == "" {
         let _register = api.broadcast_unit_register();
         // Activate the room
-        let room_activate = api.activate_room(port)?;
-        if let Some(tok) = room_activate["room"]["token"].as_str() {
-            room_token = tok.to_string();
+        match api.activate_room(port) {
+            Ok(res) => {
+                if let Some(tok) = res["room"]["token"].as_str() {
+                    room_token = tok.to_string();
+                }
+            }
+            Err(e) => {
+                dbg!(e);
+            }
         }
-        if !api.has_token() {
+        if room_token == "" {
             // can't connect to rtjam-nation.  sleep and then keep trying
             sleep(Duration::new(2, 0));
         }
@@ -132,9 +138,15 @@ fn broadcast_ping_thread(mut api: JamNationApi, port: u32) -> Result<(), BoxErro
         }
         if !api.has_token() {
             // We need to register the server
-            let _register = api.broadcast_unit_register();
-            // Activate the room
-            let _room_activate = api.activate_room(port)?;
+            match api.broadcast_unit_register() {
+                Ok(_res) => {
+                    // Activate the room
+                    let _room_activate = api.activate_room(port);
+                }
+                Err(e) => {
+                    dbg!(e);
+                }
+            }
         }
         // This is the timer between registration attempts
         sleep(Duration::new(2, 0));

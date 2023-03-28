@@ -41,13 +41,17 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     println!("port: {}", port);
     let room_port = port.clone();
     let mac_address = utils::get_my_mac_address()?;
+    let mut room_token = "".to_string();
     // Create an api endpoint and register this server
     // TODO: figure out way to get lan ip and mac address
     let mut api = JamNationApi::new(api_url.as_str(), mac_address.as_str(), git_hash);
-    while !api.has_token() {
+    while room_token == "" {
         let _register = api.broadcast_unit_register();
         // Activate the room
-        let _room_activate = api.activate_room(port)?;
+        let room_activate = api.activate_room(port)?;
+        if let Some(tok) = room_activate["room"]["token"].as_str() {
+            room_token = tok.to_string();
+        }
         if !api.has_token() {
             // can't connect to rtjam-nation.  sleep and then keep trying
             sleep(Duration::new(2, 0));
@@ -55,7 +59,6 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     }
 
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
-    let token = String::from(api.get_token());
     let (to_ws_tx, to_ws_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,
@@ -65,7 +68,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         mpsc::Receiver<serde_json::Value>,
     ) = mpsc::channel();
     let _websocket_handle = thread::spawn(move || {
-        let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
+        let _res = websocket::websocket_thread(&room_token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
     // Create a thread to host the room
@@ -95,7 +98,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let res = audio_rx.try_recv();
         match res {
             Ok(m) => {
-                println!("audio thread message: {}", m.to_string());
+                // println!("audio thread message: {}", m.to_string());
                 // So we got a message from the audio thread.  See if we need
                 // To pass this along to the websocket
                 to_ws_tx.send(m)?;

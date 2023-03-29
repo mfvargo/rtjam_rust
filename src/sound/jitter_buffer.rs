@@ -15,12 +15,14 @@
 //! of the buffer (oldest data gets thrown out) and then return data.  This prevents the
 //! buffer depth from driving to the largest inter packet delay.  Net effect is this
 //! allows for some gaps in playback in order to drive buffer latency down.
-use crate::{common::stream_time_stat::StreamTimeStat, dsp::peak_detector::PeakDetector};
+use crate::{
+    common::stream_time_stat::StreamTimeStat, dsp::attack_hold_release::AttackHoldRelease,
+};
 use std::fmt;
 
 const MIN_DEPTH: usize = 512;
-const MAX_DEPTH: usize = 8192;
-const MIN_SIGMA: f64 = 4.0;
+// const MAX_DEPTH: usize = 8192;
+// const MIN_SIGMA: f64 = 5.0;
 
 /// Adaptive buffer for smoothing network audio data
 ///
@@ -32,7 +34,7 @@ pub struct JitterBuffer {
     filling: bool,
     underruns: usize,
     overruns: usize,
-    depth_filter: PeakDetector<f64>,
+    depth_filter: AttackHoldRelease<f64>,
     puts: usize,
     gets: usize,
 }
@@ -62,7 +64,7 @@ impl JitterBuffer {
             filling: true,
             underruns: 0,
             overruns: 0,
-            depth_filter: PeakDetector::build(0.2, 3.5, 48000.0 / 128.0),
+            depth_filter: AttackHoldRelease::new(0.4, 1.0, 2.0, 48000.0 / 128.0),
             puts: 0,
             gets: 0,
         }
@@ -97,20 +99,13 @@ impl JitterBuffer {
     pub fn get(&mut self, count: usize) -> Vec<f32> {
         // It should get some data off the buffer
         self.gets += 1;
-        self.depth_stats.add_sample(self.buffer.len() as f64); // Gather depth stats
 
         // Adjust target depth based on jitter sigma
-        self.target_depth = MIN_DEPTH
-            + self
-                .depth_filter
-                .get(self.depth_stats.get_sigma() * MIN_SIGMA) as usize;
-        if self.target_depth > MAX_DEPTH {
-            self.target_depth = MAX_DEPTH;
-        }
-
+        self.target_depth =
+            MIN_DEPTH + (self.depth_filter.get(self.buffer.len() < 128) * 2048.0) as usize;
         // check if we are filling
         if self.filling {
-            if self.buffer.len() >= MIN_DEPTH {
+            if self.buffer.len() >= self.target_depth - 128 {
                 self.filling = false;
             }
         }
@@ -123,10 +118,13 @@ impl JitterBuffer {
 
         // Second case see if we have too much data and need to throw some out
         // TODO:  code this to be adaptive
-        if self.buffer.len() > self.target_depth + 128 {
-            self.overruns += 1;
-            self.buffer.drain(..self.buffer.len() - self.target_depth);
-        }
+        // if self.buffer.len() > self.target_depth + 128 {
+        //     self.overruns += 1;
+        //     self.buffer.drain(..self.buffer.len() - self.target_depth);
+        // }
+
+        // Update the depth stats
+        self.depth_stats.add_sample(self.buffer.len() as f64); // Gather depth stats
 
         // Third case, we have enough data to satisfy
         if self.buffer.len() >= count {
@@ -197,16 +195,16 @@ mod test_jitter_buffer {
         assert_eq!(res, vec![0.0; 4]);
         assert!(buf.is_filling());
     }
-    #[test]
-    fn overrun_measure() {
-        let mut buf = JitterBuffer::new();
-        let samps = vec![0.1; MIN_DEPTH + 10];
-        buf.append(&samps);
-        let samps = vec![0.1; MIN_DEPTH + 10];
-        buf.append(&samps);
-        buf.get(2);
-        println!("jitterbuf: {}", buf);
-        assert!(!buf.is_filling());
-        assert!(buf.get_overruns() > 0);
-    }
+    // #[test]
+    // fn overrun_measure() {
+    //     let mut buf = JitterBuffer::new();
+    //     let samps = vec![0.1; MIN_DEPTH + 10];
+    //     buf.append(&samps);
+    //     let samps = vec![0.1; MIN_DEPTH + 10];
+    //     buf.append(&samps);
+    //     buf.get(2);
+    //     println!("jitterbuf: {}", buf);
+    //     assert!(!buf.is_filling());
+    //     assert!(buf.get_overruns() > 0);
+    // }
 }

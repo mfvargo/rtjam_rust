@@ -65,7 +65,7 @@ impl fmt::Display for Player {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ id: {}, address: {}, age: {} loop_time: {} }}",
+            "{{ id: {}, address: {}, age: {} loop_time: {:.2} }}",
             self.client_id,
             self.address,
             self.age(get_micro_time()),

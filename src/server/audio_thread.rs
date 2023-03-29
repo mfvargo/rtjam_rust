@@ -5,17 +5,18 @@ use crate::{
     common::{
         box_error::BoxError,
         jam_packet::{JamMessage, JAM_HEADER_SIZE},
+        sock_with_tos,
         stream_time_stat::MicroTimer,
     },
     server::player_list::{get_micro_time, PlayerList},
 };
-use std::{io::ErrorKind, net::UdpSocket, sync::mpsc, time::Duration};
+use std::{io::ErrorKind, sync::mpsc, time::Duration};
 
 use super::player_list::MAX_LOOP_TIME;
 
 pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
-    let sock = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
+    let sock = sock_with_tos::new(port);
     sock.set_read_timeout(Some(Duration::new(1, 0)))?;
     let mut players = PlayerList::new();
     let mut msg = JamMessage::new();

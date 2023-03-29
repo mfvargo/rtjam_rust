@@ -113,7 +113,7 @@ impl JamEngine {
             update_timer: MicroTimer::new(now, IDLE_REFRESH),
             update_fallback_timer: MicroTimer::new(now, IDLE_REFRESH * 5),
             disconnect_timer: MicroTimer::new(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
-            debug_timer: MicroTimer::new(now, 1_000_000),
+            debug_timer: MicroTimer::new(now, 500_000),
             token: String::from(tok),
             mixer: Mixer::new(),
             chan_map: ChannelMap::new(),

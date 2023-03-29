@@ -15,6 +15,7 @@ use simple_error::bail;
 
 use crate::common::box_error::BoxError;
 use crate::common::jam_packet::JamMessage;
+use crate::common::sock_with_tos;
 use crate::server::player_list::get_micro_time;
 use std::fmt;
 use std::net::UdpSocket;
@@ -30,7 +31,7 @@ pub struct JamSocket {
 impl JamSocket {
     /// Build a new socket
     pub fn new(port: i64) -> Result<JamSocket, BoxError> {
-        let sock = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
+        let sock = sock_with_tos::new(port as u32);
         sock.set_nonblocking(true)?;
         // make it non-blocking
         Ok(JamSocket {

@@ -21,8 +21,10 @@ const EMPTY_SLOT: u32 = 40000;
 /// It has an ID, (assigned by rtjam-nation when they join a room)
 /// The keep_alive is used to time them out if we have not heard from them for over a second (no packets)
 pub struct Client {
-    pub client_id: u32,
-    pub keep_alive: u128,
+    client_id: u32,
+    keep_alive: u128,
+    seq: u32,
+    drops: usize,
 }
 
 impl Client {
@@ -30,7 +32,36 @@ impl Client {
         Client {
             client_id: EMPTY_SLOT,
             keep_alive: 0,
+            seq: 0,
+            drops: 0,
         }
+    }
+    pub fn get_id(&self) -> u32 {
+        self.client_id
+    }
+    pub fn get_drops(&self) -> usize {
+        self.drops
+    }
+    pub fn set_id(&mut self, id: u32) -> () {
+        self.client_id = id;
+    }
+    pub fn clear(&mut self) -> () {
+        self.client_id = EMPTY_SLOT;
+        self.keep_alive = 0;
+        self.seq = 0;
+        self.drops = 0;
+    }
+    pub fn update(&mut self, now: u128, seq: u32) -> () {
+        self.keep_alive = now;
+        // Check sequence number
+        if self.seq + 1 != seq {
+            // We have a dropped packet
+            self.drops += 1;
+        }
+        self.seq = seq;
+    }
+    pub fn is_old(&self, now: u128) -> bool {
+        self.keep_alive + CLIENT_EXPIRATION_IN_MICROSECONDS < now
     }
     pub fn is_empty(&self) -> bool {
         self.client_id == EMPTY_SLOT
@@ -68,9 +99,8 @@ impl ChannelMap {
     pub fn prune(&mut self, now: u128) -> () {
         // search for aged clients
         for c in &mut self.clients {
-            if c.client_id > 0 && c.keep_alive + CLIENT_EXPIRATION_IN_MICROSECONDS < now {
-                c.client_id = EMPTY_SLOT;
-                c.keep_alive = 0;
+            if !c.is_empty() && c.is_old(now) {
+                c.clear();
             }
         }
     }
@@ -79,20 +109,20 @@ impl ChannelMap {
         &self.clients
     }
     /// retrieve the first channel on the mixer where this client is assigned (remember they come in pairs)
-    pub fn get_loc_channel(&mut self, id: u32, now: u128) -> Option<usize> {
+    pub fn get_loc_channel(&mut self, id: u32, now: u128, seq: u32) -> Option<usize> {
         // search for this id
-        match self.clients.iter().position(|c| c.client_id == id) {
+        match self.clients.iter().position(|c| c.get_id() == id) {
             Some(idx) => {
                 // Update the keepalive
-                self.clients[idx].keep_alive = now;
+                self.clients[idx].update(now, seq);
                 Some((idx + 1) * 2)
             }
             None => {
                 // Nobody found with that ID.  Get first available slot
                 match self.clients.iter().position(|c| c.client_id == EMPTY_SLOT) {
                     Some(idx) => {
-                        self.clients[idx].client_id = id;
-                        self.clients[idx].keep_alive = now;
+                        self.clients[idx].set_id(id);
+                        self.clients[idx].update(now, seq);
                         Some((idx + 1) * 2)
                     }
                     None => None,
@@ -107,7 +137,13 @@ impl fmt::Display for ChannelMap {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[ ")?;
         for c in &self.clients {
-            write!(f, "(id: {}, keep_alive: {}),", c.client_id, c.keep_alive)?;
+            if !c.is_empty() {
+                write!(
+                    f,
+                    "(id: {}, keep_alive: {}, seq: {}, drops: {})\n,",
+                    c.client_id, c.keep_alive, c.seq, c.drops
+                )?;
+            }
         }
         write!(f, " ]")
     }
@@ -124,9 +160,9 @@ mod test_channel_map {
     fn find_a_slot() {
         let mut map = ChannelMap::new();
         let now = get_micro_time();
-        let val = map.get_loc_channel(1234, now).unwrap();
+        let val = map.get_loc_channel(1234, now, 1).unwrap();
         assert_eq!(val, 2);
-        let val_2 = map.get_loc_channel(4444, now).unwrap();
+        let val_2 = map.get_loc_channel(4444, now, 1).unwrap();
         assert_eq!(val_2, 4);
         map.prune(now + CLIENT_EXPIRATION_IN_MICROSECONDS + 1);
         println!("after prune: {}", map);

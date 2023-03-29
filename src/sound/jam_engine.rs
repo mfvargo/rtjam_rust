@@ -158,6 +158,7 @@ impl JamEngine {
             self.debug_timer.reset(self.now);
             // println!("disconnect: {}", self.disconnect_timer.since(self.now));
             // println!("mixer: {}", self.mixer);
+            // println!("map: {}", self.chan_map);
         }
     }
     fn set_now(&mut self) -> () {
@@ -218,10 +219,11 @@ impl JamEngine {
                     let (c1, c2) = self.recv_message.decode_audio();
                     if c1.len() > 0 {
                         // only map and put if it's got some data
-                        match self
-                            .chan_map
-                            .get_loc_channel(self.recv_message.get_client_id(), self.now)
-                        {
+                        match self.chan_map.get_loc_channel(
+                            self.recv_message.get_client_id(),
+                            self.now,
+                            self.recv_message.get_sequence_num(),
+                        ) {
                             Some(idx) => {
                                 // We found a channel.
                                 self.mixer.add_to_channel(idx, &c1);
@@ -266,6 +268,7 @@ impl JamEngine {
                 "level1": self.mixer.get_channel_power_avg(1),
                 "peak0": self.mixer.get_channel_power_peak(0),
                 "peak1": self.mixer.get_channel_power_peak(1),
+                "drops": 0,
             }
         ));
         let mut idx: usize = 2;
@@ -273,12 +276,13 @@ impl JamEngine {
             if !c.is_empty() {
                 players.push(json!(
                     {
-                        "clientId": c.client_id,
+                        "clientId": c.get_id(),
                         "depth": self.mixer.get_depth_in_msec(idx),
                         "level0": self.mixer.get_channel_power_avg(idx),
                         "level1": self.mixer.get_channel_power_avg(idx+1),
                         "peak0": self.mixer.get_channel_power_peak(idx),
                         "peak1": self.mixer.get_channel_power_peak(idx+1),
+                        "drops": c.get_drops(),
                     }
                 ));
             }

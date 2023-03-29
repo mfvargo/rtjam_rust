@@ -71,7 +71,7 @@ impl ChannelStrip {
     /// settings for gain and fade
     pub fn mix_into(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
         // First get some data from the buff
-        let samps = self.buffer.get(out_a.len());
+        let samps = self.buffer.get(out_a.len(), self.level.get_avg());
         self.level.add_frame(&samps, self.gain);
         let mut i: usize = 0;
         for v in samps {

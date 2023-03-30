@@ -10,7 +10,7 @@ pub struct AttackHoldRelease<T> {
     attack_release_ouput: T,
     hold_time_count: usize,
     max_hold_time_count: usize,
-    last_output: T,
+    pub last_output: T,
 }
 
 impl<T: Float + FromPrimitive> AttackHoldRelease<T> {

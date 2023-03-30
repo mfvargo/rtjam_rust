@@ -18,8 +18,8 @@ impl PowerMeter {
         PowerMeter {
             peak: PeakDetector::build(0.01, 0.1, 2666.6),
             avg: SmoothingFilter::build(0.01, 2666.6),
-            last_peak: 0.0,
-            last_avg: 0.0,
+            last_peak: -60.0,
+            last_avg: -60.0,
         }
     }
     pub fn get_peak(&self) -> f64 {

@@ -111,7 +111,7 @@ impl fmt::Display for Mixer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "\n")?;
         for c in &self.strips {
-            if c.get_depth() > 0.01 {
+            if c.get_depth() > 0.1 {
                 write!(f, " {}", c)?;
             }
         }

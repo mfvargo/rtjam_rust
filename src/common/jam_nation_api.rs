@@ -22,7 +22,7 @@ pub struct JamNationApi {
 impl JamNationApi {
     /// used to build the api.  The fields are
     ///
-    /// - base: url base for the api.  (something like <http://rtjam-nation.basscleftech.com/api/1/>)
+    /// - base: url base for the api.  (something like <http://rtjam-nation.com/api/1/>)
     /// - lan_ip: legacy parameter.  Should be deprecasted (TODO)
     /// - mac_address: the mac address of the component. Used to uniquely identify the componet
     /// - git_hash: the current git hash string for the build.  Lets the nation know what software component has

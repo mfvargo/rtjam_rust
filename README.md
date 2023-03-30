@@ -50,7 +50,7 @@ The server should run on any OS that has a std rust compiler.
 
 ## Where is the U/X? Web-App
 
-The rtjam_sound and rtjam_broadcast components are the audio pieces of the rtjam-nation project. This is hosted at rtjam-nation.basscelftech.com. The site provides the mechanism to coordinate all the rtjam_sound and rtjam_broadcast entities into a network. The U/X to manage the devices is hosted there.
+The rtjam_sound and rtjam_broadcast components are the audio pieces of the rtjam-nation project. This is hosted at rtjam-nation.com. The site provides the mechanism to coordinate all the rtjam_sound and rtjam_broadcast entities into a network. The U/X to manage the devices is hosted there.
 It is written in React/NextJs and talks to the rtjam-nation api for user authentication, and component
 management. It also uses websockets to communicate directly with the broadcast and sound components.
 
@@ -61,7 +61,7 @@ register and indicate that they are operating. See the jam_nation_api module. Ea
 
 ### websocket interface
 
-Once a component has registered with the jam_nation_api it then connects to the websocket server at rtjam-nation.basscleftech.com and creates a "room" that is named after the component's token which is
+Once a component has registered with the jam_nation_api it then connects to the websocket server at rtjam-nation.com and creates a "room" that is named after the component's token which is
 returned from the jam_nation_api. This websocket is used to communicate to u/x elements serverd
 up by the rtjam-nation website. see the common::web_socket module.
 

@@ -33,10 +33,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let mut config = Config::build();
     config.load_from_file()?;
 
-    let api_url =
-        String::from(config.get_value("api_url", "http://rtjam-nation.basscleftech.com/api/1/"));
-    let ws_url =
-        String::from(config.get_value("ws_url", "ws://rtjam-nation.basscleftech.com/primus"));
+    let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
+    let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
     let port: u32 = config.get_u32_value("port", 7891);
     println!("port: {}", port);
     let room_port = port.clone();

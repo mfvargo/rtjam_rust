@@ -20,7 +20,7 @@ fn main() -> Result<(), BoxError> {
     let _websocket_handle = thread::spawn(move || {
         let _res = websocket_thread(
             "darius_room",
-            "ws://rtjam-nation.basscleftech.com/primus",
+            "ws://rtjam-nation.com/primus",
             from_ws_tx,
             to_ws_rx,
         );

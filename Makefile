@@ -1,4 +1,4 @@
-NATION=http://rtjam-nation.basscleftech.com/pi/rust
+NATION=http://rtjam-nation.com/pi/rust
 RTJAM_HOME=/home/pi/rtjam
 
 all:
@@ -9,9 +9,9 @@ clean:
 	rm -rf target/release/examples/*
 
 deploy: all
-	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.basscleftech.com:/home/ubuntu/www/html/pi/rust
-	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_broadcast  ubuntu@rtjam-nation.basscleftech.com:/home/ubuntu/www/html/pi/rust
-	scp -i ~/.ssh/rtjam.cer target/release/examples/version.txt  ubuntu@rtjam-nation.basscleftech.com:/home/ubuntu/www/html/pi/rust
+	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust
+	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_broadcast  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust
+	scp -i ~/.ssh/rtjam.cer target/release/examples/version.txt  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust
 
 install-base:
 	mkdir -p $(RTJAM_HOME)

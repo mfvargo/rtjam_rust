@@ -15,7 +15,7 @@ cmp -s $WEBVER $LOCALVER
 if [ "$?" -ne "0" ]; then
   echo "Updating rtjam software"
   /usr/bin/systemctl stop rtjam-broadcast
-  /usr/bin/wget -O rtjam_sound $NATION/rtjam_broadcast
+  /usr/bin/wget -O rtjam_broadcast $NATION/rtjam_broadcast
   /usr/bin/chmod +x rtjam_broadcast
   /usr/bin/systemctl restart rtjam-broadcast
 else

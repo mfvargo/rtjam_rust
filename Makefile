@@ -17,7 +17,7 @@ install-base:
 	mkdir -p $(RTJAM_HOME)
 	wget -O $(RTJAM_HOME)/rtjam_sound $(NATION)/rtjam_sound
 	chmod +x $(RTJAM_HOME)/rtjam_sound
-	wget -O $(RTJAM_HOME)/rtjam_broadcast $(NATION)/rtjam_sound
+	wget -O $(RTJAM_HOME)/rtjam_broadcast $(NATION)/rtjam_broadcast
 	chmod +x $(RTJAM_HOME)/rtjam_broadcast
 	cp docs/pi-scripts/jackrun.bash $(RTJAM_HOME)
 	chmod +x $(RTJAM_HOME)/jackrun.bash

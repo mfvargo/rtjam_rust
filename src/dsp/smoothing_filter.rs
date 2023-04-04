@@ -1,8 +1,10 @@
 //! averaging filter use to smooth sequences
+use serde::Serialize;
 use std::fmt;
 
 use crate::utils::get_coef;
 
+#[derive(Serialize)]
 pub struct SmoothingFilter {
     coef: f64,
     last_output: f64,

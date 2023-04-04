@@ -9,6 +9,7 @@
 //! this code has built in assumption that each "Client" has exactly two channels.  it
 //! fills slots based on first available and the two channels are always adjacent.
 use super::mixer::MIXER_CHANNELS;
+use serde::Serialize;
 use std::fmt;
 
 // This is how long a player lasts until we boot them (if they go silent)
@@ -20,11 +21,13 @@ const EMPTY_SLOT: u32 = 40000;
 ///
 /// It has an ID, (assigned by rtjam-nation when they join a room)
 /// The keep_alive is used to time them out if we have not heard from them for over a second (no packets)
+#[derive(Serialize)]
 pub struct Client {
     client_id: u32,
     keep_alive: u128,
     seq: u32,
     drops: usize,
+    hist: [usize; 10],
 }
 
 impl Client {
@@ -34,6 +37,7 @@ impl Client {
             keep_alive: 0,
             seq: 0,
             drops: 0,
+            hist: [0; 10],
         }
     }
     pub fn get_id(&self) -> u32 {
@@ -46,12 +50,17 @@ impl Client {
         self.client_id = id;
     }
     pub fn clear(&mut self) -> () {
+        self.hist = [0; 10];
         self.client_id = EMPTY_SLOT;
         self.keep_alive = 0;
         self.seq = 0;
         self.drops = 0;
     }
     pub fn update(&mut self, now: u128, seq: u32) -> () {
+        if self.keep_alive <= now {
+            let idx: usize = ((now - self.keep_alive) / 2667) as usize; // 2910 microsec per 128 sample frame
+            self.hist[idx.clamp(0, 9)] += 1;
+        }
         self.keep_alive = now;
         // Check sequence number
         if self.seq + 1 != seq {
@@ -68,6 +77,17 @@ impl Client {
     }
 }
 
+#[cfg(test)]
+mod test_client_struct {
+
+    use super::*;
+
+    #[test]
+    fn can_serialize() {
+        let c = Client::new();
+        println!("client: {}", serde_json::to_string(&c).unwrap());
+    }
+}
 /// Map of the clients.
 ///
 /// There is no specific "add" function.  when you search for an ID and it's
@@ -138,11 +158,7 @@ impl fmt::Display for ChannelMap {
         write!(f, "[ ")?;
         for c in &self.clients {
             if !c.is_empty() {
-                write!(
-                    f,
-                    "(id: {}, keep_alive: {}, seq: {}, drops: {})\n,",
-                    c.client_id, c.keep_alive, c.seq, c.drops
-                )?;
+                write!(f, "{}\n,", serde_json::to_string(&c).unwrap())?;
             }
         }
         write!(f, " ]")
@@ -152,7 +168,7 @@ impl fmt::Display for ChannelMap {
 #[cfg(test)]
 
 mod test_channel_map {
-    use crate::server::player_list::get_micro_time;
+    use crate::common::get_micro_time;
 
     use super::*;
 

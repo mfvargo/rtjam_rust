@@ -5,17 +5,9 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::net::SocketAddr;
-use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::common::get_micro_time;
 use crate::dsp::smoothing_filter::SmoothingFilter;
-
-// Get the time in microseconds
-pub fn get_micro_time() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_micros()
-}
 
 // This is how long a player lasts until we boot them (if they go silent)
 const SERVER_EXPIRATION_IN_MICROSECONDS: u128 = 500000;

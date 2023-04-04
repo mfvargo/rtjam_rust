@@ -4,11 +4,12 @@
 use crate::{
     common::{
         box_error::BoxError,
+        get_micro_time,
         jam_packet::{JamMessage, JAM_HEADER_SIZE},
         sock_with_tos,
         stream_time_stat::MicroTimer,
     },
-    server::player_list::{get_micro_time, PlayerList},
+    server::player_list::PlayerList,
 };
 use std::{io::ErrorKind, sync::mpsc, time::Duration};
 

@@ -6,14 +6,13 @@ use crate::{
         box_error::BoxError,
         get_micro_time,
         jam_packet::{JamMessage, JAM_HEADER_SIZE},
+        player::MAX_LOOP_TIME,
         sock_with_tos,
         stream_time_stat::MicroTimer,
     },
     server::player_list::PlayerList,
 };
 use std::{io::ErrorKind, sync::mpsc, time::Duration};
-
-use super::player_list::MAX_LOOP_TIME;
 
 pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
@@ -35,7 +34,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
                     latency_update_timer.reset(now_time);
                     audio_tx.send(players.get_latency())?;
                     //     println!("got {} bytes from {}", amt, src);
-                    // println!("player: {}", players);
+                    println!("player: {}", players);
                     //     println!("msg: {}", msg);
                 }
                 // check if the packet was good
@@ -49,7 +48,13 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
                 if now_time > packet_time {
                     time_diff = now_time - packet_time;
                 }
-                players.update_player(now_time, time_diff, msg.get_client_id(), src);
+                players.update_player(
+                    now_time,
+                    time_diff,
+                    msg.get_client_id(),
+                    src,
+                    msg.get_sequence_num(),
+                );
 
                 // set the server timestamp
                 msg.set_server_time(now_time as u64);

@@ -34,6 +34,7 @@ pub struct Player {
     hist: [usize; HISTOGRAM_BUCKETS], // histogram of packet arrivals
     loop_stat: SmoothingFilter,       // statistics about packet loop time
     pack_stats: StreamTimeStat,       // interarrival stats
+    packet_count: usize,              // count number of packets
 }
 
 impl Player {
@@ -47,6 +48,7 @@ impl Player {
             address: addr,
             loop_stat: SmoothingFilter::build(0.5, 2666.6),
             pack_stats: StreamTimeStat::new(100),
+            packet_count: 0,
         }
     }
     pub fn get_drops(&self) -> usize {
@@ -61,8 +63,10 @@ impl Player {
         self.keep_alive = 0;
         self.seq = 0;
         self.drops = 0;
+        self.packet_count = 0;
     }
     pub fn update(&mut self, now: u128, id: u32, loop_time: u128, seq: u32) -> () {
+        self.packet_count += 1;
         if self.keep_alive <= now {
             self.pack_stats.add_sample((now - self.keep_alive) as f64);
             let idx: usize = ((now - self.keep_alive) / 2667) as usize; // 2667 microsec per 128 sample frame

@@ -163,13 +163,13 @@ impl JamEngine {
         if self.debug_timer.expired(self.now) {
             self.debug_timer.reset(self.now);
             // println!("disconnect: {}", self.disconnect_timer.since(self.now));
-            println!(
-                "jack_jitter: {:.2}, {:.2}",
-                self.jack_jitter.get_mean(),
-                self.jack_jitter.get_sigma()
-            );
-            println!("mixer: {}", self.mixer);
-            println!("map: {}", self.chan_map);
+            // println!(
+            //     "jack_jitter: {:.2}, {:.2}",
+            //     self.jack_jitter.get_mean(),
+            //     self.jack_jitter.get_sigma()
+            // );
+            // println!("mixer: {}", self.mixer);
+            // println!("map: {}", self.chan_map);
         }
     }
     fn set_now(&mut self) -> () {

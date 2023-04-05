@@ -11,11 +11,15 @@ use crate::common::player::Player;
 /// Structure to hold the list of players
 pub struct PlayerList {
     pub players: Vec<Player>,
+    pub stat_queue: Vec<serde_json::Value>,
 }
 
 impl PlayerList {
     pub fn new() -> PlayerList {
-        PlayerList { players: vec![] }
+        PlayerList {
+            players: vec![],
+            stat_queue: vec![],
+        }
     }
     /// tell if the player is allowed in the room
     ///
@@ -47,6 +51,15 @@ impl PlayerList {
     }
     /// look for any player entries that have timed out
     pub fn prune(&mut self, now_time: u128) -> () {
+        for p in &self.players {
+            // save stats for values about to be cleared
+            if p.is_old(now_time) {
+                match serde_json::to_value(p) {
+                    Ok(v) => self.stat_queue.push(v),
+                    Err(_e) => (),
+                }
+            }
+        }
         // this function will age out any old Players
         self.players.retain(|p| !p.is_old(now_time));
     }
@@ -73,9 +86,13 @@ impl PlayerList {
 impl fmt::Display for PlayerList {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[\n")?;
+        write!(f, "active: [\n")?;
         for player in &self.players {
             write!(f, " {},\n", player)?;
+        }
+        write!(f, " ]\nold: [\n")?;
+        for stat in &self.stat_queue {
+            write!(f, " {},\n", stat.to_string())?;
         }
         write!(f, " ]")
     }

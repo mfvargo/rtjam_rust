@@ -28,15 +28,15 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
         let now_time = get_micro_time();
         // update the player list
         players.prune(now_time);
+        if latency_update_timer.expired(now_time) {
+            latency_update_timer.reset(now_time);
+            audio_tx.send(players.get_latency())?;
+            //     println!("got {} bytes from {}", amt, src);
+            println!("player: {}", players);
+            //     println!("msg: {}", msg);
+        }
         match res {
             Ok((amt, src)) => {
-                if latency_update_timer.expired(now_time) {
-                    latency_update_timer.reset(now_time);
-                    audio_tx.send(players.get_latency())?;
-                    //     println!("got {} bytes from {}", amt, src);
-                    println!("player: {}", players);
-                    //     println!("msg: {}", msg);
-                }
                 // check if the packet was good
                 if amt <= 0 || !msg.is_valid(amt) || !players.is_allowed(msg.get_client_id()) {
                     continue;

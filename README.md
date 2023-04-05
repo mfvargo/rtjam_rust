@@ -2,6 +2,8 @@
 
 Real Time Music Jam
 
+So cool!
+
 The Real Time Music Jam software is intended to provide low latency audio over the internet that will enable performers to make music as if they were in the same place. The system is comprised of a broadcast server that listens on a UDP port for jam packets and some number of clients that create/consume audio data.
 
 The server keeps a table of jammers in the "room" and will forward each packet it receives to the other jammers in the room. It does not transmit the audio data back to the orginator (client provides local monitoring).

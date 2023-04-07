@@ -7,6 +7,7 @@
 //! The room is used by the websocket thread.  By creating the websocket thread you
 //! are creating a room and the full duplex message channel to communicate with it
 use crate::common::box_error::BoxError;
+use crate::common::websock_message::WebsockMessage;
 use serde_json::{json, Value};
 use std::{
     net::{TcpStream, ToSocketAddrs},
@@ -74,21 +75,14 @@ impl Room {
     ///
     /// The room is managed by the actionHero server running on rtjam-nation
     pub fn join_room(&mut self) -> () {
-        let msg = json!({
-          "event": "action",
-          "params": {
-            "name": self.token.as_str(),
-            "action": "createChatRoom",
-          },
-          "messageId": self.msg_id,
-        });
-        let _res = self.sock.write_message(Message::Text(msg.to_string()));
-
+        self.send_message(&WebsockMessage::API(
+            "createChatRoom".to_string(),
+            json!({"name": self.token.as_str(), "action": "createChatRoom"}),
+        ));
         // TODO:  This is a hack.  Sometimes the room needs to get created and we need to wait before trying to join
         // other times, the room is already created and this will kick an harmless "room already exists" error we can ignore.
         // So we will sleep here for 1 second to give the server time to create the room on the first time scenario
         sleep(Duration::new(1, 0));
-        self.msg_id += 1;
         let msg = json!({
           "event": "roomAdd",
           "room": self.token.as_str(),
@@ -120,31 +114,42 @@ impl Room {
     }
 
     /// used by websocket thread to send a message to the chat room
-    pub fn send_message(&mut self, msg: &Value) -> () {
-        let msg = json!({
-            "event": "say",
-            "room": self.token.as_str(),
-            "message": msg.to_string(),
+    pub fn send_message(&mut self, msg: &WebsockMessage) -> () {
+        let mut jmsg = json!({
             "messageId": self.msg_id,
         });
+        match msg {
+            WebsockMessage::Chat(v) => {
+                jmsg["event"] = "say".into();
+                jmsg["room"] = self.token.as_str().into();
+                jmsg["message"] = v.to_string().into();
+            }
+            WebsockMessage::API(action, params) => {
+                // TODO:  Format this into an API request
+                jmsg["event"] = "action".into();
+                jmsg["params"] = params.clone();
+                jmsg["params"]["action"] = action.as_str().into();
+            }
+        }
         self.msg_id += 1;
-        // println!("sending this message: {}", msg.to_string());
-        let _res = self.sock.write_message(Message::Text(msg.to_string()));
+        println!("sending this message: {}", jmsg.to_string());
+        let _res = self.sock.write_message(Message::Text(jmsg.to_string()));
     }
 
     /// Used by the websocket thread to read any pending messages from the room.
     /// This code filters out primus ping housekeeping messages.  Also any non-user messages
     /// will be filtered out.  this blocks for up to 200msec
-    pub fn get_message(&mut self) -> Result<Option<Value>, BoxError> {
+    pub fn get_message(&mut self) -> Result<Option<WebsockMessage>, BoxError> {
         match self.sock.read_message() {
             Ok(msg) => {
+                dbg!(&msg);
                 if self.is_primus_ping(&msg) {
                     Ok(None)
                 } else {
                     // This is not a ping
                     let jvalue: Value = serde_json::from_str(msg.to_string().as_str())?;
                     if jvalue["context"] == "user" {
-                        Ok(Some(jvalue))
+                        Ok(Some(WebsockMessage::Chat(jvalue)))
                     } else {
                         // println!("non-user message: {}", jvalue.to_string());
                         Ok(None)

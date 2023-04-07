@@ -9,12 +9,14 @@ use crate::{
         player::MAX_LOOP_TIME,
         sock_with_tos,
         stream_time_stat::MicroTimer,
+        websock_message::WebsockMessage,
     },
     server::player_list::PlayerList,
 };
+use serde_json::json;
 use std::{io::ErrorKind, sync::mpsc, time::Duration};
 
-pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), BoxError> {
+pub fn run(port: u32, audio_tx: mpsc::Sender<WebsockMessage>, token: &str) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = sock_with_tos::new(port);
     sock.set_read_timeout(Some(Duration::new(1, 0)))?;
@@ -30,10 +32,19 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<serde_json::Value>) -> Result<(), B
         players.prune(now_time);
         if latency_update_timer.expired(now_time) {
             latency_update_timer.reset(now_time);
-            audio_tx.send(players.get_latency())?;
+            audio_tx.send(WebsockMessage::Chat(players.get_latency()))?;
             //     println!("got {} bytes from {}", amt, src);
             println!("player: {}", players);
             //     println!("msg: {}", msg);
+            while players.stat_queue.len() > 0 {
+                if let Some(stats) = players.stat_queue.pop() {
+                    audio_tx.send(WebsockMessage::API(
+                        "packetStatCreate".to_string(),
+                        json!({ "roomToken": token, "stats": stats }),
+                    ))?;
+                }
+            }
+            // audio_tx.send(WebsockMessage::API("status".to_string(), json!({})))?;
         }
         match res {
             Ok((amt, src)) => {

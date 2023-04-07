@@ -19,3 +19,4 @@ pub mod room;
 pub mod sock_with_tos;
 pub mod stream_time_stat;
 pub mod websocket;
+pub mod websock_message;

@@ -25,7 +25,10 @@
 //! TODO:  jack_thread does not recover from jack being stopped after it's already running.  Need to
 //! have it re-initialize into acquire more if jack falls down in the middle.
 use crate::{
-    common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
+    common::{
+        box_error::BoxError, config::Config, jam_nation_api::JamNationApi,
+        websock_message::WebsockMessage, websocket,
+    },
     sound::{
         jack_thread,
         jam_engine::JamEngine,
@@ -71,10 +74,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
     let token = String::from(api.get_token());
-    let (to_ws_tx, to_ws_rx): (
-        mpsc::Sender<serde_json::Value>,
-        mpsc::Receiver<serde_json::Value>,
-    ) = mpsc::channel();
+    let (to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
+        mpsc::channel();
     let (from_ws_tx, from_ws_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,
@@ -126,7 +127,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                             JamParam::ListAudioConfig => {
                                 // run aplay -L and send back result
-                                let _res = to_ws_tx.send(make_audio_config());
+                                let _res = to_ws_tx.send(WebsockMessage::Chat(make_audio_config()));
                             }
                             JamParam::CheckForUpdate => {
                                 // See if we need to update ourself
@@ -155,7 +156,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 // println!("audio thread message: {}", m.to_string());
                 // So we got a message from the jack thread.  See if we need
                 // To pass this along to the websocket
-                to_ws_tx.send(m)?;
+                to_ws_tx.send(WebsockMessage::Chat(m))?;
             }
             Err(_e) => {
                 // dbg!(_e);

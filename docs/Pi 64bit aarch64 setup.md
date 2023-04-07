@@ -12,8 +12,8 @@ sudo apt upgrade
 ## To run the software:
 
 ```
-sudo install jackd2
-sudo install git
+sudo apt install jackd2
+sudo apt install git
 git clone https://github.com/mfvargo/rtjam_rust.git
 cd rtjam_rust
 ```

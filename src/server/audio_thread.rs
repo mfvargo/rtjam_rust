@@ -34,7 +34,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<WebsockMessage>, token: &str) -> Re
             latency_update_timer.reset(now_time);
             audio_tx.send(WebsockMessage::Chat(players.get_latency()))?;
             //     println!("got {} bytes from {}", amt, src);
-            println!("player: {}", players);
+            //     println!("player: {}", players);
             //     println!("msg: {}", msg);
             while players.stat_queue.len() > 0 {
                 if let Some(stats) = players.stat_queue.pop() {

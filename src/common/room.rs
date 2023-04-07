@@ -132,7 +132,7 @@ impl Room {
             }
         }
         self.msg_id += 1;
-        println!("sending this message: {}", jmsg.to_string());
+        // println!("sending this message: {}", jmsg.to_string());
         let _res = self.sock.write_message(Message::Text(jmsg.to_string()));
     }
 
@@ -142,7 +142,7 @@ impl Room {
     pub fn get_message(&mut self) -> Result<Option<WebsockMessage>, BoxError> {
         match self.sock.read_message() {
             Ok(msg) => {
-                dbg!(&msg);
+                // dbg!(&msg);
                 if self.is_primus_ping(&msg) {
                     Ok(None)
                 } else {

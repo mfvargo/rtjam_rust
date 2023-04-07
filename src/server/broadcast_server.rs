@@ -5,7 +5,10 @@
 //! - listen for messages from the chatRoom for the audio room being hosted
 //! - let the rtjam-nation know this component is registered and alive
 use crate::{
-    common::{box_error::BoxError, config::Config, jam_nation_api::JamNationApi, websocket},
+    common::{
+        box_error::BoxError, config::Config, jam_nation_api::JamNationApi,
+        websock_message::WebsockMessage, websocket,
+    },
     server::audio_thread,
     utils,
 };
@@ -62,11 +65,10 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         }
     }
 
+    let at_room_token = room_token.clone();
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
-    let (to_ws_tx, to_ws_rx): (
-        mpsc::Sender<serde_json::Value>,
-        mpsc::Receiver<serde_json::Value>,
-    ) = mpsc::channel();
+    let (to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
+        mpsc::channel();
     let (from_ws_tx, from_ws_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,
@@ -76,12 +78,10 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     });
 
     // Create a thread to host the room
-    let (audio_tx, audio_rx): (
-        mpsc::Sender<serde_json::Value>,
-        mpsc::Receiver<serde_json::Value>,
-    ) = mpsc::channel();
+    let (audio_tx, audio_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
+        mpsc::channel();
     let _room_handle = thread::spawn(move || {
-        let _res = audio_thread::run(room_port, audio_tx);
+        let _res = audio_thread::run(room_port, audio_tx, &at_room_token);
     });
 
     let _ping_handle = thread::spawn(move || {

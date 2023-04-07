@@ -13,10 +13,7 @@
 //! This prevents the jitter buffer from having to have any mutexes. (one writer, one reader)
 use simple_error::bail;
 
-use crate::common::box_error::BoxError;
-use crate::common::jam_packet::JamMessage;
-use crate::common::sock_with_tos;
-use crate::server::player_list::get_micro_time;
+use crate::common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, sock_with_tos};
 use std::fmt;
 use std::net::UdpSocket;
 

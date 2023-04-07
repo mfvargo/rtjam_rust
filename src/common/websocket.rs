@@ -1,7 +1,10 @@
 //! Thread used to read/write messages to/from the room abstract in rtjam-nation
+use serde_json::Value;
+
 use crate::common::box_error::BoxError;
 use crate::common::room::Room;
 
+use crate::common::websock_message::WebsockMessage;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
 /// start a thread with this function.  Pass it the token (name of the room), the
@@ -9,10 +12,10 @@ use std::{sync::mpsc, thread::sleep, time::Duration};
 /// received on the websocket to the thread to called us.  The second will be used to
 /// read messages from the calling thread that will be written to the room.
 pub fn websocket_thread(
-    token: &str,                              // Token for the chat room name
-    ws_url: &str,                             // URL to connect to the server
-    ws_tx: mpsc::Sender<serde_json::Value>,   // channel to main thread
-    ws_rx: mpsc::Receiver<serde_json::Value>, // channel from main thread
+    token: &str,                           // Token for the chat room name
+    ws_url: &str,                          // URL to connect to the server
+    ws_tx: mpsc::Sender<Value>,            // channel to main thread
+    ws_rx: mpsc::Receiver<WebsockMessage>, // channel from main thread
 ) -> Result<(), BoxError> {
     loop {
         match Room::new(token, ws_url) {
@@ -26,16 +29,25 @@ pub fn websocket_thread(
                         Ok(result) => {
                             match result {
                                 Some(msg) => {
-                                    if msg["context"] == "user" {
-                                        // Message from the room, parse and send on to the main thread
-                                        match msg["message"].as_str() {
-                                            Some(data) => match serde_json::from_str(data) {
-                                                Ok(umsg) => {
-                                                    let _res = ws_tx.send(umsg);
+                                    match msg {
+                                        WebsockMessage::Chat(v) => {
+                                            if v["context"] == "user" {
+                                                // Message from the room, parse and send on to the main thread
+                                                match v["message"].as_str() {
+                                                    Some(data) => {
+                                                        match serde_json::from_str(data) {
+                                                            Ok(umsg) => {
+                                                                let _res = ws_tx.send(umsg);
+                                                            }
+                                                            Err(_) => {}
+                                                        }
+                                                    }
+                                                    None => {}
                                                 }
-                                                Err(_) => {}
-                                            },
-                                            None => {}
+                                            }
+                                        }
+                                        WebsockMessage::API(_a, _s) => {
+                                            // No need to do anything
                                         }
                                     }
                                 }

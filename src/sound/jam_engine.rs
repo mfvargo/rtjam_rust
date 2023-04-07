@@ -6,10 +6,14 @@ use std::{str::FromStr, sync::mpsc};
 use serde_json::json;
 
 use crate::{
-    common::{box_error::BoxError, jam_packet::JamMessage, stream_time_stat::MicroTimer},
+    common::{
+        box_error::BoxError,
+        get_micro_time,
+        jam_packet::JamMessage,
+        stream_time_stat::{MicroTimer, StreamTimeStat},
+    },
     dsp::tuner::Tuner,
     pedals::pedal_board::PedalBoard,
-    server::player_list::get_micro_time,
     utils::to_db,
 };
 
@@ -86,6 +90,7 @@ pub struct JamEngine {
     now: u128,
     pedal_boards: Vec<PedalBoard>,
     tuners: [Tuner; 2],
+    jack_jitter: StreamTimeStat,
 }
 
 impl JamEngine {
@@ -121,6 +126,7 @@ impl JamEngine {
             now: now,
             pedal_boards: vec![PedalBoard::new(), PedalBoard::new()],
             tuners: [Tuner::new(), Tuner::new()],
+            jack_jitter: StreamTimeStat::new(100),
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -157,12 +163,19 @@ impl JamEngine {
         if self.debug_timer.expired(self.now) {
             self.debug_timer.reset(self.now);
             // println!("disconnect: {}", self.disconnect_timer.since(self.now));
+            // println!(
+            //     "jack_jitter: {:.2}, {:.2}",
+            //     self.jack_jitter.get_mean(),
+            //     self.jack_jitter.get_sigma()
+            // );
             // println!("mixer: {}", self.mixer);
             // println!("map: {}", self.chan_map);
         }
     }
     fn set_now(&mut self) -> () {
-        self.now = get_micro_time();
+        let now = get_micro_time();
+        self.jack_jitter.add_sample((now - self.now) as f64);
+        self.now = now;
     }
     fn check_disconnect(&mut self) -> () {
         if self.disconnect_timer.expired(self.now) {
@@ -276,7 +289,7 @@ impl JamEngine {
             if !c.is_empty() {
                 players.push(json!(
                     {
-                        "clientId": c.get_id(),
+                        "clientId": c.client_id,
                         "depth": self.mixer.get_depth_in_msec(idx),
                         "level0": self.mixer.get_channel_power_avg(idx),
                         "level1": self.mixer.get_channel_power_avg(idx+1),

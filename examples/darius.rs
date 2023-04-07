@@ -1,5 +1,5 @@
-use rtjam_rust::common::box_error::BoxError;
 use rtjam_rust::common::websocket::websocket_thread;
+use rtjam_rust::common::{box_error::BoxError, websock_message::WebsockMessage};
 use std::{
     sync::mpsc,
     thread::{self, sleep},
@@ -9,10 +9,8 @@ use std::{
 fn main() -> Result<(), BoxError> {
     // most simple app to test websocket
 
-    let (_to_ws_tx, to_ws_rx): (
-        mpsc::Sender<serde_json::Value>,
-        mpsc::Receiver<serde_json::Value>,
-    ) = mpsc::channel();
+    let (_to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
+        mpsc::channel();
     let (from_ws_tx, from_ws_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,

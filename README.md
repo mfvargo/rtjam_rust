@@ -8,7 +8,7 @@ The server keeps a table of jammers in the "room" and will forward each packet i
 
 Each jam packet has two separate channels of audio so the jammers can have a channel for voice and guitar, stereo keyboards, or whatever they choose. The two channels are isochronous for that person.
 
-So in this way a room consists of jammers each with two channels.
+So in this way a room consists of jammers each with two channels of audio.
 
 ## Get The code
 

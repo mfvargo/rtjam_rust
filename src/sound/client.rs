@@ -26,8 +26,8 @@
 //! have it re-initialize into acquire more if jack falls down in the middle.
 use crate::{
     common::{
-        box_error::BoxError, config::Config, jam_nation_api::JamNationApi,
-        websock_message::WebsockMessage, websocket,
+        box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
+        stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
     },
     sound::{
         jack_thread,
@@ -51,7 +51,6 @@ use std::{
 /// is currently running.
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // This is the entry rtjam client
-    println!("rtjam client");
 
     // load up the config to get required info
     let mut config = Config::build();
@@ -105,6 +104,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = jam_unit_ping_thread(api);
     });
 
+    // create a timer to ping the websocket to let them know we are here
+    let mut websock_room_ping = MicroTimer::new(get_micro_time(), 2_000_000);
     // Now this main thread will listen on the mpsc channels
     loop {
         let res = from_ws_rx.try_recv();
@@ -161,6 +162,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
             Err(_e) => {
                 // dbg!(_e);
             }
+        }
+        // Ping room occasionally
+        let now = get_micro_time();
+        if websock_room_ping.expired(now) {
+            to_ws_tx.send(WebsockMessage::Chat(
+                json!({"speaker": "UnitChatRobot", "websock_ping": true}),
+            ))?;
+            websock_room_ping.reset(now);
         }
         // This is the timer between registration attempts
         sleep(Duration::new(0, 200_000));

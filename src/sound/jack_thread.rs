@@ -50,9 +50,16 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
                 active_client
                     .as_client()
                     .connect_ports_by_name("system:capture_1", "rtjam_rust:rtjam_in_1")?;
-                active_client
+                // Just catch and ignore error if second input channel connect fails.  Just run with one
+                match active_client
                     .as_client()
-                    .connect_ports_by_name("system:capture_2", "rtjam_rust:rtjam_in_2")?;
+                    .connect_ports_by_name("system:capture_2", "rtjam_rust:rtjam_in_2")
+                {
+                    Ok(_) => (),
+                    Err(e) => {
+                        dbg!(e);
+                    }
+                }
                 active_client
                     .as_client()
                     .connect_ports_by_name("rtjam_rust:rtjam_out_l", "system:playback_1")?;

@@ -21,10 +21,8 @@ install-base:
 	chmod +x $(RTJAM_HOME)/rtjam_broadcast
 	cp docs/pi-scripts/jackrun.bash $(RTJAM_HOME)
 	chmod +x $(RTJAM_HOME)/jackrun.bash
-	cp docs/pi-scripts/update-sound.bash $(RTJAM_HOME)
-	chmod +x $(RTJAM_HOME)/update-sound.bash
-	cp docs/pi-scripts/update-broadcast.bash $(RTJAM_HOME)
-	chmod +x $(RTJAM_HOME)/update-broadcast.bash
+	cp docs/pi-scripts/bcastrun.bash $(RTJAM_HOME)
+	chmod +x $(RTJAM_HOME)/bcastrun.bash
 	sudo cp docs/pi-scripts/rtjam-jack.service /etc/systemd/system
 	sudo cp docs/pi-scripts/rtjam-broadcast.service /etc/systemd/system
 	sudo systemctl daemon-reload

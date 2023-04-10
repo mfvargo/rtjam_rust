@@ -2,16 +2,17 @@
 NATION=http://rtjam-nation.com/pi/rust
 WEBVER=version.txt
 LOCALVER=version.local.txt
+PROGRAM=rtjam_sound
 rm $WEBVER
-wget -q -O $WEBVER $NATION/version.txt
+wget -q -O $WEBVER $NATION/$WEBVER
 if [ "$?" -ne "0" ]; then
   echo "could not get version from server"
 else
-  ./rtjam_sound --version > $LOCALVER
+  ./$PROGRAM --version > $LOCALVER
   cmp -s $WEBVER $LOCALVER
   if [ "$?" -ne "0" ]; then
-    /usr/bin/wget -q -O rtjam_sound $NATION/rtjam_sound
-    /usr/bin/chmod +x rtjam_sound
+    /usr/bin/wget -q -O $PROGRAM $NATION/$PROGRAM
+    /usr/bin/chmod +x $PROGRAM
   fi
 fi
 # Check for soundin.cfg
@@ -41,4 +42,5 @@ fi
 #
 /usr/bin/aplay -l > devices.txt
 JACK_NO_AUDIO_RESERVATION=1 /usr/bin/jackd -R -dalsa -r48000 -n 2 -p128 -C $INDEV -P $OUTDEV &
-./rtjam_sound
+sleep 3
+./$PROGRAM

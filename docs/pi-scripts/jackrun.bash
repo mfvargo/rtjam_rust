@@ -1,4 +1,19 @@
 #!/bin/bash
+NATION=http://rtjam-nation.com/pi/rust
+WEBVER=version.txt
+LOCALVER=version.local.txt
+rm $WEBVER
+wget -q -O $WEBVER $NATION/version.txt
+if [ "$?" -ne "0" ]; then
+  echo "could not get version from server"
+else
+  ./rtjam_sound --version > $LOCALVER
+  cmp -s $WEBVER $LOCALVER
+  if [ "$?" -ne "0" ]; then
+    /usr/bin/wget -q -O rtjam_sound $NATION/rtjam_sound
+    /usr/bin/chmod +x rtjam_sound
+  fi
+fi
 # Check for soundin.cfg
 if [ -f soundin.cfg ];
 then

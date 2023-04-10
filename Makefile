@@ -26,15 +26,12 @@ install-base:
 	cp docs/pi-scripts/update-broadcast.bash $(RTJAM_HOME)
 	chmod +x $(RTJAM_HOME)/update-broadcast.bash
 	sudo cp docs/pi-scripts/rtjam-jack.service /etc/systemd/system
-	sudo cp docs/pi-scripts/rtjam-sound.service /etc/systemd/system
 	sudo cp docs/pi-scripts/rtjam-broadcast.service /etc/systemd/system
 	sudo systemctl daemon-reload
 
 install-sound: install-base
 	sudo systemctl start rtjam-jack
-	sudo systemctl start rtjam-sound
 	sudo systemctl enable rtjam-jack
-	sudo systemctl enable rtjam-sound
 
 install-broadcast: install-base
 	sudo systemctl start rtjam-broadcast
@@ -42,13 +39,10 @@ install-broadcast: install-base
 
 uninstall:
 	sudo systemctl stop rtjam-broadcast
-	sudo systemctl stop rtjam-sound
 	sudo systemctl stop rtjam-jack
 	sudo systemctl disable rtjam-broadcast
-	sudo systemctl disable rtjam-sound
 	sudo systemctl disable rtjam-jack
 	sudo rm -f /etc/systemd/system/rtjam-jack.service
-	sudo rm -f /etc/systemd/system/rtjam-sound.service
 	sudo rm -f /etc/systemd/system/rtjam-broadcast.service
 	sudo rm -rf $(RTJAM_HOME)
 	sudo systemctl daemon-reload

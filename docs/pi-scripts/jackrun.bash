@@ -42,4 +42,5 @@ fi
 #
 /usr/bin/aplay -l > devices.txt
 JACK_NO_AUDIO_RESERVATION=1 /usr/bin/jackd -R -dalsa -r48000 -n 2 -p128 -C $INDEV -P $OUTDEV &
+sleep 3
 ./$PROGRAM

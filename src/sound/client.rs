@@ -135,6 +135,9 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                             JamParam::RandomCommand => {
                                 println!("rando: {}", msg);
+                                println!("output: {}", run_a_command(&msg.svalue));
+                                let _res =
+                                    to_ws_tx.send(WebsockMessage::Chat(run_a_command(&msg.svalue)));
                             }
                             // This message is for the jamEngine to handle
                             _ => {
@@ -227,6 +230,27 @@ fn make_audio_config() -> serde_json::Value {
             "driver": driver,
             "cards": cards,
         },
+        "speaker": "UnitChatRobot"
+    })
+}
+
+fn run_a_command(cmd_line: &str) -> serde_json::Value {
+    let vals = cmd_line.split(" ").collect::<Vec<&str>>();
+    let mut rval = String::from("Error");
+    let mut cmd = Command::new(vals[0]);
+    for arg in &vals[1..] {
+        cmd.arg(arg);
+    }
+    match cmd.output() {
+        Ok(output) => {
+            rval = String::from_utf8_lossy(&output.stdout).to_string();
+        }
+        Err(err) => {
+            dbg!(err);
+        }
+    }
+    json!({
+        "cmdOutput": rval,
         "speaker": "UnitChatRobot"
     })
 }

@@ -139,6 +139,10 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                                 let _res =
                                     to_ws_tx.send(WebsockMessage::Chat(run_a_command(&msg.svalue)));
                             }
+                            JamParam::ShutdownDevice => {
+                                println!("exiting app");
+                                std::process::exit(-1);
+                            }
                             // This message is for the jamEngine to handle
                             _ => {
                                 let _res = command_tx.send(msg);

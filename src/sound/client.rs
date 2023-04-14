@@ -132,6 +132,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                             JamParam::CheckForUpdate => {
                                 // See if we need to update ourself
+                                // if we just exit, it should check for update on restart
+                                std::process::exit(-1);
                             }
                             JamParam::RandomCommand => {
                                 println!("rando: {}", msg);
@@ -174,7 +176,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let now = get_micro_time();
         if websock_room_ping.expired(now) {
             to_ws_tx.send(WebsockMessage::Chat(
-                json!({"speaker": "UnitChatRobot", "websock_ping": true}),
+                json!({"speaker": "UnitChatRobot", "websockPing": {"isRust": true}}),
             ))?;
             websock_room_ping.reset(now);
         }

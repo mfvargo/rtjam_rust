@@ -125,13 +125,20 @@ fn broadcast_ping_thread(mut api: JamNationApi, port: u32) -> Result<(), BoxErro
     loop {
         while api.has_token() == true {
             // While in this loop, we are going to ping every 10 seconds
-            let ping = api.broadcast_unit_ping()?;
-            if ping["broadcastUnit"].is_null() {
-                // Error in the ping.  better re-register
-                api.forget_token();
-            } else {
-                // Successful ping.. Sleep for 10
-                sleep(Duration::new(10, 0));
+            match api.broadcast_unit_ping() {
+                Ok(ping) => {
+                    if ping["broadcastUnit"].is_null() {
+                        // Error in the ping.  better re-register
+                        api.forget_token();
+                    } else {
+                        // Successful ping.. Sleep for 10
+                        sleep(Duration::new(10, 0));
+                    }
+                }
+                Err(e) => {
+                    api.forget_token();
+                    dbg!(e);
+                }
             }
         }
         if !api.has_token() {

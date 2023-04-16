@@ -39,7 +39,10 @@ pub fn websocket_thread(
                                                             Ok(umsg) => {
                                                                 let _res = ws_tx.send(umsg);
                                                             }
-                                                            Err(_) => {}
+                                                            Err(e) => {
+                                                                dbg!(data);
+                                                                dbg!(e);
+                                                            }
                                                         }
                                                     }
                                                     None => {}

@@ -16,7 +16,12 @@ use crate::{
 use serde_json::json;
 use std::{io::ErrorKind, sync::mpsc, time::Duration};
 
-pub fn run(port: u32, audio_tx: mpsc::Sender<WebsockMessage>, token: &str) -> Result<(), BoxError> {
+pub fn run(
+    port: u32,
+    audio_tx: mpsc::Sender<WebsockMessage>,
+    token: &str,
+    record_tx: mpsc::Sender<JamMessage>,
+) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = sock_with_tos::new(port);
     sock.set_read_timeout(Some(Duration::new(1, 0)))?;
@@ -52,6 +57,7 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<WebsockMessage>, token: &str) -> Re
                 if amt <= 0 || !msg.is_valid(amt) || !players.is_allowed(msg.get_client_id()) {
                     continue;
                 }
+                let _res = msg.set_nbytes(amt);
                 // println!("rcv: {}", msg);
                 // Update this player with the current time
                 let mut time_diff: u128 = MAX_LOOP_TIME;
@@ -82,6 +88,8 @@ pub fn run(port: u32, audio_tx: mpsc::Sender<WebsockMessage>, token: &str) -> Re
                         sock.send_to(&msg.get_buffer()[0..JAM_HEADER_SIZE], player.address)?;
                     }
                 }
+                // send this packet to the recorder
+                let _res = record_tx.send(msg.clone());
             }
             Err(e) => match e.kind() {
                 ErrorKind::WouldBlock => {}

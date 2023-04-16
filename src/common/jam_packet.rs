@@ -185,6 +185,15 @@ impl JamMessage {
     }
 }
 
+impl Clone for JamMessage {
+    fn clone(&self) -> Self {
+        JamMessage {
+            buffer: self.buffer,
+            nbytes: self.nbytes,
+        }
+    }
+}
+
 impl fmt::Display for JamMessage {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

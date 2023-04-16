@@ -6,7 +6,7 @@
 //! - let the rtjam-nation know this component is registered and alive
 use crate::{
     common::{
-        box_error::BoxError, config::Config, jam_nation_api::JamNationApi,
+        box_error::BoxError, config::Config, jam_nation_api::JamNationApi, jam_packet::JamMessage,
         websock_message::WebsockMessage, websocket,
     },
     server::audio_thread,
@@ -64,8 +64,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
             sleep(Duration::new(2, 0));
         }
     }
-
     let at_room_token = room_token.clone();
+
+    // Let's create a mpsc stream for capturing room output
+    let (record_tx, record_rx): (mpsc::Sender<JamMessage>, mpsc::Receiver<JamMessage>) =
+        mpsc::channel();
+
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
     let (to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
         mpsc::channel();
@@ -81,7 +85,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (audio_tx, audio_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
         mpsc::channel();
     let _room_handle = thread::spawn(move || {
-        let _res = audio_thread::run(room_port, audio_tx, &at_room_token);
+        let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx);
     });
 
     let _ping_handle = thread::spawn(move || {
@@ -111,6 +115,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 // dbg!(_e);
             }
         }
+        // drain out any recording audio
+        for msg in record_rx.try_iter() {
+            // got a Jam Message
+            println!("record: {}", msg);
+        }
+
         // This is the timer between registration attempts
         sleep(Duration::new(0, 200_000));
     }

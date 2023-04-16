@@ -2,7 +2,6 @@
 //!
 //! The broadcast component will add/remove sound components to the room using
 //! this list.
-use std::collections::HashMap;
 use std::fmt;
 use std::net::SocketAddr;
 
@@ -72,13 +71,15 @@ impl PlayerList {
     ///
     /// used to update other players in the room about the status of everybody's connection
     pub fn get_latency(&mut self) -> serde_json::Value {
-        let mut lmap: HashMap<u32, f64> = HashMap::new();
+        let mut list: Vec<(u32, f64)> = vec![];
         for p in &self.players {
-            lmap.insert(p.client_id, p.get_last_loop().round() / 1000.0);
             // Convert to msec
+            list.push((p.client_id, p.get_last_loop().round() / 1000.0));
         }
         serde_json::json!({
-            "latency": lmap,
+            "speaker": "RoomChatRobot",
+            "captureStatus": "idle",
+            "latency": list,
         })
     }
 }

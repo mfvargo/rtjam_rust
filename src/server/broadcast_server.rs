@@ -7,9 +7,9 @@
 use crate::{
     common::{
         box_error::BoxError, config::Config, jam_nation_api::JamNationApi, jam_packet::JamMessage,
-        websock_message::WebsockMessage, websocket,
+        packet_stream::PacketWriter, websock_message::WebsockMessage, websocket,
     },
-    server::audio_thread,
+    server::{audio_thread, cmd_message::RoomCommandMessage},
     utils,
 };
 use std::{
@@ -92,37 +92,44 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = broadcast_ping_thread(api, port);
     });
 
+    let mut dmpfile = PacketWriter::new("audio.dmp")?;
     // Now this main thread will listen on the mpsc channels
     loop {
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
+                // This is where we listen for commands from the room to do stuff.
                 println!("websocket message: {}", m.to_string());
+                match RoomCommandMessage::from_json(&m) {
+                    Ok(cmd) => {
+                        dbg!(cmd);
+                    }
+                    Err(e) => {
+                        dbg!(e);
+                    }
+                }
             }
             Err(_e) => {
                 // dbg!(e);
             }
         }
-        let res = audio_rx.try_recv();
-        match res {
-            Ok(m) => {
-                // println!("audio thread message: {}", m.to_string());
-                // So we got a message from the audio thread.  See if we need
-                // To pass this along to the websocket
-                to_ws_tx.send(m)?;
-            }
-            Err(_e) => {
-                // dbg!(_e);
-            }
+        // forward any messages from the audio thead to the websocket (latency updates)
+        for m in audio_rx.try_iter() {
+            to_ws_tx.send(m)?;
         }
         // drain out any recording audio
         for msg in record_rx.try_iter() {
             // got a Jam Message
-            println!("record: {}", msg);
+            // println!("record: {}", msg);
+            match dmpfile.write_message(&msg) {
+                Ok(_) => (),
+                Err(e) => {
+                    dbg!(e);
+                }
+            }
         }
-
-        // This is the timer between registration attempts
-        sleep(Duration::new(0, 200_000));
+        // This is the timer between channel polling
+        sleep(Duration::new(0, 1_000));
     }
 
     // Code won't ever get here

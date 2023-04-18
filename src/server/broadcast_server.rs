@@ -6,10 +6,14 @@
 //! - let the rtjam-nation know this component is registered and alive
 use crate::{
     common::{
-        box_error::BoxError, config::Config, jam_nation_api::JamNationApi, jam_packet::JamMessage,
-        packet_stream::PacketWriter, websock_message::WebsockMessage, websocket,
+        box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
+        jam_packet::JamMessage, packet_stream::PacketWriter, stream_time_stat::MicroTimer,
+        websock_message::WebsockMessage, websocket,
     },
-    server::{audio_thread, cmd_message::RoomCommandMessage},
+    server::{
+        audio_thread,
+        cmd_message::{RoomCommandMessage, RoomParam},
+    },
     utils,
 };
 use std::{
@@ -93,17 +97,29 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     });
 
     let mut dmpfile = PacketWriter::new("audio.dmp")?;
+    let mut transport_update_timer = MicroTimer::new(get_micro_time(), 1_000_000);
     // Now this main thread will listen on the mpsc channels
     loop {
+        let now_time = get_micro_time();
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
                 // This is where we listen for commands from the room to do stuff.
                 println!("websocket message: {}", m.to_string());
                 match RoomCommandMessage::from_json(&m) {
-                    Ok(cmd) => {
-                        dbg!(cmd);
-                    }
+                    Ok(cmd) => match cmd.param {
+                        RoomParam::Record => {
+                            dmpfile.is_writing = true;
+                            transport_update_timer.reset(0);
+                        }
+                        RoomParam::Stop => {
+                            dmpfile.is_writing = false;
+                            transport_update_timer.reset(0);
+                        }
+                        _ => {
+                            dbg!(&m);
+                        }
+                    },
                     Err(e) => {
                         dbg!(e);
                     }
@@ -127,6 +143,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                     dbg!(e);
                 }
             }
+        }
+        if transport_update_timer.expired(now_time) {
+            transport_update_timer.reset(now_time);
+            // send transport update
+            to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
+                "speaker": "RoomChatRobot",
+                "transportStatus": dmpfile.get_status(),
+            })))?;
         }
         // This is the timer between channel polling
         sleep(Duration::new(0, 1_000));

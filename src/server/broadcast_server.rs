@@ -97,7 +97,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     });
 
     let mut dmpfile = PacketWriter::new("audio.dmp")?;
-    let mut transport_update_timer = MicroTimer::new(get_micro_time(), 1_000_000);
+    let mut transport_update_timer = MicroTimer::new(get_micro_time(), 3_000_000);
     // Now this main thread will listen on the mpsc channels
     loop {
         let now_time = get_micro_time();
@@ -115,6 +115,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                         RoomParam::Stop => {
                             dmpfile.is_writing = false;
                             transport_update_timer.reset(0);
+                        }
+                        RoomParam::ListFiles => {
+                            to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
+                                "speaker": "RoomChatRobot",
+                                "listRecordings": [
+                                    { "name": "sess_1", "date": "2/23/2023 3:00PM", "size": 342344 }
+                                ],
+                            })))?;
                         }
                         _ => {
                             dbg!(&m);

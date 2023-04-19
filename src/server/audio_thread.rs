@@ -38,9 +38,7 @@ pub fn run(
         if latency_update_timer.expired(now_time) {
             latency_update_timer.reset(now_time);
             audio_tx.send(WebsockMessage::Chat(players.get_latency()))?;
-            //     println!("got {} bytes from {}", amt, src);
-            //     println!("player: {}", players);
-            //     println!("msg: {}", msg);
+            // This code flushes any stats from sessions that terminated
             while players.stat_queue.len() > 0 {
                 if let Some(stats) = players.stat_queue.pop() {
                     audio_tx.send(WebsockMessage::API(

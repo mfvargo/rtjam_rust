@@ -8,7 +8,7 @@ use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         jam_packet::JamMessage, packet_stream::PacketWriter, stream_time_stat::MicroTimer,
-        websock_message::WebsockMessage, websocket,
+        websock_message::WebsockMessage, websocket, recording::RecordingCatalog,
     },
     server::{
         audio_thread,
@@ -96,8 +96,9 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = broadcast_ping_thread(api, port);
     });
 
+    let mut catalog = RecordingCatalog::new("recs")?;
     let mut dmpfile = PacketWriter::new("audio.dmp")?;
-    let mut transport_update_timer = MicroTimer::new(get_micro_time(), 3_000_000);
+    let mut transport_update_timer = MicroTimer::new(get_micro_time(), 333_000);
     // Now this main thread will listen on the mpsc channels
     loop {
         let now_time = get_micro_time();
@@ -114,15 +115,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                         }
                         RoomParam::Stop => {
                             dmpfile.is_writing = false;
+                            catalog.load_recordings()?;
                             transport_update_timer.reset(0);
                         }
                         RoomParam::ListFiles => {
-                            to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
-                                "speaker": "RoomChatRobot",
-                                "listRecordings": [
-                                    { "name": "sess_1", "date": "2/23/2023 3:00PM", "size": 342344 }
-                                ],
-                            })))?;
+                            catalog.load_recordings()?;
+                            transport_update_timer.reset(0);
                         }
                         _ => {
                             dbg!(&m);
@@ -159,6 +157,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 "speaker": "RoomChatRobot",
                 "transportStatus": dmpfile.get_status(),
             })))?;
+            if catalog.is_dirty() {
+                to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
+                    "speaker": "RoomChatRobot",
+                    "listRecordings": catalog.as_json(),
+                })))?;
+            }
         }
         // This is the timer between channel polling
         sleep(Duration::new(0, 1_000));

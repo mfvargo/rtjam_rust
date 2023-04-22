@@ -16,6 +16,7 @@ pub mod jam_nation_api;
 pub mod jam_packet;
 pub mod packet_stream;
 pub mod player;
+pub mod recording;
 pub mod room;
 pub mod sock_with_tos;
 pub mod stream_time_stat;

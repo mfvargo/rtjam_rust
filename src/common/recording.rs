@@ -1,6 +1,6 @@
 //! module to organized the recording of room contents to files
 use super::box_error::BoxError;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local};
 use serde_json::Value;
 use simple_error::bail;
 use std::{fs::read_dir, path::Path, time::SystemTime};
@@ -21,7 +21,7 @@ impl Recording {
         }
     }
     pub fn as_json(&self) -> Value {
-        let t: DateTime<Utc> = self.time.into();
+        let t: DateTime<Local> = self.time.into();
         let s: String = t.to_rfc2822();
         serde_json::json!({
             "name": self.file_name,
@@ -70,6 +70,14 @@ impl RecordingCatalog {
     }
     pub fn is_dirty(&self) -> bool {
         self.dirty
+    }
+    pub fn add_file(&mut self, filename: &str) -> () {
+        let t: DateTime<Local> = SystemTime::now().into();
+        let s: String = t.format("%H:%M:%S").to_string();
+        let _res = std::fs::copy(
+            filename, 
+            format!("recs/audio_{}.raw", s));
+        self.dirty = true;
     }
     pub fn len(&self) -> usize {
         self.recordings.len()

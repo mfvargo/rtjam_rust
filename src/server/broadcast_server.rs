@@ -122,6 +122,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             catalog.load_recordings()?;
                             transport_update_timer.reset(0);
                         }
+                        RoomParam::SaveRecording => {
+                            // Copy audio.dmp into the catalog
+                            catalog.add_file("audio.dmp");
+                            dmpfile = PacketWriter::new("audio.dmp")?;
+                            transport_update_timer.reset(0);
+                        }
                         _ => {
                             dbg!(&m);
                         }
@@ -158,6 +164,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 "transportStatus": dmpfile.get_status(),
             })))?;
             if catalog.is_dirty() {
+                println!("updating catalog");
                 to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
                     "speaker": "RoomChatRobot",
                     "listRecordings": catalog.as_json(),

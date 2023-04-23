@@ -1,6 +1,6 @@
-use std::{fs::{File, DirEntry}, io::Write};
+use std::{fs::File, io::Write};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Local};
 use serde_json::Value;
 
 use super::{box_error::BoxError, jam_packet::JamMessage};
@@ -31,7 +31,7 @@ impl PacketWriter {
             state = "recording";
         }
         let metadata = self.file.metadata().unwrap();
-        let t: DateTime<Utc> = metadata.modified().unwrap().into();
+        let t: DateTime<Local> = metadata.modified().unwrap().into();
         let s: String = t.to_rfc2822();
         serde_json::json!({
             "state": state,

@@ -14,8 +14,8 @@ pub enum RoomParam {
     Stop,
     Play,
     ListFiles,
-    Loop,
     SaveRecording,
+    Loop,
 }
 /// The RoomCommandMessage is used to define the API to the room component from the outside
 /// world.

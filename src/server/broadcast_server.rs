@@ -12,7 +12,7 @@ use crate::{
     },
     server::{
         audio_thread,
-        cmd_message::{RoomCommandMessage, RoomParam},
+        cmd_message::{RoomCommandMessage, RoomParam}, playback_thread,
     },
     utils,
 };
@@ -73,6 +73,18 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // Let's create a mpsc stream for capturing room output
     let (record_tx, record_rx): (mpsc::Sender<JamMessage>, mpsc::Receiver<JamMessage>) =
         mpsc::channel();
+    // Let's create a mpsc stream for playback of room recordings
+    let (playback_tx, playback_rx): (mpsc::Sender<JamMessage>, mpsc::Receiver<JamMessage>) =
+        mpsc::channel();
+    // Let's create a mpsc stream for playback thread commands
+    let (playback_cmd_tx, playback_cmd_rx): (mpsc::Sender<RoomCommandMessage>, mpsc::Receiver<RoomCommandMessage>) =
+    mpsc::channel();
+    // Create playback thread
+    let _playback_handle = thread::spawn(move || {
+        let _res = playback_thread::run(
+            playback_cmd_rx, 
+            playback_tx);
+    });
 
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
     let (to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
@@ -89,7 +101,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (audio_tx, audio_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
         mpsc::channel();
     let _room_handle = thread::spawn(move || {
-        let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx);
+        let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx, playback_rx);
     });
 
     let _ping_handle = thread::spawn(move || {
@@ -107,26 +119,30 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
             Ok(m) => {
                 // This is where we listen for commands from the room to do stuff.
                 println!("websocket message: {}", m.to_string());
+                transport_update_timer.reset(0);
                 match RoomCommandMessage::from_json(&m) {
-                    Ok(cmd) => match cmd.param {
+                    Ok(mut cmd) => match cmd.param {
                         RoomParam::Record => {
                             dmpfile.is_writing = true;
-                            transport_update_timer.reset(0);
                         }
                         RoomParam::Stop => {
                             dmpfile.is_writing = false;
                             catalog.load_recordings()?;
-                            transport_update_timer.reset(0);
+                            playback_cmd_tx.send(cmd)?;
                         }
                         RoomParam::ListFiles => {
                             catalog.load_recordings()?;
-                            transport_update_timer.reset(0);
                         }
                         RoomParam::SaveRecording => {
                             // Copy audio.dmp into the catalog
                             catalog.add_file("audio.dmp");
                             dmpfile = PacketWriter::new("audio.dmp")?;
-                            transport_update_timer.reset(0);
+                        }
+                        RoomParam::Play => {
+                            if cmd.svalue == "" {
+                                cmd.svalue = "audio.dmp".to_string();
+                            }
+                            playback_cmd_tx.send(cmd)?;
                         }
                         _ => {
                             dbg!(&m);

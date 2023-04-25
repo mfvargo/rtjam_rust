@@ -1,4 +1,6 @@
 /target
+/recs
+/tmp
 /Cargo.lock
 settings.json
 soundin.cfg

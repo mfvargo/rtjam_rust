@@ -136,7 +136,7 @@ mod test_api {
     use super::*;
 
     fn build_new_api() -> JamNationApi {
-        JamNationApi::new("http://localhost/api/1/", "test:mac", "gitHashString")
+        JamNationApi::new("http://localhost:8080/api/1/", "test:mac", "gitHashString")
     }
     #[test]
     fn get_status() {

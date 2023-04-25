@@ -21,10 +21,11 @@ pub fn run(
     audio_tx: mpsc::Sender<WebsockMessage>,
     token: &str,
     record_tx: mpsc::Sender<JamMessage>,
+    playback_rx: mpsc::Receiver<JamMessage>,
 ) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = sock_with_tos::new(port);
-    sock.set_read_timeout(Some(Duration::new(1, 0)))?;
+    sock.set_read_timeout(Some(Duration::new(0, 2_666_666)))?;
     let mut players = PlayerList::new();
     let mut msg = JamMessage::new();
     let mut latency_update_timer = MicroTimer::new(get_micro_time(), 2_000_000);
@@ -56,6 +57,9 @@ pub fn run(
                     continue;
                 }
                 let _res = msg.set_nbytes(amt);
+                // Do this here in case client encode audio did not
+                // Used for read/write packet stream to disk
+                msg.set_num_audio_chunks((amt/32) as u8);
                 // println!("rcv: {}", msg);
                 // Update this player with the current time
                 let mut time_diff: u128 = MAX_LOOP_TIME;
@@ -88,6 +92,21 @@ pub fn run(
                 }
                 // send this packet to the recorder
                 let _res = record_tx.send(msg.clone());
+                // See if there are playback packets
+                let mut playing = true;
+                while playing {
+                    match playback_rx.try_recv() {
+                        Ok(m) => {
+                            // need to broadcast message
+                            for player in players.get_players() {
+                                sock.send_to(m.get_send_buffer(), player.address)?;
+                            }
+                        }
+                        Err(_e) => {
+                            playing = false;
+                        }
+                    }
+                }
             }
             Err(e) => match e.kind() {
                 ErrorKind::WouldBlock => {}

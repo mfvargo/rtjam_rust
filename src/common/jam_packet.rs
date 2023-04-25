@@ -61,12 +61,12 @@ impl JamMessage {
     pub fn set_sample_rate(&mut self, r: u8) -> () {
         self.buffer[1] = r;
     }
-    /// Not used
-    pub fn get_num_sub_channels(&self) -> u8 {
+    /// Number of 32 byte audio chunks in the packet (server side recording)
+    pub fn get_num_audio_chunks(&self) -> u8 {
         self.buffer[2]
     }
-    /// Not used
-    pub fn set_num_sub_channels(&mut self, n: u8) -> () {
+    /// Indicate how many 32 byte audio chunks are in the packet (server side recording)
+    pub fn set_num_audio_chunks(&mut self, n: u8) -> () {
         self.buffer[2] = n;
     }
     /// Get the metronome beat from the server
@@ -113,6 +113,14 @@ impl JamMessage {
     pub fn get_buffer(&mut self) -> &mut [u8] {
         &mut self.buffer
     }
+    /// Get the header area of the packet (for file reading)
+    pub fn get_header(&mut self) -> &mut [u8] {
+        &mut self.buffer[0..JAM_HEADER_SIZE]
+    }
+    /// Get the audio area of the packet (for file reading)
+    pub fn get_audio_space(&mut self, size: usize) -> &mut [u8] {
+        &mut self.buffer[JAM_HEADER_SIZE..JAM_HEADER_SIZE+size]
+    }
     /// Get the slice of buffer that has some data
     pub fn get_send_buffer(&self) -> &[u8] {
         &self.buffer[0..self.nbytes]
@@ -133,6 +141,7 @@ impl JamMessage {
             idx += 2; // move ahead 2 bytes
         }
         self.nbytes = idx;
+        self.set_num_audio_chunks((idx/32) as u8);
         idx
     }
     fn convert_to_u16(v: &f32) -> u16 {
@@ -177,6 +186,9 @@ impl JamMessage {
         }
         self.nbytes = amt;
         Ok(())
+    }
+    pub fn get_nbytes(&self) -> usize {
+        self.nbytes
     }
     /// some simple sanity checks on the message to make sure it makes sense
     pub fn is_valid(&self, amt: usize) -> bool {

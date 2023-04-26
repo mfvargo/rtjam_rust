@@ -53,6 +53,9 @@ pub fn run(
                             Err(e) => {dbg!(e);}
                         }
                     }
+                    RoomParam::Stop => {
+                        mixer.close_stream();
+                    }
                     _ => {}
                 }
                 dbg!(m);

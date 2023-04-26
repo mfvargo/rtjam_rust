@@ -79,6 +79,10 @@ impl RecordingCatalog {
             format!("recs/audio_{}.raw", s));
         self.dirty = true;
     }
+    pub fn delete_file(&mut self, filename: &str) -> () {
+        let _res = std::fs::remove_file(format!("recs/{}", filename));
+        self.dirty = true;
+    }
     pub fn len(&self) -> usize {
         self.recordings.len()
     }

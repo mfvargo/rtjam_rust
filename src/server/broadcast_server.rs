@@ -138,6 +138,13 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             catalog.add_file("audio.dmp");
                             dmpfile = PacketWriter::new("audio.dmp")?;
                         }
+                        RoomParam::DeleteRecording => {
+                            if cmd.svalue == "" {
+                                dmpfile = PacketWriter::new("audio.dmp")?;
+                            } else {
+                                catalog.delete_file(&cmd.svalue);
+                            }
+                        }
                         RoomParam::Play => {
                             if cmd.svalue == "" {
                                 cmd.svalue = "../audio.dmp".to_string();

@@ -1,5 +1,8 @@
 /target
+/recs
+/tmp
 /Cargo.lock
 settings.json
 soundin.cfg
 soundout.cfg
+audio.dmp

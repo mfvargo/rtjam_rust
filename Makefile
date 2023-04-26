@@ -15,6 +15,7 @@ deploy: all
 
 install-base:
 	mkdir -p $(RTJAM_HOME)
+	mkdir -p $(RTJAM_HOME)/recs
 	wget -O $(RTJAM_HOME)/rtjam_sound $(NATION)/rtjam_sound
 	chmod +x $(RTJAM_HOME)/rtjam_sound
 	wget -O $(RTJAM_HOME)/rtjam_broadcast $(NATION)/rtjam_broadcast

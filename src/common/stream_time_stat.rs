@@ -82,6 +82,7 @@ mod test_stream_time_stat {
 }
 
 /// Timer with microsecond accuracy to let things know when a certain time (or more) passed
+#[derive(Debug)]
 pub struct MicroTimer {
     last_time: u128,
     interval: u128,

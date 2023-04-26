@@ -59,7 +59,6 @@ impl JamSocket {
         match self.client_id {
             Some(id) => {
                 packet.set_sample_rate(0);
-                packet.set_num_sub_channels(2);
                 packet.set_client_id(id as u32);
                 packet.set_sequence_num(self.seq_no);
                 self.seq_no += 1;

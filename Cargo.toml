@@ -22,6 +22,7 @@ rustfft = "6.1.0"
 mac_address = "1.1.4"
 socket2 = "0.5.1"
 rand = "0.8.5"
+chrono = "0.4.24"
 
 [build-dependencies]
 vergen = "7.5.0"

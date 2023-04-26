@@ -11,6 +11,7 @@ use crate::common::player::Player;
 pub struct PlayerList {
     pub players: Vec<Player>,
     pub stat_queue: Vec<serde_json::Value>,
+    update_cnt: usize,
 }
 
 impl PlayerList {
@@ -18,6 +19,7 @@ impl PlayerList {
         PlayerList {
             players: vec![],
             stat_queue: vec![],
+            update_cnt: 0,
         }
     }
     /// tell if the player is allowed in the room
@@ -71,6 +73,7 @@ impl PlayerList {
     ///
     /// used to update other players in the room about the status of everybody's connection
     pub fn get_latency(&mut self) -> serde_json::Value {
+        self.update_cnt += 1;
         let mut list: Vec<(u32, f64)> = vec![];
         for p in &self.players {
             // Convert to msec
@@ -78,8 +81,8 @@ impl PlayerList {
         }
         serde_json::json!({
             "speaker": "RoomChatRobot",
-            "captureStatus": "idle",
             "latency": list,
+            "update_count": self.update_cnt,
         })
     }
 }

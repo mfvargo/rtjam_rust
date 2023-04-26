@@ -140,7 +140,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                         }
                         RoomParam::Play => {
                             if cmd.svalue == "" {
-                                cmd.svalue = "audio.dmp".to_string();
+                                cmd.svalue = "../audio.dmp".to_string();
                             }
                             playback_cmd_tx.send(cmd)?;
                         }

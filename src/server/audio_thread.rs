@@ -58,8 +58,6 @@ pub fn run(
                 }
                 let _res = msg.set_nbytes(amt);
                 // Do this here in case client encode audio did not
-                // Used for read/write packet stream to disk
-                msg.set_num_audio_chunks((amt/32) as u8);
                 // println!("rcv: {}", msg);
                 // Update this player with the current time
                 let mut time_diff: u128 = MAX_LOOP_TIME;
@@ -91,6 +89,8 @@ pub fn run(
                     }
                 }
                 // send this packet to the recorder
+                // Used for read/write packet stream to disk
+                msg.set_num_audio_chunks((amt/32) as u8);
                 let _res = record_tx.send(msg.clone());
                 // See if there are playback packets
                 let mut playing = true;

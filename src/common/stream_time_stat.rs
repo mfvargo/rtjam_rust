@@ -108,6 +108,10 @@ impl MicroTimer {
     pub fn reset(&mut self, now: u128) {
         self.last_time = now;
     }
+    /// Add to the last time to move timer ahead
+    pub fn advance(&mut self, delta: u128) {
+        self.last_time += delta;
+    }
     /// Ask how long since the last time you were reset
     pub fn since(&mut self, now: u128) -> u128 {
         now - self.last_time

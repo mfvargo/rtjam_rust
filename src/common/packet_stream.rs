@@ -80,7 +80,7 @@ impl PacketReader {
     }
 
     pub fn read_up_to(&mut self, now: u128) -> Result<Option<JamMessage>, BoxError> {
-        if now < self.now_offset + self.packet.get_server_time() as u128 {
+        if self.micros_till_packet(now) > 0 {
             // The current packet is in the future, nothing to do
             return Ok(None)
         }
@@ -90,6 +90,15 @@ impl PacketReader {
         self.read_packet()?;
         // give them the clone
         Ok(Some(rval))
+    }
+
+    pub fn micros_till_packet(&self, now: u128) -> u128 {
+        let ptime: u128 = self.now_offset + self.packet.get_server_time() as u128;
+        if now > ptime {
+            return 0;
+        } else {
+            return ptime - now;
+        }
     }
     
 }
@@ -167,6 +176,7 @@ mod stream_test {
         // If we read it now, we should not get any data
         let mut packet = reader.read_up_to(now - 1).unwrap();
         print_packet(&packet);
+        assert_eq!(reader.micros_till_packet(now-1), 1);
         assert!(packet.is_none());
         // if we move ahead 2667 microseconds, it should give us a packet
         packet = reader.read_up_to(now + 1667).unwrap();
@@ -180,28 +190,5 @@ mod stream_test {
         packet = reader.read_up_to(now + 1667).unwrap();
         print_packet(&packet);
         assert!(packet.is_none());
-        // If we read again, it should be none (since we consumed both channels above)
-
-        // let mut looping = true;
-        // while looping {
-        //     println!("now: {}", now);
-        //     match reader.read_up_to(now) {
-        //         Ok(opt) => {
-        //             match opt {
-        //                 Some(p) => {
-        //                     println!("read packet: {}", p);
-        //                 }
-        //                 None => {
-        //                     println!("not yet");
-        //                     now += 3000;
-        //                 }
-        //             }
-        //         }
-        //         Err(e) => {
-        //             dbg!(e);
-        //             looping = false;
-        //         }
-        //     }
-        // }
     }
 }

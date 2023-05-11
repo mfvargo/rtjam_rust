@@ -4,7 +4,7 @@ use crate::{common::{box_error::BoxError, jam_packet::{JamMessage}, packet_strea
 
 use super::cmd_message::RoomCommandMessage;
 
-const FRAME_TIME: u128 = 2_650;
+const FRAME_TIME: u128 = 2_667;
 /// This thread will pump out playback packets to the audio_thread  (by writing to packet_tx)
 /// It will collect recorded packets from a file, push them into a mixer (all flat settings),
 /// then pull them out of the Mixer into a new packet that gets pumped to the audio_thread.
@@ -17,20 +17,12 @@ pub fn run(
     let mut now = get_micro_time();
     let mut pback_timer = MicroTimer::new(now, FRAME_TIME);
     loop {
-        let mut nanos = (2667 - pback_timer.since(now)) * 1000;
-        nanos = nanos.clamp(0, 300_000);
-        sleep(Duration::new(0, nanos as u32)); // poll every 100 microseconds
+        let mut nanos = (FRAME_TIME - pback_timer.since(now)) * 1000;
+        nanos = nanos.clamp(0,100_000);
+        sleep(Duration::new(0, nanos as u32));
         now = get_micro_time();
-        match mixer.load_up_till_now(now) {
-            Ok(()) => {}
-            Err(e) => {
-                dbg!(e);
-                // Probably was end of file.  stop playback
-                mixer.close_stream();
-            }
-        }
-        if pback_timer.expired(now) {
-            pback_timer.reset(now);
+        while pback_timer.expired(now) {
+            pback_timer.advance(FRAME_TIME);
             // Pull a packet out of the mixer and send it
             match mixer.get_a_packet(now) {
                 Some(p) => {
@@ -39,6 +31,14 @@ pub fn run(
                 None => {
                     // Nothing to send
                 }
+            }
+        }
+        match mixer.load_up_till_now(now) {
+            Ok(()) => {}
+            Err(e) => {
+                dbg!(e);
+                // Probably was end of file.  stop playback
+                mixer.close_stream();
             }
         }
         // Check for a command before looping again.
@@ -114,6 +114,14 @@ impl PlaybackMixer {
     }
     pub fn close_stream(&mut self) {
         self.stream = None;
+    }
+
+    pub fn micros_till_packet(&self, now: u128) -> u128 {
+        if let Some(reader) = &self.stream {
+            reader.micros_till_packet(now)
+        } else {
+            FRAME_TIME
+        }
     }
 
     /// This will load data from the stream into the mixer up to now in time

@@ -111,6 +111,13 @@ impl JamNationApi {
         }
         Ok(result)
     }
+    /// Get a signed URL to transfer a recording to the cloud
+    pub fn get_signed_url(&mut self, room_token: &str, rec_id: u32) -> Result<JsonValue, BoxError> {
+        let mut args = self.build_def_args();
+        args.insert("recordingId", format!("{}", rec_id));
+        args.insert("roomToken", format!("{}", room_token));
+        Ok(self.put("recordings/getSignedUrl", &args)?)
+    }
     /// Tell the rtjam-nation the sound component exists
     pub fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError> {
         let mut args = self.build_def_args();

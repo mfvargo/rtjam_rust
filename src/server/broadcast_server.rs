@@ -29,10 +29,9 @@ use std::{
 /// This function will start additional threads.  
 /// - websocket thread - creates a websocket connection to rtjam-nation and creates a chatRoom
 /// - audio thread - listens for UDP datagrams and forwards to others in the audio room
-/// - broadcast ping thread - periodically updates rtjam-nation with keepalives so it knows the room is up
 ///
 /// the original thread that calls run then loops checking mpsc::channels for messages between the websocket
-/// and the audio_thread.  The broadcast ping thread just runs by itself (fire and forget)
+/// and the audio_thread.
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // This is the entry point for the broadcast server
 
@@ -69,6 +68,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         }
     }
     let at_room_token = room_token.clone();
+    let api_room_token = room_token.clone();
 
     // Let's create a mpsc stream for capturing room output
     let (record_tx, record_rx): (mpsc::Sender<JamMessage>, mpsc::Receiver<JamMessage>) =
@@ -104,13 +104,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx, playback_rx);
     });
 
-    let _ping_handle = thread::spawn(move || {
-        let _res = broadcast_ping_thread(api, port);
-    });
+    // let _ping_handle = thread::spawn(move || {
+    //     let _res = broadcast_ping_thread(api, port);
+    // });
 
     let mut catalog = RecordingCatalog::new("recs")?;
     let mut dmpfile = PacketWriter::new("audio.dmp")?;
     let mut transport_update_timer = MicroTimer::new(get_micro_time(), 333_000);
+    let mut ping_timer = MicroTimer::new(get_micro_time(), 10_000_000);  // Every 10 seconds
     // Now this main thread will listen on the mpsc channels
     loop {
         let now_time = get_micro_time();
@@ -119,7 +120,10 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
             Ok(m) => {
                 // This is where we listen for commands from the room to do stuff.
                 println!("websocket message: {}", m.to_string());
+                // Reset the transport update timer so that changes to state are sent back
+                // immediately instead of on next timer interval.
                 transport_update_timer.reset(0);
+                // Process the room commmand
                 match RoomCommandMessage::from_json(&m) {
                     Ok(mut cmd) => match cmd.param {
                         RoomParam::Record => {
@@ -151,6 +155,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                             playback_cmd_tx.send(cmd)?;
                         }
+                        RoomParam::UploadRecording => {
+                            // Message asking us to upload a recording to S3
+                            println!("recording id: {}", cmd.ivalue_1);
+                            match api.get_signed_url(&api_room_token, cmd.ivalue_1 as u32) {
+                                Ok(ret) => {dbg!(&ret);}
+                                Err(e) => {dbg!(e);}
+                            }
+                        }
                         _ => {
                             dbg!(&m);
                         }
@@ -168,7 +180,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         for m in audio_rx.try_iter() {
             to_ws_tx.send(m)?;
         }
-        // drain out any recording audio
+        // drain out any packets that are to be recorded
         for msg in record_rx.try_iter() {
             // got a Jam Message
             // println!("record: {}", msg);
@@ -194,6 +206,19 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 })))?;
             }
         }
+        // This used to be a separate thread.  Just put it in here so we can use the api object
+        if ping_timer.expired(now_time) {
+            ping_timer.reset(now_time);
+            // send a ping to the nation
+            match api.broadcast_unit_ping() {
+                Ok(_ping) => {
+                }
+                Err(e) => {
+                    dbg!(e);
+                }
+            }
+
+        }
         // This is the timer between channel polling
         sleep(Duration::new(0, 1_000));
     }
@@ -202,41 +227,4 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // let _res = room_handle.join();
     // let _res = websocket_handle.join();
     // Ok(())
-}
-
-fn broadcast_ping_thread(mut api: JamNationApi, port: u32) -> Result<(), BoxError> {
-    loop {
-        while api.has_token() == true {
-            // While in this loop, we are going to ping every 10 seconds
-            match api.broadcast_unit_ping() {
-                Ok(ping) => {
-                    if ping["broadcastUnit"].is_null() {
-                        // Error in the ping.  better re-register
-                        api.forget_token();
-                    } else {
-                        // Successful ping.. Sleep for 10
-                        sleep(Duration::new(10, 0));
-                    }
-                }
-                Err(e) => {
-                    api.forget_token();
-                    dbg!(e);
-                }
-            }
-        }
-        if !api.has_token() {
-            // We need to register the server
-            match api.broadcast_unit_register() {
-                Ok(_res) => {
-                    // Activate the room
-                    let _room_activate = api.activate_room(port);
-                }
-                Err(e) => {
-                    dbg!(e);
-                }
-            }
-        }
-        // This is the timer between registration attempts
-        sleep(Duration::new(2, 0));
-    }
 }

@@ -12,9 +12,8 @@ use crate::{
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
     },
-    dsp::tuner::Tuner,
+    dsp::{tuner::Tuner, power_meter::PowerMeter},
     pedals::pedal_board::PedalBoard,
-    utils::to_db,
 };
 
 use super::{
@@ -91,6 +90,7 @@ pub struct JamEngine {
     pedal_boards: Vec<PedalBoard>,
     tuners: [Tuner; 2],
     jack_jitter: StreamTimeStat,
+    input_meters: [PowerMeter; 2],
 }
 
 impl JamEngine {
@@ -127,6 +127,7 @@ impl JamEngine {
             pedal_boards: vec![PedalBoard::new(), PedalBoard::new()],
             tuners: [Tuner::new(), Tuner::new()],
             jack_jitter: StreamTimeStat::new(100),
+            input_meters: [PowerMeter::new(), PowerMeter::new()],
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -257,6 +258,8 @@ impl JamEngine {
     }
     // This is where we forward our data to the network (if connected)
     fn send_my_audio(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
+        self.input_meters[0].add_frame(in_a, 1.0);
+        self.input_meters[1].add_frame(in_b, 1.0);
         let mut a_temp: Vec<f32> = vec![0.0; in_a.len()];
         let mut b_temp: Vec<f32> = vec![0.0; in_b.len()];
         self.tuners[0].add_samples(in_a);
@@ -301,9 +304,6 @@ impl JamEngine {
             }
             idx += 2;
         }
-        // this is a hack for input gain on channel 0 and 1
-        let in_gain0 = to_db(self.mixer.get_channel_gain(0)).round();
-        let in_gain1 = to_db(self.mixer.get_channel_gain(1)).round();
         let data = json!({
             "speaker": "UnitChatRobot",
             "levelEvent": json!({
@@ -312,11 +312,11 @@ impl JamEngine {
                   "git_hash": self.git_hash,
                   "masterLevel": self.mixer.get_master_level_avg(),
                   "peakMaster": self.mixer.get_master_level_peak(),
-                  // TODO these values need to take out the gain in the channel strip
-                  "inputLeft": self.mixer.get_channel_power_avg(0) - in_gain0,
-                  "inputRight": self.mixer.get_channel_power_avg(1) - in_gain1,
-                  "peakLeft": self.mixer.get_channel_power_peak(0) - in_gain0,
-                  "peakRight": self.mixer.get_channel_power_peak(1)- in_gain1,
+                  // This is the input levels before any gain or processing
+                  "inputLeft": self.input_meters[0].get_avg(),
+                  "inputRight": self.input_meters[1].get_avg(),
+                  "peakLeft": self.input_meters[0].get_peak(),
+                  "peakRight": self.input_meters[1].get_peak(),
                   // These are what the channel is sending to the room
                   "roomInputLeft": self.mixer.get_channel_power_avg(0),
                   "roomInputRight": self.mixer.get_channel_power_avg(1),

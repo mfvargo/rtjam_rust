@@ -3,11 +3,13 @@
 //! Super simple.  elements will obtain a token by using the register function for them.
 //! This token is then returned so that elements can create websocket chat room with the
 //! same name.  This then allows the "meet me in the middle" protocol used by the U/X
-use std::collections::HashMap;
+use std::{collections::HashMap, time::SystemTime};
+use chrono::{DateTime, Utc};
 
 use crate::common::box_error::BoxError;
 use json::JsonValue;
 use reqwest::blocking::Client;
+
 // use serde::{Deserialize, Serialize};
 
 /// The structure that holds state about the api connection
@@ -16,6 +18,7 @@ pub struct JamNationApi {
     token: String,
     mac_address: String,
     git_hash: String,
+    up_since: DateTime<Utc>,
     // pub args: NationArgs,
 }
 
@@ -32,6 +35,7 @@ impl JamNationApi {
             url_base: base.to_string(),
             mac_address: mac_address.to_string(),
             git_hash: git_hash.to_string(),
+            up_since: SystemTime::now().into(),
         }
     }
     /// returns the token for the component once it has registered
@@ -52,6 +56,7 @@ impl JamNationApi {
         args.insert("lanIp", "10.0.0.0".to_string());
         args.insert("macAddress", self.mac_address.clone());
         args.insert("gitHash", self.git_hash.clone());
+        args.insert("upSince", self.up_since.to_rfc2822());
         args
     }
     fn get(&self, pth: &str) -> Result<JsonValue, BoxError> {

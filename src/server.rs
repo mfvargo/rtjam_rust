@@ -4,3 +4,4 @@ pub mod broadcast_server;
 pub mod cmd_message;
 pub mod player_list;
 pub mod playback_thread;
+pub mod room_mixer;

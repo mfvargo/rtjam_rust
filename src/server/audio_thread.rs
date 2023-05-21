@@ -16,12 +16,17 @@ use crate::{
 use serde_json::json;
 use std::{io::ErrorKind, sync::mpsc, time::Duration};
 
+use super::room_mixer::RoomMixer;
+
+const FRAME_TIME: u128 = 2_667;
+
 pub fn run(
     port: u32,
     audio_tx: mpsc::Sender<WebsockMessage>,
     token: &str,
     record_tx: mpsc::Sender<JamMessage>,
     playback_rx: mpsc::Receiver<JamMessage>,
+    room_mode: bool
 ) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = sock_with_tos::new(port);
@@ -29,6 +34,8 @@ pub fn run(
     let mut players = PlayerList::new();
     let mut msg = JamMessage::new();
     let mut latency_update_timer = MicroTimer::new(get_micro_time(), 2_000_000);
+    let mut room_mixer = RoomMixer::new();
+    let mut pback_timer = MicroTimer::new(get_micro_time(), FRAME_TIME);
 
     loop {
         let res = sock.recv_from(msg.get_buffer());
@@ -75,17 +82,29 @@ pub fn run(
 
                 // set the server timestamp
                 msg.set_server_time(now_time as u64);
-                // println!("xmit: {}", msg);
 
+                if room_mode {
+                    room_mixer.add_a_packet(now_time, &msg);
+
+                    // Clock out the room mix
+                    while pback_timer.expired(now_time) {
+                        pback_timer.advance(FRAME_TIME);
+                        let p = room_mixer.get_a_packet(now_time);
+                        for player in players.get_players() {
+                            sock.send_to(p.get_send_buffer(), player.address)?;
+                        }
+                    }
+                } else {
                 // Broadcast
-                for player in players.get_players() {
-                    if player.address != src {
-                        // don't send echo back
-                        // send the packet
-                        sock.send_to(&msg.get_buffer()[0..amt], player.address)?;
-                    } else {
-                        // Send just a header to keep the timer looping around
-                        sock.send_to(&msg.get_buffer()[0..JAM_HEADER_SIZE], player.address)?;
+                    for player in players.get_players() {
+                        if player.address != src {
+                            // don't send echo back
+                            // send the packet
+                            sock.send_to(&msg.get_buffer()[0..amt], player.address)?;
+                        } else {
+                            // Send just a header to keep the timer looping around
+                            sock.send_to(&msg.get_buffer()[0..JAM_HEADER_SIZE], player.address)?;
+                        }
                     }
                 }
                 // send this packet to the recorder

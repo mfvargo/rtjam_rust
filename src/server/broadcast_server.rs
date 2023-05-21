@@ -42,8 +42,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 
     let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
     let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
+    let room_mode = config.get_value("room_mode", "separate") == "mix";
     let port: u32 = config.get_u32_value("port", 7891);
-    println!("port: {}", port);
     let room_port = port.clone();
     let mac_address = utils::get_my_mac_address()?;
     let mut room_token = "".to_string();
@@ -101,7 +101,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (audio_tx, audio_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
         mpsc::channel();
     let _room_handle = thread::spawn(move || {
-        let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx, playback_rx);
+        let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx, playback_rx, room_mode);
     });
 
     let _ping_handle = thread::spawn(move || {

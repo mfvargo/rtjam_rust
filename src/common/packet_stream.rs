@@ -5,10 +5,13 @@ use serde_json::Value;
 
 use super::{box_error::BoxError, jam_packet::{JamMessage, JAM_HEADER_SIZE}};
 
+const MAX_FILE_SIZE: usize = 1 * 1024 * 1024 * 1024;  // 1 Gig max file size
+
 pub struct PacketWriter {
     file: File,
     filename: String,
     pub is_writing: bool,
+    file_size: usize,
 }
 
 impl PacketWriter {
@@ -17,10 +20,12 @@ impl PacketWriter {
             filename: filename.to_string(),
             file: File::create(filename)?,
             is_writing: false,
+            file_size: 0,
         })
     }
     pub fn write_message(&mut self, msg: &JamMessage) -> Result<(), BoxError> {
-        if self.is_writing {
+        if self.is_writing && self.file_size < MAX_FILE_SIZE {
+            self.file_size += msg.get_send_buffer().len();
             self.file.write_all(msg.get_send_buffer())?;
         }
         Ok(())
@@ -39,6 +44,7 @@ impl PacketWriter {
                 "name": self.filename,
                 "date": s,
                 "size": metadata.len(),
+                "capacity": metadata.len() as f64 / MAX_FILE_SIZE as f64 * 100.0,
             }
         })
     }

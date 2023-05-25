@@ -159,7 +159,11 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             // Message asking us to upload a recording to S3
                             println!("recording id: {}", cmd.ivalue_1);
                             match api.get_signed_url(&api_room_token, cmd.ivalue_1 as u32) {
-                                Ok(ret) => {dbg!(&ret);}
+                                Ok(ret) => {
+                                    // We should now have a signed URL that we can use to upload this
+                                    // recording to.
+                                    println!("signed_url: {}", ret["signed_url"]);
+                                }
                                 Err(e) => {dbg!(e);}
                             }
                         }

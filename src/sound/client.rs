@@ -95,7 +95,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
-    let engine = JamEngine::new(status_data_tx, command_rx, api.get_token(), git_hash)?;
+    let no_loopback_param = config.get_value("no_loopback", "false");
+    let no_loopback = match no_loopback_param {
+       "true" => true,
+       _ => false
+    };
+    let engine = JamEngine::new(status_data_tx, command_rx, api.get_token(), git_hash, no_loopback)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);
     });

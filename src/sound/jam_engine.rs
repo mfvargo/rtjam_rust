@@ -91,6 +91,7 @@ pub struct JamEngine {
     tuners: [Tuner; 2],
     jack_jitter: StreamTimeStat,
     input_meters: [PowerMeter; 2],
+    no_loopback: bool,
 }
 
 impl JamEngine {
@@ -107,6 +108,7 @@ impl JamEngine {
         rx: mpsc::Receiver<ParamMessage>,
         tok: &str,
         git_hash: &str,
+        no_loopback: bool,
     ) -> Result<JamEngine, BoxError> {
         let now = get_micro_time();
         let mut engine = JamEngine {
@@ -128,6 +130,7 @@ impl JamEngine {
             tuners: [Tuner::new(), Tuner::new()],
             jack_jitter: StreamTimeStat::new(100),
             input_meters: [PowerMeter::new(), PowerMeter::new()],
+            no_loopback: no_loopback,
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -270,9 +273,11 @@ impl JamEngine {
         self.pedal_boards[1].process(in_b, &mut b_temp);
         self.xmit_message.encode_audio(&a_temp, &b_temp);
         let _res = self.sock.send(&mut self.xmit_message);
-        // Stuff my buffers into the mixer for local monitoring
-        self.mixer.add_to_channel(0, &a_temp);
-        self.mixer.add_to_channel(1, &b_temp);
+        // Stuff my buffers into the mixer for local monitoring, unless no_loopback is toggled
+        if ! self.no_loopback {
+            self.mixer.add_to_channel(0, &a_temp);
+            self.mixer.add_to_channel(1, &b_temp);
+        }
     }
     fn build_level_event(&mut self) -> serde_json::Value {
         let mut players: Vec<serde_json::Value> = vec![];

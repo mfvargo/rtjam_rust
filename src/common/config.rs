@@ -54,6 +54,15 @@ impl Config {
         }
     }
 
+    pub fn get_bool_value(&self, key: &str, def_value: bool) -> bool {
+        // expects JSON value as type bool (unquoted), any string or numeric will evaluate to true
+        let val = self.settings[key].as_bool();
+        match val {
+            None => def_value,
+            Some(i) => i,
+        }
+    }
+
     pub fn set_value(&mut self, key: &str, val: &str) -> () {
         self.settings[key] = val.into();
     }

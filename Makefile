@@ -8,6 +8,9 @@ all:
 clean:
 	rm -rf target/release/examples/*
 
+debug:
+	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound
+
 deploy: all
 	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust
 	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_broadcast  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust

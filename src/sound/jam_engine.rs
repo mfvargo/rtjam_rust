@@ -34,7 +34,7 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 ///
 /// The JamEngine maintains:
 /// - UDP Socket and Connection state to rooms hosted by broadcast components [`JamSocket`]
-/// - Audio Mixer for room members (including the unit itself) [`Mixer`]
+/// - Audio Mixer for room members (optionally, including the unit itself) [`Mixer`]
 /// - ChannelMap to map room members to mixer channels [`ChannelMap`]
 /// - PedalBoards for the two local channesl [`PedalBoard`]
 /// - Tuners for both incoming channels (to tune your instruments) [`Tuner`]
@@ -59,7 +59,7 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 ///             mpsc::Sender<ParamMessage>,
 ///             mpsc::Receiver<ParamMessage>
 ///         ) = mpsc::channel();
-///     let mut engine = JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash").expect("oops");
+///     let mut engine = JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash", false).expect("oops");
 ///     // At this point some audio engine would use engine.process() as the callback for audio frames
 ///     let in_a = [0.0;128];
 ///     let in_b = [0.0;128];
@@ -101,6 +101,9 @@ impl JamEngine {
     /// to get commands to modify it's behavior.  See [`ParamMessage`] for details. It needs the
     /// token to pass through to the U/X so it can be sure it's talking to the right device.
     /// And it needs the git_hash to pass through to the U/X for software update checking.
+    /// It needs a bool to tell it whether to loopback the audio to the mixer for
+    /// local monitoring.
+    /// TODO: is there a better way to pass config values in, if there are multiple forthcoming in the future?
     ///
     /// See [`crate::sound::client`]
     pub fn new(
@@ -130,6 +133,7 @@ impl JamEngine {
             tuners: [Tuner::new(), Tuner::new()],
             jack_jitter: StreamTimeStat::new(100),
             input_meters: [PowerMeter::new(), PowerMeter::new()],
+            // no_loopback = true will disable the local monitoring
             no_loopback: no_loopback,
         };
         // Set out client id to some rando number when not connected
@@ -273,7 +277,7 @@ impl JamEngine {
         self.pedal_boards[1].process(in_b, &mut b_temp);
         self.xmit_message.encode_audio(&a_temp, &b_temp);
         let _res = self.sock.send(&mut self.xmit_message);
-        // Stuff my buffers into the mixer for local monitoring, unless no_loopback is toggled
+        // Stuff my buffers into the mixer for local monitoring, unless no_loopback is toggled on
         if ! self.no_loopback {
             self.mixer.add_to_channel(0, &a_temp);
             self.mixer.add_to_channel(1, &b_temp);

@@ -45,7 +45,6 @@ impl Config {
             Some(i) => i,
         }
     }
-
     pub fn get_u32_value(&self, key: &str, def_value: u32) -> u32 {
         let val = self.settings[key].as_u32();
         match val {
@@ -53,9 +52,8 @@ impl Config {
             Some(i) => i,
         }
     }
-
     pub fn get_bool_value(&self, key: &str, def_value: bool) -> bool {
-        // expects JSON value as type bool (unquoted), any string or numeric will evaluate to true
+        // expects JSON value as type bool (unquoted), any string and bad things happen
         let val = self.settings[key].as_bool();
         match val {
             None => def_value,
@@ -134,6 +132,9 @@ mod test {
         let bob = config.get_value("bob", "bob");
         assert_eq!(bob, "bob");
     }
+    
+    // TODO: add tests for get_<type>_value functions
+
     #[test]
     fn set_value() {
         // You should be able to set a value on a key

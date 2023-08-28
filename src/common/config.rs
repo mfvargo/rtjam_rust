@@ -45,9 +45,16 @@ impl Config {
             Some(i) => i,
         }
     }
-
     pub fn get_u32_value(&self, key: &str, def_value: u32) -> u32 {
         let val = self.settings[key].as_u32();
+        match val {
+            None => def_value,
+            Some(i) => i,
+        }
+    }
+    pub fn get_bool_value(&self, key: &str, def_value: bool) -> bool {
+        // expects JSON value as type bool (unquoted), any string and bad things happen
+        let val = self.settings[key].as_bool();
         match val {
             None => def_value,
             Some(i) => i,
@@ -125,6 +132,45 @@ mod test {
         let bob = config.get_value("bob", "bob");
         assert_eq!(bob, "bob");
     }
+    
+    #[test]
+    fn get_bool_value_default() {
+        // You should be able to get a bool value with a default
+        let config = Config::build();
+        let value = config.get_bool_value("i_dont_exist", false);
+        assert_eq!(value, false);
+    }
+
+    #[test]
+    fn get_bool_value() {
+        // You should be able to get a bool value
+        let config = Config{
+            filename: String::from("no_file"),
+            settings: json::object! {
+                "the_truth": true
+            },
+        };
+        let value = config.get_bool_value("the_truth", false);
+        assert_eq!(value, true);
+    }
+
+    #[test]
+    fn get_bool_value_invalid() {
+        // A non-bool JSON type should be handled gracefully, with a default value and log a warning
+        let config = Config{
+            filename: String::from("no_file"),
+            settings: json::object! {
+                "should_be_bool": "not a bool"
+            },
+        };
+        let value = config.get_bool_value("should_be_bool", true);
+        assert_eq!(value, true);
+        // TODO: validate that a warning was logged to console
+        // use the captured output crate for this? 
+    }
+   
+    // TODO: add tests for the other get_<type>_value functions
+
     #[test]
     fn set_value() {
         // You should be able to set a value on a key

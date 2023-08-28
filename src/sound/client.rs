@@ -95,9 +95,11 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
-    println!("fetching no_loopback setting...");
     let no_loopback = config.get_bool_value("no_loopback", false);
-    println!("no_loopback={}", no_loopback);
+    if no_loopback {
+        println!("local loopback disabled");
+    }
+    
     let engine = JamEngine::new(status_data_tx, command_rx, api.get_token(), git_hash, no_loopback)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);

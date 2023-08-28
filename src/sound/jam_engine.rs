@@ -515,7 +515,7 @@ mod test_jam_engine {
         let (_command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
             mpsc::channel();
 
-        JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash").unwrap()
+        JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash", false).unwrap()
     }
 
     #[test]

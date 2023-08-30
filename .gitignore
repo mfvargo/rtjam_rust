@@ -2,6 +2,7 @@
 /recs
 /tmp
 /Cargo.lock
+.cargo/
 settings.json
 soundin.cfg
 soundout.cfg

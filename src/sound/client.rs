@@ -36,6 +36,7 @@ use crate::{
     },
     utils,
 };
+use serde::de;
 use serde_json::json;
 use std::{
     io::{ErrorKind, Write},
@@ -44,13 +45,17 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+//use log::{debug, info, warn, error, trace, log_enabled, Level};
+use log::{debug, info, warn,};
 
+/// This is the entry for rtjam client
 /// call this from the main function to start the whole thing running.
 ///
 /// note the git_hash string allows the software to tell rtjam-nation what version of code it
 /// is currently running.
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
-    // This is the entry rtjam client
+    // Init the logger. If it's already been initialized, this will do nothing
+    let _ = env_logger::try_init();
 
     // load up the config to get required info
     let mut config = Config::build();
@@ -59,6 +64,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
     let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
     let mac_address = utils::get_my_mac_address()?;
+    debug!("Config values: api_url: {}, ws_url: {}, mac_address: {}", api_url, ws_url, mac_address);
 
     // Create an api endpoint and register this jamUnit
     let mut api = JamNationApi::new(api_url.as_str(), mac_address.as_str(), git_hash);
@@ -67,12 +73,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _register = api.jam_unit_register();
         if !api.has_token() {
             // can't connect to rtjam-nation.  sleep and then keep trying
+            info!("Can't connect to rtjam-nation.  Sleeping 2 seconds the retrying");
             sleep(Duration::new(2, 0));
         }
     }
 
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
     let token = String::from(api.get_token());
+    debug!("API token: {}", token);
     let (to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
         mpsc::channel();
     let (from_ws_tx, from_ws_rx): (
@@ -111,19 +119,19 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
-                // println!("websocket message: {}", m);
+                debug!("websocket message: {}", m);
                 match ParamMessage::from_json(&m) {
                     Ok(msg) => {
                         match msg.param {
                             // Is this a message we handle right here?
                             JamParam::SetAudioInput => {
                                 // client command
-                                println!("set audio input: {}", msg);
+                                info!("Set audio input: {}", msg);
                                 write_string_to_file("soundin.cfg", &msg.svalue);
                             }
                             JamParam::SetAudioOutput => {
                                 // another client command
-                                println!("set audio otuput: {}", msg);
+                                info!("Set audio otuput: {}", msg);
                                 write_string_to_file("soundout.cfg", &msg.svalue);
                             }
                             JamParam::ListAudioConfig => {
@@ -133,16 +141,17 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             JamParam::CheckForUpdate => {
                                 // See if we need to update ourself
                                 // if we just exit, it should check for update on restart
+                                info!("Check for update requested. Restarting.");
                                 std::process::exit(-1);
                             }
                             JamParam::RandomCommand => {
-                                println!("rando: {}", msg);
-                                println!("output: {}", run_a_command(&msg.svalue));
+                                info!("Rando: {}", msg);
+                                info!("Output: {}", run_a_command(&msg.svalue));
                                 let _res =
                                     to_ws_tx.send(WebsockMessage::Chat(run_a_command(&msg.svalue)));
                             }
                             JamParam::ShutdownDevice => {
-                                println!("exiting app");
+                                info!("Exiting app");
                                 std::process::exit(-1);
                             }
                             // This message is for the jamEngine to handle
@@ -152,12 +161,12 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                         }
                     }
                     Err(e) => {
-                        dbg!(e);
+                        debug!("{}", e);
                     }
                 }
             }
             Err(_e) => {
-                // dbg!(e);
+                debug!("{}", _e);
             }
         }
         let res = status_data_rx.try_recv();
@@ -169,7 +178,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 to_ws_tx.send(WebsockMessage::Chat(m))?;
             }
             Err(_e) => {
-                // dbg!(_e);
+                debug!("{}", _e);
             }
         }
         // Ping room occasionally
@@ -220,7 +229,7 @@ fn make_audio_config() -> serde_json::Value {
             driver = String::from_utf8_lossy(&dev.stdout).to_string();
         }
         Err(err) => {
-            dbg!(err);
+            debug!("{}", err);
         }
     }
     match Command::new("aplay").arg("-l").output() {
@@ -228,7 +237,7 @@ fn make_audio_config() -> serde_json::Value {
             cards = String::from_utf8_lossy(&output.stdout).to_string();
         }
         Err(err) => {
-            dbg!(err);
+            debug!("{}", err);
         }
     }
     json!({
@@ -252,7 +261,7 @@ fn run_a_command(cmd_line: &str) -> serde_json::Value {
             rval = String::from_utf8_lossy(&output.stdout).to_string();
         }
         Err(err) => {
-            dbg!(err);
+            debug!("{}", err);
         }
     }
     json!({
@@ -282,13 +291,13 @@ fn write_string_to_file(fname: &str, contents: &str) -> () {
                             let _res = f.sync_all();
                         }
                         Err(e) => {
-                            dbg!(e);
+                            debug!("{}", e);
                         }
                     }
                 }
                 other_error => {
-                    dbg!(other_error);
-                    println!("failed to create file: {}", fname);
+                    debug!("{}", other_error);
+                    warn!("Failed to create file: {}", fname);
                 }
             }
         }

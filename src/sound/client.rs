@@ -46,7 +46,7 @@ use std::{
     time::Duration,
 };
 //use log::{debug, info, warn, error, trace, log_enabled, Level};
-use log::{debug, info, warn,};
+use log::{trace, debug, info, warn,};
 
 /// This is the entry for rtjam client
 /// call this from the main function to start the whole thing running.
@@ -64,7 +64,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
     let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
     let mac_address = utils::get_my_mac_address()?;
-    debug!("Config values: api_url: {}, ws_url: {}, mac_address: {}", api_url, ws_url, mac_address);
+    let no_loopback = config.get_bool_value("no_loopback", false);
+    debug!("Config values: api_url: {}, ws_url: {}, mac_address: {}, no_loopback: {}", api_url, ws_url, mac_address, no_loopback);
 
     // Create an api endpoint and register this jamUnit
     let mut api = JamNationApi::new(api_url.as_str(), mac_address.as_str(), git_hash);
@@ -103,11 +104,10 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
-    let no_loopback = config.get_bool_value("no_loopback", false);
+    // TODO: move the info message to the JamEngine ctor
     if no_loopback {
-        println!("local loopback disabled");
+        info!("Local loopback disabled");
     }
-    
     let engine = JamEngine::new(status_data_tx, command_rx, api.get_token(), git_hash, no_loopback)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);
@@ -165,25 +165,32 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                         }
                     }
-                    Err(e) => {
-                        debug!("{}", e);
+                    Err(err) => {
+                        warn!("JSON parse Error: {}", err);
                     }
                 }
             }
-            Err(_e) => {
-                debug!("{}", _e);
+            Err(mpsc::TryRecvError::Empty) => {
+                // Expected result, just means there was no message
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                warn!("websocket: disconnected channel");
             }
         }
         let res = status_data_rx.try_recv();
         match res {
             Ok(m) => {
-                // println!("audio thread message: {}", m.to_string());
+                // audio messages are noisy, so restrict to the most verbose level
+                trace!("audio thread message: {}", m.to_string());
                 // So we got a message from the jack thread.  See if we need
                 // To pass this along to the websocket
                 to_ws_tx.send(WebsockMessage::Chat(m))?;
             }
-            Err(_e) => {
-                debug!("{}", _e);
+            Err(mpsc::TryRecvError::Empty) => {
+                // Expected result, just means there was no message
+            }
+            Err(mpsc::TryRecvError::Disconnected) => {
+                warn!("audio thread: disconnected channel");
             }
         }
         // Ping room occasionally
@@ -234,7 +241,7 @@ fn make_audio_config() -> serde_json::Value {
             driver = String::from_utf8_lossy(&dev.stdout).to_string();
         }
         Err(err) => {
-            debug!("{}", err);
+            debug!("audio config Error: {}", err);
         }
     }
     match Command::new("aplay").arg("-l").output() {
@@ -242,7 +249,7 @@ fn make_audio_config() -> serde_json::Value {
             cards = String::from_utf8_lossy(&output.stdout).to_string();
         }
         Err(err) => {
-            debug!("{}", err);
+            debug!("aplay Error: {}", err);
         }
     }
     json!({
@@ -266,7 +273,7 @@ fn run_a_command(cmd_line: &str) -> serde_json::Value {
             rval = String::from_utf8_lossy(&output.stdout).to_string();
         }
         Err(err) => {
-            debug!("{}", err);
+            debug!("run command Error: {}, command: {}", err, cmd_line);
         }
     }
     json!({
@@ -295,8 +302,8 @@ fn write_string_to_file(fname: &str, contents: &str) -> () {
                             let _res = f.write_all(contents.as_bytes());
                             let _res = f.sync_all();
                         }
-                        Err(e) => {
-                            debug!("{}", e);
+                        Err(err) => {
+                            warn!("create file Error: {}", err);
                         }
                     }
                 }

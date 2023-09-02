@@ -26,6 +26,8 @@ if [ "$1" != "--noupdate" ]; then
       /usr/bin/chmod +x $PROGRAM
     fi
   fi
+else
+  echo "Skipping update check per --noupdate flag."
 fi
 
 # Check for soundin.cfg

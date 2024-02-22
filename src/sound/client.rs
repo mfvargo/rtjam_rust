@@ -58,7 +58,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let _ = env_logger::try_init();
 
     // load up the config to get required info
-    let mut config = Config::build();
+    // TODO: keep bubbling up the config file name to remove hard coding, and make configurable for testing fun and games
+    let mut config = Config::build(String::from("settings.json"));
     config.load_from_file()?;
 
     let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));

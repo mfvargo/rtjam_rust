@@ -1,6 +1,5 @@
 //! These modules are shared among both the client and server executables for rtjam.
 //!
-
 use std::time::{SystemTime, UNIX_EPOCH};
 // Get the time in microseconds
 pub fn get_micro_time() -> u128 {

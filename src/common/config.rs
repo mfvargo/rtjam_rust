@@ -7,18 +7,31 @@ use std::{
     fs::File,
     io::{ErrorKind, Write},
 };
+use log::{info};
+
 pub struct Config {
     filename: String,
     settings: JsonValue,
 }
 
 impl Config {
-    pub fn build() -> Config {
-        Config {
-            filename: String::from("settings.json"),
-            settings: json::object! {},
+    pub fn build(filename: String) -> Config {
+        // TODO: Validate that filename is a valid file name, ends in .json, and that the path exists
+        let open_test = std::fs::OpenOptions::new()
+            .open(filename.as_str());
+        match open_test {
+            Ok(_) => {
+                Config {
+                    filename: filename,
+                    settings: json::object! {},
+                }
+            }
+            Err(err) => {
+                panic!("Cannot open settings file: {}", err);
+            }
         }
     }
+
     pub fn get_filename(&self) -> &str {
         &self.filename
     }
@@ -28,7 +41,7 @@ impl Config {
                 // we were able to read the file
                 let parsed = json::parse(&raw_data).unwrap();
                 self.settings.clone_from(&parsed);
-                println!("settings: {}", self.settings.pretty(2));
+                info!("settings: {}", self.settings.pretty(2));
                 Ok(true)
             }
             Err(_) => {
@@ -103,32 +116,40 @@ mod test {
     use super::*;
 
     #[test]
-    fn should_dump() {
-        // you should be able to dump the config object
-        let config = Config::build();
-        assert_eq!(config.dump(), ());
+    fn should_build_with_any_valid_name() {
+        // you should be able to build a config object from a valid file name, if it doesn't exist
+        let filename = String::from("I_see_dead_people.json");
+        let config = Config::build(filename.clone());
+        // Confirm that a config instance is returned
+        assert_eq!(config.filename, filename);
     }
 
     #[test]
+    #[should_panic]
+    fn should_panic_with_invalid_name() {
+        // you should not be able to build a config object from an invalid file name
+        let filename = String::from("I'm_\\all_{jacked}_up");
+        let _config = Config::build(filename);
+    }
 
-    fn config_build() {
-        // You should be able to build a Config object
-        let config = Config::build();
-        println!("filename is : {}", config.get_filename());
-        assert_eq!(config.get_filename(), "settings.json");
+    #[test]
+    fn should_dump() {
+        // you should be able to dump the config object
+        let config: Config = Config::build(String::from("settings.json"));
+        assert_eq!(config.dump(), ());
     }
 
     #[test]
     fn load_from_file() {
         // The configuration should serialize itself to JSON
-        let mut config = Config::build();
+        let mut config: Config = Config::build(String::from("settings.json"));
         assert_eq!(config.load_from_file().unwrap(), true);
     }
 
     #[test]
     fn get_value_default() {
         // You should be able to get a value with a default
-        let mut config = Config::build();
+        let mut config: Config = Config::build(String::from("settings.json"));
         let bob = config.get_value("bob", "bob");
         assert_eq!(bob, "bob");
     }
@@ -136,7 +157,7 @@ mod test {
     #[test]
     fn get_bool_value_default() {
         // You should be able to get a bool value with a default
-        let config = Config::build();
+        let config: Config = Config::build(String::from("settings.json"));
         let value = config.get_bool_value("i_dont_exist", false);
         assert_eq!(value, false);
     }
@@ -174,7 +195,7 @@ mod test {
     #[test]
     fn set_value() {
         // You should be able to set a value on a key
-        let mut config = Config::build();
+        let mut config: Config = Config::build(String::from("settings.json"));
         config.set_value("lastname", "kajikami");
         let lastname = config.get_value("lastname", "smith");
         assert_eq!(lastname, "kajikami");
@@ -182,7 +203,7 @@ mod test {
     #[test]
     fn save_settings() {
         // You should be able to flush the settings to the file
-        let mut config = Config::build();
+        let mut config: Config = Config::build(String::from("settings.json"));
         config.load_from_file().unwrap();
         config.set_value("foobar", "as Usual");
         let result = config.save_settings();

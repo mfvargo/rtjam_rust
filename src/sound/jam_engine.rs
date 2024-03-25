@@ -24,7 +24,7 @@ use super::{
 };
 
 // Set a timer for how long a connect will hold up without a keepalive from the web client
-pub const IDLE_DISCONNECT: u128 = 15 * 60 * 1000 * 1000; // 15 minutes
+pub const IDLE_DISCONNECT: u128 = 90 * 60 * 1000 * 1000; // 90 minutes
 pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 
 /// Aggregates all the sound components into a single structure

@@ -105,6 +105,21 @@ impl PlaybackMixer {
         // }
     }
 
+    pub fn get_a_frame(&mut self)-> Option<[f32; 128]> {
+        if self.stream.is_some() {
+            // We are currently playing back.  Mix out a packet
+            let mut out_a: [f32; 128] = [0.0; 128];
+            let mut out_b: [f32; 128] = [0.0; 128];
+            self.mixer.get_mix(&mut out_a, &mut out_b);
+            // println!("mixer: {}", self.mixer);
+            return Some(out_a);
+        }
+        None
+        // if let Some(reader) = &mut self.stream {
+        //     match reader.read_up_to(now)
+        // }
+    }
+
     pub fn open_stream(&mut self, file_name: &str, now: u128) -> Result<(), BoxError> {
         self.chan_map.clear();
         // TODO:  Flush out any data in the mixer  (channels to jitterbuffer) self.mixer.clear();
@@ -125,7 +140,7 @@ impl PlaybackMixer {
     }
 
     /// This will load data from the stream into the mixer up to now in time
-    fn load_up_till_now(&mut self, now: u128) -> Result<(), BoxError> {
+    pub fn load_up_till_now(&mut self, now: u128) -> Result<(), BoxError> {
         if let Some(reader) = &mut self.stream {
             let mut looping = true;
             while looping {

@@ -78,7 +78,7 @@ impl DistortionBase {
             m_tone_mid: BiQuadFilter::new(),  // mid control frequency
             m_tone_treble: BiQuadFilter::new(), // treble control frequency
 
-            /// type of clipping for stage 1
+            // type of clipping for stage 1
             clip1_type: ClipType::Soft, // clip funciton type for stage 1
             clip2_type: ClipType::Soft, // clip funciton type for stage 2
 

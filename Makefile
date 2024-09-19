@@ -2,14 +2,14 @@ NATION=http://rtjam-nation.com/pi/rust
 RTJAM_HOME=/home/pi/rtjam
 
 all:
-	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --release
+	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --example rt_2_wave --release
 	git rev-parse HEAD > target/release/examples/version.txt
 
 clean:
 	rm -rf target/release/examples/*
 
 debug:
-	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound
+	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --example r2_2_wave
 
 deploy: all
 	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust

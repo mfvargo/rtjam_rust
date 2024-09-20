@@ -42,7 +42,7 @@ fn main() -> Result<(), BoxError> {
         sample_format: hound::SampleFormat::Float,
     };
 
-    let mut writer = hound::WavWriter::create(args.out_file, spec).unwrap();
+    let mut writer = hound::WavWriter::create(args.out_file, spec)?;
 
     let mut looping = true;
     while looping {
@@ -60,11 +60,11 @@ fn main() -> Result<(), BoxError> {
             Some(buf) => {
                 print!(".");
                 for i in 0..buf[0].len() {
+                    // Since file is 2 channel float write left then write (interleave)
                     writer.write_sample(buf[0][i])?;
                     writer.write_sample(buf[1][i])?;
                 }
-                // this is where we write out a frame to the wavefile
-            }
+           }
             None => {
                 looping = false;
                 println!("No more data to read");

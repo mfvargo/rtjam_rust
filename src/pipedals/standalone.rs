@@ -11,15 +11,15 @@ use crate::pedals::pedal_board::PedalBoard;
 pub fn run() -> Result<(), BoxError> {
     // Create a pedalboard
     let mut board = PedalBoard::new();
-    println!("Running standalone");
+    println!("starting standalone");
     // let's open up a jack port
     loop {
-        match jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER) {
+        match jack::Client::new("pipedal", jack::ClientOptions::NO_START_SERVER) {
             Ok((client, _status)) => {
-                let in_a = client.register_port("rtjam_in_1", jack::AudioIn::default())?;
-                let in_b = client.register_port("rtjam_in_2", jack::AudioIn::default())?;
-                let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;
-                let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
+                let in_a = client.register_port("pipedal_in_1", jack::AudioIn::default())?;
+                let in_b = client.register_port("pipedal_in_2", jack::AudioIn::default())?;
+                let mut out_a = client.register_port("pipedal_out_l", jack::AudioOut::default())?;
+                let mut out_b = client.register_port("pipedal_out_r", jack::AudioOut::default())?;
 
                 // The callback gets called by jack whenever we have a frame
                 let process_callback =
@@ -49,11 +49,11 @@ pub fn run() -> Result<(), BoxError> {
                 // Connect system inputs to us and our puts to playback
                 active_client
                     .as_client()
-                    .connect_ports_by_name("system:capture_1", "rtjam_rust:rtjam_in_1")?;
+                    .connect_ports_by_name("system:capture_1", "pipedal:pipedal_in_1")?;
                 // Just catch and ignore error if second input channel connect fails.  Just run with one
                 match active_client
                     .as_client()
-                    .connect_ports_by_name("system:capture_2", "rtjam_rust:rtjam_in_2")
+                    .connect_ports_by_name("system:capture_2", "pipedal:pipedal_in_2")
                 {
                     Ok(_) => (),
                     Err(e) => {
@@ -62,10 +62,10 @@ pub fn run() -> Result<(), BoxError> {
                 }
                 active_client
                     .as_client()
-                    .connect_ports_by_name("rtjam_rust:rtjam_out_l", "system:playback_1")?;
+                    .connect_ports_by_name("pipedal:pipedal_out_l", "system:playback_1")?;
                 active_client
                     .as_client()
-                    .connect_ports_by_name("rtjam_rust:rtjam_out_r", "system:playback_2")?;
+                    .connect_ports_by_name("pipedal:pipedal_out_r", "system:playback_2")?;
 
                 loop {
                     sleep(Duration::new(2, 0));

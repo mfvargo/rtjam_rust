@@ -95,7 +95,7 @@ impl JamMessage {
     }
     /// retrieve the id of the client (sound element) who made this packet
     pub fn get_client_id(&self) -> u32 {
-        NetworkEndian::read_u32(&self.buffer[20..24]) // 12 - 16 is the offset for the ClientId
+        NetworkEndian::read_u32(&self.buffer[20..24]) // the offset for the ClientId
     }
     /// set the id on the packet used by sound element
     pub fn set_client_id(&mut self, id: u32) -> () {
@@ -103,7 +103,7 @@ impl JamMessage {
     }
     /// Get the client assigned sequence number (used to detect lost and out of seq packets)
     pub fn get_sequence_num(&self) -> u32 {
-        NetworkEndian::read_u32(&self.buffer[24..28]) // 12 - 16 is the offset for the ClientId
+        NetworkEndian::read_u32(&self.buffer[24..28]) // the offset for the ClientId
     }
     /// client (sound element) assigns a sequence number to each packet
     pub fn set_sequence_num(&mut self, id: u32) -> () {

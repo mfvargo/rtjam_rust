@@ -24,6 +24,7 @@ socket2 = "0.5.1"
 rand = "0.8.5"
 chrono = "0.4.24"
 clap = { version = "4.5.17", features = ["derive"] }
+hound = "3.5.1"
 
 [build-dependencies]
 vergen = "7.5.0"

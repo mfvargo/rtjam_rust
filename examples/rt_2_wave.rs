@@ -2,6 +2,7 @@ use rtjam_rust::common::box_error::BoxError;
 use clap::Parser;
 use rtjam_rust::server::playback_thread::PlaybackMixer;
 use rtjam_rust::common::get_micro_time;
+use hound;
 
 /// Convert a stored audio packet file into a wave file
 #[derive(Parser, Debug)]
@@ -33,6 +34,16 @@ fn main() -> Result<(), BoxError> {
         Err(e) => {dbg!(e);}
     }
 
+    // Create a wave file
+    let spec = hound::WavSpec {
+        channels: 2,
+        sample_rate: 48000,
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+
+    let mut writer = hound::WavWriter::create(args.out_file, spec).unwrap();
+
     let mut looping = true;
     while looping {
         // Advance time on frame
@@ -41,13 +52,17 @@ fn main() -> Result<(), BoxError> {
             Ok(()) => {}
             Err(e) => {
                 dbg!(e);
-                // Probably was end of file.  stop playback
+                // Probably was end of file. Close the stream.
                 mixer.close_stream();
             }            
         }
         match mixer.get_a_frame() {
             Some(buf) => {
-                println!("Got A Frame {}, {}", now, buf.len());
+                print!(".");
+                for i in 0..buf[0].len() {
+                    writer.write_sample(buf[0][i])?;
+                    writer.write_sample(buf[1][i])?;
+                }
                 // this is where we write out a frame to the wavefile
             }
             None => {

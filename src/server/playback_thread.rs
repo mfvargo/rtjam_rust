@@ -105,14 +105,14 @@ impl PlaybackMixer {
         // }
     }
 
-    pub fn get_a_frame(&mut self)-> Option<[f32; 128]> {
+    pub fn get_a_frame(&mut self)-> Option<[[f32; 128]; 2]> {
         if self.stream.is_some() {
             // We are currently playing back.  Mix out a packet
             let mut out_a: [f32; 128] = [0.0; 128];
             let mut out_b: [f32; 128] = [0.0; 128];
             self.mixer.get_mix(&mut out_a, &mut out_b);
             // println!("mixer: {}", self.mixer);
-            return Some(out_a);
+            return Some([out_a, out_b]);
         }
         None
         // if let Some(reader) = &mut self.stream {

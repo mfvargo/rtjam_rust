@@ -1,6 +1,6 @@
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use crate::{common::{box_error::BoxError, jam_packet::{JamMessage}, packet_stream::PacketReader, get_micro_time, stream_time_stat::MicroTimer}, sound::{mixer::Mixer, channel_map::ChannelMap}, server::cmd_message::RoomParam};
+use crate::{common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer}, server::cmd_message::RoomParam, sound::{channel_map::ChannelMap, mixer::Mixer}, utils::to_lin};
 
 use super::cmd_message::RoomCommandMessage;
 
@@ -76,12 +76,14 @@ pub struct PlaybackMixer {
 
 impl PlaybackMixer {
     pub fn new() -> PlaybackMixer {
-        PlaybackMixer {
+        let mut mixer = PlaybackMixer {
             mixer: Mixer::new(),
             chan_map: ChannelMap::new(),
             stream: None,
             seq: 0,
-        }
+        };
+        mixer.mixer.set_master(to_lin(-3.0));
+        mixer
     }
 
     pub fn get_a_packet(&mut self, now: u128) -> Option<JamMessage> {

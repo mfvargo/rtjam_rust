@@ -7,8 +7,12 @@
 //! board.  This json has all the pedals and their individual controls.  Saved pedal boards in
 //! the rtjam-nation website can be reloaded using that interface.
 //!
-//! When creating a new pedal, the pedal must be added to the privat make_pedal function.  Each new
-//! pedal must have a unique pedal type that will be used to construct a default pedal of that type.
+//! When creating a new pedal
+//! * the pedal name (unique) and Description must be added to get_pedal_types
+//! * the pedal must be added to the private make_pedal function.
+//! * the pedal implementation *MUST* use that unique name when it serializes (so the factory can create it)
+//! * The pedal struct has to be added to exports in pedals.rs
+//! Each pedal must have a unique pedal type that will be used to construct a default pedal of that type.
 //!
 use std::str::FromStr;
 
@@ -16,7 +20,7 @@ use super::{
     bass_di::BassDI, bass_envelope::BassEnvelope, chorus::Chorus, compressor::Compressor,
     delay::Delay, guitar_envelope::GuitarEnvelope, noise_gate::NoiseGate, pedal::Pedal,
     sigma_reverb::SigmaReverb, soul_drive::SoulDrive, speaker_sim_iir::SpeakerSimIIR,
-    tone_stack::ToneStack, tremelo::Tremelo, tube_drive::TubeDrive,
+    tone_stack::ToneStack, tremelo::Tremelo, tube_drive::TubeDrive, template_pedal::TemplatePedal,
 };
 use serde_json::{json, Value};
 
@@ -65,6 +69,7 @@ impl PedalBoard {
 
     pub fn get_pedal_types() -> serde_json::Value {
         json!({
+           "Template Pedal": "Sample pedal template",
            "Tone Stack": "Tone controls (3 band)",
            "Noise Gate": "Noise Gate",
            "Bass DI": "Bass Guitar Tone Shaping",
@@ -87,6 +92,7 @@ impl PedalBoard {
 
     fn make_pedal(type_name: &str) -> Option<BoxedPedal> {
         match type_name {
+            "Template Pedal" => Some(Box::new(TemplatePedal::new())),
             "Tone Stack" => Some(Box::new(ToneStack::new())),
             "Noise Gate" => Some(Box::new(NoiseGate::new())),
             "Bass DI" => Some(Box::new(BassDI::new())),

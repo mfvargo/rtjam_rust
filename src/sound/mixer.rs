@@ -94,6 +94,11 @@ impl Mixer {
         for chan in &mut self.strips {
             chan.mix_into(out_a, out_b);
         }
+        // Apply Master Volume
+        for i in 0..out_a.len() {
+            out_a[i] = out_a[i] * self.master_vol as f32;
+            out_b[i] = out_b[i] * self.master_vol as f32;
+        }
         // get the output volume
         self.master_level.add_frame(out_a, self.master_vol);
     }

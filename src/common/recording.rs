@@ -61,7 +61,7 @@ impl RecordingCatalog {
             if !metadata.is_dir() {
                 self.recordings.push(Recording::new(
                     entry.file_name().to_str().unwrap(),
-                    metadata.created()?,
+                    metadata.modified()?,
                     metadata.len(),
                 ))
             }

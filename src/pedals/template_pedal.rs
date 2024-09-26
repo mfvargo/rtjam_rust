@@ -170,7 +170,7 @@ impl Pedal for TemplatePedal {
 
 #[cfg(test)]
 
-mod test_tonestack {
+mod test_template_pedal {
     use super::*;
 
     #[test]

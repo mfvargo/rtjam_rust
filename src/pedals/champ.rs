@@ -52,8 +52,8 @@ impl Champ {
             "gain",
             vec![],
             0.0,
-            -10.0,
-            10.0,
+            -6.0,
+            20.0,
             0.25,
         ));
         pedal.settings.push(PedalSetting::new(
@@ -169,7 +169,7 @@ impl Pedal for Champ {
             let mut value = self.bass_filter.get_sample(samp);
             value = self.treble_filter.get_sample(&value);
             // Compression
-            value = clip_sample(&ClipType::Soft, value * self.gain);
+            value = clip_sample(&ClipType::Exp, value * self.gain);
             value /= self.gain;
             value *= self.master_vol;
             // Cabinet sim

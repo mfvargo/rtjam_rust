@@ -9,9 +9,10 @@ use super::pedal::Pedal;
 
 /// Simple Champ Amp model
 ///
-/// The effect I am making here does the following stuff.
-/// - give some tube non-linearity
+/// The amp sim does the following stuff.
 /// - Tone stack
+/// - give some tube non-linearity
+/// - Run the 4 biquad speaker cab sim for the 1x12 amp
 
 pub struct Champ {
     bypass: bool,
@@ -23,15 +24,11 @@ pub struct Champ {
     // Tone Controls
     bass_filter: BiQuadFilter,
     treble_filter: BiQuadFilter,
-
     // Speaker Sim
     high_pass: BiQuadFilter,
     notch: BiQuadFilter,
     high_shelf: BiQuadFilter,
     low_pass: BiQuadFilter,
-
-    // Here is where you would add th things you need to make it work
-    // BiQuad filter, delays, attack_hold_release, see things in the dsp folder.
 }
 
 impl Champ {
@@ -129,16 +126,7 @@ impl Pedal for Champ {
     }
     /// Called to reconfigure the effect based on the current setting values.
     ///
-    /// called after a setting change.  Note that settings are marked dirty on
-    /// update so the ToneStatck only needs to tweak those things that have changed.
-    ///
-    /// * A special note, most all settings are linearized when used in the algorithms with the
-    /// exception of the Boost parameter of the BiQuadFilter.  This parameter is passed in as
-    /// dB.  Normally there would be a call the the settings units to convert them, but in
-    /// this case the value is passed directly to the BiQuadFilter.  (great example, huh?)
-
     fn load_from_settings(&mut self) -> () {
-        // change my member variables based on the settings
         for setting in &mut self.settings {
             if setting.dirty {
                 match setting.get_name() {
@@ -189,7 +177,7 @@ impl Pedal for Champ {
             value = self.high_shelf.get_sample(&value);
             value = self.low_pass.get_sample(&value);
             value = self.low_pass.get_sample(&value);
-
+            // copy value to output
             output[i] = value;
             i += 1;
         }

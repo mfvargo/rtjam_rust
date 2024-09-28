@@ -1,7 +1,7 @@
-//! A blank pedal to be used as a template for others.
+//! A model of a Fender Princeton amp derived from Faust and ported to rust
 //!
-//! This template pedal demonstrates the features you must implement to create a new pedal type.
 
+// These macros are to make the Faust generated code compile quietly
 #![allow(unused_parens)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
@@ -15,17 +15,14 @@ use serde_json::json;
 use super::controls::{PedalSetting, SettingType, SettingUnit};
 use super::pedal::Pedal;
 
-/// Effect That I will create
+/// Fender Princeton Amp
 ///
-/// The effect I am making here does the following stuff.
-/// - this stuff
-/// - that stuff
-/// - some other stuff
+/// Amp that was built upon a model in Faust that was ported to rust.
 /// 
-/// 
+
+// More Fausty stuff
 type F32 = f32;
 type F64 = f64;
-
 fn mydsp_faustpower2_f(value: F32) -> F32 {
 	return value * value;
 }
@@ -36,8 +33,7 @@ fn mydsp_faustpower3_f(value: F32) -> F32 {
 pub struct Princeton {
     bypass: bool,
     settings: Vec<PedalSetting<f64>>,
-    // Here is where you would add th things you need to make it work
-    // BiQuad filter, delays, attack_hold_release, see things in the dsp folder.
+    // These are the state variables from the Faust model
     fSampleRate: i32,
 	fConst0: F32,
 	fConst1: F32,
@@ -311,6 +307,7 @@ impl Princeton {
 		self.instance_clear();
 	}
 
+	// This is the compute funtion that Faust generated
     fn compute(&mut self, count: i32, inputs: &[&[f32]], outputs: &mut[&mut[f32]]) {
         // (&mut self, input: &[f32], output: &mut [f32])
 		let (inputs0) = if let [inputs0, ..] = inputs {
@@ -395,7 +392,6 @@ impl Princeton {
 
 impl Pedal for Princeton {
     /// This is used by the PedalBoard to change a value from the U/X.
-    ///
     fn do_change_a_value(&mut self, name: &str, val: &serde_json::Value) {
         // Find the setting using the name, then update it's value
         match val.as_f64() {
@@ -410,15 +406,6 @@ impl Pedal for Princeton {
         }
     }
     /// Called to reconfigure the effect based on the current setting values.
-    ///
-    /// called after a setting change.  Note that settings are marked dirty on
-    /// update so the ToneStatck only needs to tweak those things that have changed.
-    ///
-    /// * A special note, most all settings are linearized when used in the algorithms with the
-    /// exception of the Boost parameter of the BiQuadFilter.  This parameter is passed in as
-    /// dB.  Normally there would be a call the the settings units to convert them, but in
-    /// this case the value is passed directly to the BiQuadFilter.  (great example, huh?)
-
     fn load_from_settings(&mut self) -> () {
         // change my member variables based on the settings
         for setting in &mut self.settings {
@@ -443,13 +430,11 @@ impl Pedal for Princeton {
             }
         }
     }
-
     /// This function gets called on a frame of audio.  This is where you filter does what it does.
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
+		// just call into the Faust generated compute
         self.compute(input.len() as i32, &[input], &mut[output]);
     }
-
-    
     /// returns the bypass setting on the pedal
     /// have to do this here because the Pedal interface cannot have any member data
     fn bypass(&self) -> bool {

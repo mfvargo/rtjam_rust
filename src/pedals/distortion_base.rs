@@ -160,6 +160,7 @@ impl DistortionBase {
 
             // Stage 1 - first clipper (set to emulate op-amp clipping before diodes)
             value = clip_sample(&self.clip1_type, value * self.gain1); // clip signal
+            value /= self.gain1;
 
             // filter out higher-order harmonics
             value = self.m_lpf2.get_sample(&value);

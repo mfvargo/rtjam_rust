@@ -446,7 +446,6 @@ impl Pedal for Princeton {
 
     /// This function gets called on a frame of audio.  This is where you filter does what it does.
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
-        let mut i: usize = 0;
         self.compute(input.len() as i32, &[input], &mut[output]);
     }
 

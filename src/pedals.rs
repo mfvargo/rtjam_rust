@@ -24,4 +24,5 @@ pub mod speaker_sim_iir;
 pub mod tone_stack;
 pub mod tremelo;
 pub mod tube_drive;
+pub mod champ;
 pub mod template_pedal;

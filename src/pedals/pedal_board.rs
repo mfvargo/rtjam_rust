@@ -21,6 +21,7 @@ use super::{
     delay::Delay, guitar_envelope::GuitarEnvelope, noise_gate::NoiseGate, pedal::Pedal,
     sigma_reverb::SigmaReverb, soul_drive::SoulDrive, speaker_sim_iir::SpeakerSimIIR,
     tone_stack::ToneStack, tremelo::Tremelo, tube_drive::TubeDrive, template_pedal::TemplatePedal,
+    champ::Champ
 };
 use serde_json::{json, Value};
 
@@ -83,6 +84,7 @@ impl PedalBoard {
            "Chorus": "Chorus",
            "Bass Envelope": "Bass Envelope Filter Pedal",
            "Guitar Envelope": "Guitar Envelope Filter Pedal (auto-wah)",
+           "Champ": "Fender Champ",
         })
     }
 
@@ -106,6 +108,7 @@ impl PedalBoard {
             "Chorus" => Some(Box::new(Chorus::new())),
             "Bass Envelope" => Some(Box::new(BassEnvelope::new())),
             "Guitar Envelope" => Some(Box::new(GuitarEnvelope::new())),
+            "Champ" => Some(Box::new(Champ::new())),
             _ => {
                 // No pedal for that name
                 println!("Can't create pedal {}", type_name);

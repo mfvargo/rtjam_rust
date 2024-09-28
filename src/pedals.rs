@@ -25,4 +25,5 @@ pub mod tone_stack;
 pub mod tremelo;
 pub mod tube_drive;
 pub mod champ;
+pub mod princeton;
 pub mod template_pedal;

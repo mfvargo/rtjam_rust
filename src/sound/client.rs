@@ -28,13 +28,11 @@ use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
-    },
-    sound::{
+    }, pedals::pedal_board::PedalBoard, sound::{
         jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
-    },
-    utils,
+    }, utils
 };
 use serde_json::json;
 use std::{
@@ -95,12 +93,15 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
+    let (pedal_tx, pedal_rx): (mpsc::Sender<PedalBoard>, mpsc::Receiver<PedalBoard>) =
+        mpsc::channel();
+
     let no_loopback = config.get_bool_value("no_loopback", false);
     if no_loopback {
         println!("local loopback disabled");
     }
     
-    let engine = JamEngine::new(status_data_tx, command_rx, api.get_token(), git_hash, no_loopback)?;
+    let engine = JamEngine::new(status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);
     });
@@ -150,6 +151,15 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                                 println!("exiting app");
                                 std::process::exit(-1);
                             }
+                            JamParam::LoadBoard => {
+                                let idx = msg.ivalue_1 as usize;
+                                if idx < 2 {
+                                    // Build a pedalboard and send it to the jack thread
+                                    let mut board = PedalBoard::new(idx);
+                                    board.load_from_json(&msg.svalue);
+                                    let _res = pedal_tx.send(board);
+                                }
+                            }                
                             // This message is for the jamEngine to handle
                             _ => {
                                 let _res = command_tx.send(msg);

@@ -50,6 +50,7 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 /// use std::sync::mpsc;
 /// use rtjam_rust::JamEngine;
 /// use rtjam_rust::ParamMessage;
+/// use rtjam_rust::pedals::pedal_board::PedalBoard;
 /// fn main() {
 ///     let (status_data_tx, _status_data_rx): (
 ///             mpsc::Sender<serde_json::Value>,
@@ -59,7 +60,11 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 ///             mpsc::Sender<ParamMessage>,
 ///             mpsc::Receiver<ParamMessage>
 ///         ) = mpsc::channel();
-///     let mut engine = JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash", false).expect("oops");
+///     let (_pedal_tx, pedal_rx): (
+///             mpsc::Sender<PedalBoard>,
+///             mpsc::Receiver<PedalBoard>
+///         ) = mpsc::channel();
+///     let mut engine = JamEngine::new(status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).expect("oops");
 ///     // At this point some audio engine would use engine.process() as the callback for audio frames
 ///     let in_a = [0.0;128];
 ///     let in_b = [0.0;128];
@@ -78,6 +83,7 @@ pub struct JamEngine {
     xmit_message: JamMessage,
     status_data_tx: mpsc::Sender<serde_json::Value>,
     command_rx: mpsc::Receiver<ParamMessage>,
+    pedal_rx: mpsc::Receiver<PedalBoard>,
     update_timer: MicroTimer,
     update_fallback_timer: MicroTimer,
     disconnect_timer: MicroTimer,
@@ -110,6 +116,7 @@ impl JamEngine {
     pub fn new(
         tx: mpsc::Sender<serde_json::Value>,
         rx: mpsc::Receiver<ParamMessage>,
+        prx: mpsc::Receiver<PedalBoard>,
         tok: &str,
         git_hash: &str,
         no_loopback: bool,
@@ -121,6 +128,7 @@ impl JamEngine {
             xmit_message: JamMessage::new(),
             status_data_tx: tx,
             command_rx: rx,
+            pedal_rx: prx,
             update_timer: MicroTimer::new(now, IDLE_REFRESH),
             update_fallback_timer: MicroTimer::new(now, IDLE_REFRESH * 5),
             disconnect_timer: MicroTimer::new(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
@@ -130,7 +138,7 @@ impl JamEngine {
             chan_map: ChannelMap::new(),
             git_hash: String::from(git_hash),
             now: now,
-            pedal_boards: vec![PedalBoard::new(), PedalBoard::new()],
+            pedal_boards: vec![PedalBoard::new(0), PedalBoard::new(1)],
             tuners: [Tuner::new(), Tuner::new()],
             jack_jitter: StreamTimeStat::new(100),
             input_meters: [PowerMeter::new(), PowerMeter::new()],
@@ -158,6 +166,7 @@ impl JamEngine {
         self.send_status();
         self.check_disconnect();
         self.check_command();
+        self.check_pedal_board();
         self.read_network();
         self.send_my_audio(in_a, in_b);
         // This is where we would get the playback data
@@ -216,6 +225,19 @@ impl JamEngine {
             // println!("disconnect: {}", self.disconnect_timer.since(self.now));
             // println!("mixer: {}", self.mixer);
         }
+    }
+    // This is where we check for a new pedalboard
+    fn check_pedal_board(&mut self) -> () {
+        match self.pedal_rx.try_recv() {
+            Ok(board) => {
+                let idx = board.get_channel();
+                if idx < 2 {
+                    self.pedal_boards[idx] = board;
+                }
+                self.send_pedal_info();
+            }
+            Err(_) => (),
+        }        
     }
     // This is where we check for any commands we need to process
     fn check_command(&mut self) -> () {
@@ -432,13 +454,6 @@ impl JamEngine {
                 }
                 self.send_pedal_info();
             }
-            JamParam::LoadBoard => {
-                let idx = msg.ivalue_1 as usize;
-                if idx < self.pedal_boards.len() {
-                    self.pedal_boards[idx].load_from_json(&msg.svalue);
-                }
-                self.send_pedal_info();
-            }
             JamParam::TuneChannel => {
                 let idx = msg.ivalue_1 as usize;
                 if idx < 2 {
@@ -519,8 +534,11 @@ mod test_jam_engine {
         // This is the channel we will use to send commands to the jack engine
         let (_command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
             mpsc::channel();
+        let (_pedal_tx, pedal_rx): (mpsc::Sender<PedalBoard>, mpsc::Receiver<PedalBoard>) =
+            mpsc::channel();
+    
 
-        JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash", false).unwrap()
+        JamEngine::new(status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).unwrap()
     }
 
     #[test]

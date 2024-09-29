@@ -34,15 +34,21 @@ type BoxedPedal = std::boxed::Box<
 pub struct PedalBoard {
     pedals: Vec<BoxedPedal>,
     board_id: i64,
+    channel: usize, // Channel this board will be used on
 }
 
 impl PedalBoard {
-    pub fn new() -> PedalBoard {
+    pub fn new(chan: usize) -> PedalBoard {
         PedalBoard {
             pedals: vec![],
             board_id: -1,
+            channel: chan,
         }
     }
+    pub fn get_channel(&self) -> usize {
+        self.channel
+    }
+
     pub fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
         let mut buf1: Vec<f32> = input.to_vec();
         let mut buf2: Vec<f32> = vec![0.0; input.len()];
@@ -209,7 +215,7 @@ mod test_pedal_board {
 
     #[test]
     fn can_add_one() {
-        let mut board = PedalBoard::new();
+        let mut board = PedalBoard::new(0);
         assert_eq!(board.num_pedals(), 0);
         board.insert_pedal("Tone Stack", 0);
         assert_eq!(board.num_pedals(), 1);
@@ -218,7 +224,7 @@ mod test_pedal_board {
     }
     #[test]
     fn can_delete_one() {
-        let mut board = PedalBoard::new();
+        let mut board = PedalBoard::new(1);
         board.insert_pedal("Tone Stack", 0);
         assert_eq!(board.num_pedals(), 1);
         board.delete_pedal(0);
@@ -226,7 +232,7 @@ mod test_pedal_board {
     }
     #[test]
     fn can_build_muliple() {
-        let mut board = PedalBoard::new();
+        let mut board = PedalBoard::new(0);
         board.insert_pedal("Tone Stack", 0);
         board.insert_pedal("Noise Gate", 0);
         assert_eq!(board.num_pedals(), 2);

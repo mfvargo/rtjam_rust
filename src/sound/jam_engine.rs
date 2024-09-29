@@ -91,6 +91,7 @@ pub struct JamEngine {
     tuners: [Tuner; 2],
     jack_jitter: StreamTimeStat,
     input_meters: [PowerMeter; 2],
+    room_meters: [PowerMeter; 2],
     no_loopback: bool,
 }
 
@@ -133,6 +134,7 @@ impl JamEngine {
             tuners: [Tuner::new(), Tuner::new()],
             jack_jitter: StreamTimeStat::new(100),
             input_meters: [PowerMeter::new(), PowerMeter::new()],
+            room_meters: [PowerMeter::new(), PowerMeter::new()],
             // no_loopback = true will disable the local monitoring
             no_loopback: no_loopback,
         };
@@ -275,6 +277,9 @@ impl JamEngine {
         self.tuners[1].get_note();
         self.pedal_boards[0].process(in_a, &mut a_temp);
         self.pedal_boards[1].process(in_b, &mut b_temp);
+        // This is the power we are sending into the room
+        self.room_meters[0].add_frame(&a_temp, 1.0);
+        self.room_meters[1].add_frame(&b_temp, 1.0);
         self.xmit_message.encode_audio(&a_temp, &b_temp);
         let _res = self.sock.send(&mut self.xmit_message);
         // Stuff my buffers into the mixer for local monitoring, unless no_loopback is toggled on
@@ -327,10 +332,10 @@ impl JamEngine {
                   "peakLeft": self.input_meters[0].get_peak(),
                   "peakRight": self.input_meters[1].get_peak(),
                   // These are what the channel is sending to the room
-                  "roomInputLeft": self.mixer.get_channel_power_avg(0),
-                  "roomInputRight": self.mixer.get_channel_power_avg(1),
-                  "roomPeakLeft": self.mixer.get_channel_power_peak(0),
-                  "roomPeakRight": self.mixer.get_channel_power_peak(1),
+                  "roomInputLeft": self.room_meters[0].get_avg(),
+                  "roomInputRight": self.room_meters[1].get_avg(),
+                  "roomPeakLeft": self.room_meters[0].get_peak(),
+                  "roomPeakRight": self.room_meters[1].get_peak(),
                   // TODO  These are stubs for now
                   "inputLeftFreq": self.tuners[0].get_note(),
                   "inputRightFreq": self.tuners[1].get_note(),

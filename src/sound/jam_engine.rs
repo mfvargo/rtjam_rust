@@ -99,6 +99,7 @@ pub struct JamEngine {
     input_meters: [PowerMeter; 2],
     room_meters: [PowerMeter; 2],
     no_loopback: bool,
+    room_mutes: [bool; 2],
 }
 
 impl JamEngine {
@@ -145,6 +146,7 @@ impl JamEngine {
             room_meters: [PowerMeter::new(), PowerMeter::new()],
             // no_loopback = true will disable the local monitoring
             no_loopback: no_loopback,
+            room_mutes: [false, false],
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -302,13 +304,20 @@ impl JamEngine {
         // This is the power we are sending into the room
         self.room_meters[0].add_frame(&a_temp, 1.0);
         self.room_meters[1].add_frame(&b_temp, 1.0);
-        self.xmit_message.encode_audio(&a_temp, &b_temp);
-        let _res = self.sock.send(&mut self.xmit_message);
         // Stuff my buffers into the mixer for local monitoring, unless no_loopback is toggled on
         if ! self.no_loopback {
             self.mixer.add_to_channel(0, &a_temp);
             self.mixer.add_to_channel(1, &b_temp);
         }
+        // room mutes
+        if self.room_mutes[0] {
+            a_temp = vec![0.0; in_a.len()];
+        }
+        if self.room_mutes[1] {
+            b_temp = vec![0.0; in_b.len()];
+        }
+        self.xmit_message.encode_audio(&a_temp, &b_temp);
+        let _res = self.sock.send(&mut self.xmit_message);
     }
     fn build_level_event(&mut self) -> serde_json::Value {
         let mut players: Vec<serde_json::Value> = vec![];
@@ -358,13 +367,13 @@ impl JamEngine {
                   "roomInputRight": self.room_meters[1].get_avg(),
                   "roomPeakLeft": self.room_meters[0].get_peak(),
                   "roomPeakRight": self.room_meters[1].get_peak(),
+                  "leftRoomMute": self.room_mutes[0],
+                  "rightRoomMute": self.room_mutes[1],
                   // TODO  These are stubs for now
                   "inputLeftFreq": self.tuners[0].get_note(),
                   "inputRightFreq": self.tuners[1].get_note(),
                   "leftTunerOn": self.tuners[0].enable,
                   "rightTunerOn": self.tuners[1].enable,
-                  "leftRoomMute": false,
-                  "rightRoomMute": false,
                   "beat": 0,
                   "jsonTimeStamp": 0,
                   "midiDevice": "not supported",
@@ -422,6 +431,11 @@ impl JamEngine {
                 if Self::check_index(msg.ivalue_1 as usize) {
                     self.mixer
                         .set_channel_fade(msg.ivalue_1 as usize, msg.fvalue as f32);
+                }
+            }
+            JamParam::MuteToRoom => {
+                if Self::check_index(msg.ivalue_1 as usize) {
+                    self.room_mutes[msg.ivalue_1 as usize] = msg.ivalue_2 == 1;
                 }
             }
             JamParam::RoomChange => {

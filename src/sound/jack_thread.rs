@@ -27,7 +27,8 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
                 let in_b = client.register_port("rtjam_in_2", jack::AudioIn::default())?;
                 let mut out_a = client.register_port("rtjam_out_l", jack::AudioOut::default())?;
                 let mut out_b = client.register_port("rtjam_out_r", jack::AudioOut::default())?;
-
+                let midi_in = client.register_port("rtjam_midi_input", jack::MidiIn::default())?;
+        
                 // The callback gets called by jack whenever we have a frame
                 let process_callback =
                     move |_: &jack::Client, ps: &jack::ProcessScope| -> jack::Control {
@@ -38,7 +39,10 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
 
                         // Let the engine process it
                         let _res = engine.process(in_a_p, in_b_p, out_a_p, out_b_p);
-
+                        let show_p = midi_in.iter(ps);
+                        for e in show_p {
+                            engine.send_midi_event(e);
+                        }
                         jack::Control::Continue
                     };
                 let process = jack::ClosureProcessHandler::new(process_callback);

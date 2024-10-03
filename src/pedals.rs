@@ -28,3 +28,4 @@ pub mod champ;
 pub mod princeton;
 pub mod tube_screamer;
 pub mod template_pedal;
+pub mod midi_event;

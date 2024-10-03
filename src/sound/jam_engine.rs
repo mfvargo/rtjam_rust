@@ -3,6 +3,7 @@
 //! The engine drives off the [`JamEngine::process`] function
 use std::{str::FromStr, sync::mpsc};
 
+use jack::RawMidi;
 use serde_json::json;
 
 use crate::{
@@ -12,8 +13,8 @@ use crate::{
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
     },
-    dsp::{tuner::Tuner, power_meter::PowerMeter},
-    pedals::pedal_board::PedalBoard,
+    dsp::{power_meter::PowerMeter, tuner::Tuner},
+    pedals::{midi_event::MidiEvent, pedal_board::PedalBoard},
 };
 
 use super::{
@@ -382,6 +383,14 @@ impl JamEngine {
         });
 
         data
+    }
+    pub fn send_midi_event (&mut self, e: RawMidi) -> () {
+        let mevent = MidiEvent::new(e);
+        let data = json!({
+            "speaker": "UnitChatRobot",
+            "midiEvent": mevent,
+        });
+        let _res = self.status_data_tx.send(data);
     }
     fn process_param_command(&mut self, msg: ParamMessage) -> () {
         match msg.param {

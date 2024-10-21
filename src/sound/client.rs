@@ -34,6 +34,7 @@ use crate::{
         param_message::{JamParam, ParamMessage},
     }, utils
 };
+use json::JsonValue;
 use serde_json::json;
 use std::{
     io::{ErrorKind, Write},
@@ -209,13 +210,20 @@ fn jam_unit_ping_thread(mut api: JamNationApi) -> Result<(), BoxError> {
     loop {
         while api.has_token() == true {
             // While in this loop, we are going to ping every 10 seconds
-            let ping = api.jam_unit_ping()?;
-            if ping["jamUnit"].is_null() {
-                // Error in the ping.  better re-register
-                api.forget_token();
-            } else {
-                // Successful ping.. Sleep for 10
-                sleep(Duration::new(10, 0));
+            match api.jam_unit_ping() {
+                Ok(ping) => {
+                    if ping["jamUnit"].is_null() {
+                        // Error in the ping.  better re-register
+                        api.forget_token();
+                    } else {
+                        // Successful ping.. Sleep for 10
+                        sleep(Duration::new(10, 0));
+                    }
+                }
+                Err(e) => {
+                    api.forget_token();
+                    dbg!(e);
+                }
             }
         }
         if !api.has_token() {

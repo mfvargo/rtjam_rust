@@ -20,7 +20,7 @@ impl MidiEvent {
                     wmidi::MidiMessage::ProgramChange(chan, prog) => {
                         MidiEvent { e_type: 4, channel: chan as u8, note: prog.into(), velocity: 0 }
                     }
-                    wmidi::MidiMessage::ControlChange(chan, note , val) => {
+                    wmidi::MidiMessage::ControlChange(_chan, note , val) => {
                         MidiEvent { e_type: 4, channel: 0, note: note.into(), velocity: val.into() }
                     }
                     _ => {

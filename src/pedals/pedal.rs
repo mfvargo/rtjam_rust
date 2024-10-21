@@ -59,11 +59,16 @@ pub trait Pedal {
     /// do_change_a_value() and load_from_settings() on the Effect.
     fn change_setting(&mut self, setting: &serde_json::Value) -> () {
         if let Some(v) = setting["name"].as_str() {
-            if let Some(b) = setting["value"].as_bool() {
-                self.set_my_bypass(b);
-            } else {
-                self.do_change_a_value(v, &setting["value"]);
-                self.load_from_settings();
+            match v {
+                "bypass" => {
+                    if let Some(b) = setting["value"].as_bool() {
+                        self.set_my_bypass(b);
+                    } 
+                }
+                _ => {
+                    self.do_change_a_value(v, &setting["value"]);
+                    self.load_from_settings();
+                }
             }
         }
     }

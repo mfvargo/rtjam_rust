@@ -155,7 +155,7 @@ impl Pedal for BassDI {
         // pass in the bypass setting
         let mut settings: Vec<serde_json::Value> = vec![self.make_bypass()];
         // now the actual settings
-        let mut i = 1;
+        let mut i = settings.len();
         for item in &self.settings {
             settings.push(item.as_json(i));
             i += 1;

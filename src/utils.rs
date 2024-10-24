@@ -33,20 +33,20 @@ pub fn get_git_hash() -> String {
 ///
 /// fn main() {
 ///     let frame = [0.0; 128];
-///     assert_eq!(get_frame_power_in_db(&frame), -60.0);
+///     assert_eq!(get_frame_power_in_db(&frame, 1.0), -60.0);
 ///     let frame = [0.5; 128];
-///     assert_eq!(get_frame_power_in_db(&frame).round(), -6.0);
+///     assert_eq!(get_frame_power_in_db(&frame, 1.0).round(), -6.0);
 /// }
 /// ```
 ///
-pub fn get_frame_power_in_db(frame: &[f32]) -> f64 {
+pub fn get_frame_power_in_db(frame: &[f32], gain: f64) -> f64 {
     // linear calcution.  sum of the squares / number of values
     if frame.len() == 0 {
         return to_db(0.0);
     }
     let mut pow: f64 = 0.0;
     for v in frame {
-        pow = pow + f64::powi(*v as f64, 2);
+        pow = pow + f64::powi(*v as f64 * gain, 2);
     }
     to_db(pow / (frame.len() as f64))
 }
@@ -96,9 +96,9 @@ mod test_utils {
     #[test]
     fn get_frame_power() {
         let frame = [0.0; 128];
-        assert_eq!(get_frame_power_in_db(&frame), -60.0);
+        assert_eq!(get_frame_power_in_db(&frame, 1.0), -60.0);
         let frame = [0.5; 128];
-        assert_eq!(get_frame_power_in_db(&frame).round(), -6.0);
+        assert_eq!(get_frame_power_in_db(&frame, 1.0).round(), -6.0);
     }
     #[test]
     fn lin_to_db_and_back() {

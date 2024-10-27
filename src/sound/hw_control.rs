@@ -6,10 +6,18 @@ use serde_json::Value;
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
+use rppal::gpio::Gpio;
+
+const GPIO_LED: u8 = 23;
+
+
 pub fn hw_control_thread(
     lights_rx: mpsc::Receiver<Value>, // channel from main thread
 ) -> Result<(), BoxError> {
     // This where we will implement some stuff
+
+    let mut pin = Gpio::new()?.get(GPIO_LED)?.into_output();
+    let mut toggle = true;
     loop {
         let res = lights_rx.try_recv();
         match res {
@@ -21,6 +29,12 @@ pub fn hw_control_thread(
                 // dbg!(_e);
             }
         }
-        sleep(Duration::new(0, 1000000));
+        if toggle {
+            pin.set_high();
+        } else {
+            pin.set_low();
+        }
+        toggle = !toggle;
+        sleep(Duration::new(1, 0));
     }
 }

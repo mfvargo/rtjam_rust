@@ -28,9 +28,8 @@ use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
-    }, pedals::pedal_board::PedalBoard, sound::{
+    }, hw_control::hw_control_thread::hw_control_thread, pedals::pedal_board::PedalBoard, sound::{
         jack_thread,
-        hw_control::hw_control_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, utils

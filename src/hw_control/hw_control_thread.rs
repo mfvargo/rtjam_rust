@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use rppal::gpio::Gpio;
+use rppal::{gpio::Gpio, i2c::I2c};
 
 const GPIO_LED: u8 = 23;
 
@@ -27,6 +27,15 @@ pub fn hw_control_thread(
         }
     }
 
+    match I2c::new() {
+        Ok(con) => {
+            dbg!(con);
+        }
+        Err(e) => {
+            dbg!(e);
+        }
+    }
+    
     let mut pin = Gpio::new()?.get(GPIO_LED)?.into_output();
     let mut toggle = true;
     loop {

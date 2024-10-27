@@ -6,6 +6,7 @@ Sigma Audio Interface - I2S Driver Setup
 2. edit /boot/firmware/config.txt and add the following lines at end of file to enable I2S pins and load driver
 
 # enable I2S and start driver for Sigma I2S audio interface board
+dtparam=i2c_arm=on
 dtparam=i2s=on
 dtoverlay=sigma-i2s-codec
 

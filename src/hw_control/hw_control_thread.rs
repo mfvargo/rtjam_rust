@@ -6,37 +6,18 @@ use serde_json::Value;
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use rppal::{gpio::Gpio, i2c::I2c};
+use super::status_light::{StatusFunction, StatusLight, Color};
 
-const GPIO_LED: u8 = 23;
 
 
 pub fn hw_control_thread(
     lights_rx: mpsc::Receiver<Value>, // channel from main thread
 ) -> Result<(), BoxError> {
+
+    let mut input_one = StatusLight::new(StatusFunction::InputOne)?;
+    let mut input_two = StatusLight::new(StatusFunction::InputTwo)?;
+    let mut status = StatusLight::new(StatusFunction::Status)?;
     // This where we will implement some stuff
-
-    match Gpio::new() {
-        Ok(_gpio) => {
-            // Looks good so just continue on...
-        }
-        Err(e) => {
-            // No gpio, exit this thread
-            dbg!(e);
-            return Ok(());
-        }
-    }
-
-    match I2c::new() {
-        Ok(con) => {
-            dbg!(con);
-        }
-        Err(e) => {
-            dbg!(e);
-        }
-    }
-    
-    let mut pin = Gpio::new()?.get(GPIO_LED)?.into_output();
     let mut toggle = true;
     loop {
         let res = lights_rx.try_recv();
@@ -50,9 +31,14 @@ pub fn hw_control_thread(
             }
         }
         if toggle {
-            pin.set_high();
+            input_one.set(Color::Black);
+            input_two.set(Color::Black);
+            status.set(Color::Black);
         } else {
-            pin.set_low();
+            input_one.set(Color::Green);
+            input_two.set(Color::Red);
+            status.set(Color::Orange);
+            
         }
         toggle = !toggle;
         sleep(Duration::new(1, 0));

@@ -16,6 +16,17 @@ pub fn hw_control_thread(
 ) -> Result<(), BoxError> {
     // This where we will implement some stuff
 
+    match Gpio::new() {
+        Ok(_gpio) => {
+            // Looks good so just continue on...
+        }
+        Err(e) => {
+            // No gpio, exit this thread
+            dbg!(e);
+            return Ok(());
+        }
+    }
+
     let mut pin = Gpio::new()?.get(GPIO_LED)?.into_output();
     let mut toggle = true;
     loop {

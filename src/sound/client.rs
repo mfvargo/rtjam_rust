@@ -30,11 +30,13 @@ use crate::{
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
     }, pedals::pedal_board::PedalBoard, sound::{
         jack_thread,
+        hw_control::hw_control_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, utils
 };
-use serde_json::json;
+use serde_json::{ Value, json };
+// use serde_json::json;
 use std::{
     io::{ErrorKind, Write},
     process::Command,
@@ -42,6 +44,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+
 
 /// call this from the main function to start the whole thing running.
 ///
@@ -110,10 +113,19 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = jam_unit_ping_thread(api);
     });
 
+    let (_lights_tx, lights_rx): (mpsc::Sender<Value>, mpsc::Receiver<Value>) =
+        mpsc::channel();
+
+    let _hw_handle = thread::spawn(move || {
+        let _res = hw_control_thread(lights_rx);
+    });
+
     // create a timer to ping the websocket to let them know we are here
     let mut websock_room_ping = MicroTimer::new(get_micro_time(), 2_000_000);
     // Now this main thread will listen on the mpsc channels
     loop {
+        // This is how you would send a message to the hw control thread!
+        // let _res = lights_tx.send(json!({"msg": "hello"}));
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {

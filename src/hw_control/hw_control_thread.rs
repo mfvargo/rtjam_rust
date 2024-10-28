@@ -2,24 +2,25 @@
 //!
 //! This thread will initialize the status lights, configure codec hardware
 //! and read control knobs from the hardware
-use serde_json::Value;
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use super::{codec_control::CodecControl, status_light::{Color, StatusFunction, StatusLight}};
+use super::{codec_control::CodecControl, status_light::{LightMessage, StatusFunction, StatusLight}};
 
 
 
 pub fn hw_control_thread(
-    lights_rx: mpsc::Receiver<Value>, // channel from main thread
+    lights_rx: mpsc::Receiver<LightMessage>, // channel from main thread
 ) -> Result<(), BoxError> {
 
     let mut input_one = StatusLight::new(StatusFunction::InputOne)?;
     let mut input_two = StatusLight::new(StatusFunction::InputTwo)?;
     let mut status = StatusLight::new(StatusFunction::Status)?;
+    let mut codec_option: Option<CodecControl> = None;
 
     match CodecControl::new() {
-        Ok(_codec) => {
+        Ok(codec) => {
+            codec_option = Some(codec);
             println!("codec initiated");
         }
         Err(e) => {
@@ -28,29 +29,31 @@ pub fn hw_control_thread(
     }
 
     // This where we will implement some stuff
-    let mut toggle = true;
     loop {
+        // poll the message queue
         let res = lights_rx.try_recv();
         match res {
             Ok(m) => {
-                // Got a message to send
-                println!("received light status message: {}", m);
+                // Got a light update
+                // println!("Got light message 1:{:.2}, 2:{:.2}", m.input_one, m.input_two);
+                input_one.power(m.input_one);
+                input_two.power(m.input_two);
+                status.set(m.status);
             }
             Err(_e) => {
+                // nothing to read right now
                 // dbg!(_e);
             }
         }
-        if toggle {
-            input_one.set(Color::Black);
-            input_two.set(Color::Black);
-            status.set(Color::Black);
-        } else {
-            input_one.set(Color::Green);
-            input_two.set(Color::Red);
-            status.set(Color::Orange);
-            
+        // Now check the pots
+        match codec_option {
+            Some(ref mut codec) => {
+                codec.read_pots();
+            }
+            None => {
+                // No codec could be constructed.  Just ignore it
+            }
         }
-        toggle = !toggle;
-        sleep(Duration::new(1, 0));
+        sleep(Duration::new(0, 5_000_000));
     }
 }

@@ -1,12 +1,15 @@
 use rppal::gpio::{Gpio, OutputPin};
-
 use crate::common::box_error::BoxError;
+use serde::{Deserialize, Serialize};
+
 
 pub enum StatusFunction {
     InputOne,
     InputTwo,
     Status,
 }
+
+#[derive(Serialize, Deserialize)]
 pub enum Color {
     Black,
     Green,
@@ -14,6 +17,12 @@ pub enum Color {
     Red,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct LightMessage {
+    pub input_one: f64,
+    pub input_two: f64,
+    pub status: Color,
+}
 pub struct StatusLight {
     red_pin: OutputPin,
     green_pin: OutputPin,
@@ -60,6 +69,19 @@ impl StatusLight {
                 self.red_pin.set_high();
                 self.green_pin.set_low();
             }
+        }
+    }
+
+    pub fn power(&mut self, power: f64) -> () {
+
+        if power < -32.0 {
+            self.set(Color::Black);
+        } else if power < -29.5 {
+            self.set(Color::Green);
+        } else if power < -24.0 {
+            self.set(Color::Orange);
+        } else {
+            self.set(Color::Red);
         }
     }
 }

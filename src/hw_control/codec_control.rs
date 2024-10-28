@@ -46,4 +46,8 @@ impl CodecControl {
             i2c_int: codec,
         })
     }
+
+    pub fn read_pots(&mut self) -> () {
+        // This is where we would put code to poll the pots and set registers on the coded...
+    }
 }

@@ -28,13 +28,13 @@ use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
-    }, hw_control::hw_control_thread::hw_control_thread, pedals::pedal_board::PedalBoard, sound::{
+    }, hw_control::{hw_control_thread::hw_control_thread, status_light::LightMessage}, pedals::pedal_board::PedalBoard, sound::{
         jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, utils
 };
-use serde_json::{ Value, json };
+use serde_json::json;
 // use serde_json::json;
 use std::{
     io::{ErrorKind, Write},
@@ -83,6 +83,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
+    // Lets create a thread to control custom hardware
+    let (lights_tx, lights_rx): (mpsc::Sender<LightMessage>, mpsc::Receiver<LightMessage>) =
+    mpsc::channel();
+
+    let _hw_handle = thread::spawn(move || {
+        let _res = hw_control_thread(lights_rx);
+    });
+
     // Create channels to/from Jack Engine
 
     // This is the channel the audio engine will use to send us status data
@@ -102,21 +110,14 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     if no_loopback {
         println!("local loopback disabled");
     }
-    
-    let engine = JamEngine::new(status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
+
+    let engine = JamEngine::new(lights_tx, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);
     });
 
     let _ping_handle = thread::spawn(move || {
         let _res = jam_unit_ping_thread(api);
-    });
-
-    let (_lights_tx, lights_rx): (mpsc::Sender<Value>, mpsc::Receiver<Value>) =
-        mpsc::channel();
-
-    let _hw_handle = thread::spawn(move || {
-        let _res = hw_control_thread(lights_rx);
     });
 
     // create a timer to ping the websocket to let them know we are here

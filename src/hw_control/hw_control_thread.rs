@@ -6,7 +6,7 @@ use serde_json::Value;
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use super::status_light::{StatusFunction, StatusLight, Color};
+use super::{codec_control::CodecControl, status_light::{Color, StatusFunction, StatusLight}};
 
 
 
@@ -17,6 +17,16 @@ pub fn hw_control_thread(
     let mut input_one = StatusLight::new(StatusFunction::InputOne)?;
     let mut input_two = StatusLight::new(StatusFunction::InputTwo)?;
     let mut status = StatusLight::new(StatusFunction::Status)?;
+
+    match CodecControl::new() {
+        Ok(_codec) => {
+            println!("codec initiated");
+        }
+        Err(e) => {
+            dbg!(e);
+        }
+    }
+
     // This where we will implement some stuff
     let mut toggle = true;
     loop {

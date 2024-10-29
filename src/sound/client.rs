@@ -28,7 +28,7 @@ use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
-    }, hw_control::{hw_control_thread::hw_control_thread, status_light::LightMessage}, pedals::pedal_board::PedalBoard, sound::{
+    }, hw_control::{hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage}}, pedals::pedal_board::PedalBoard, sound::{
         jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
@@ -83,13 +83,18 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
+    let mut light_option: Option<mpsc::Sender<LightMessage>> = None;
     // Lets create a thread to control custom hardware
     let (lights_tx, lights_rx): (mpsc::Sender<LightMessage>, mpsc::Receiver<LightMessage>) =
     mpsc::channel();
 
-    let _hw_handle = thread::spawn(move || {
-        let _res = hw_control_thread(lights_rx);
-    });
+    if has_lights() {
+        light_option = Some(lights_tx);
+
+        let _hw_handle = thread::spawn(move || {
+            let _res = hw_control_thread(lights_rx);
+        });
+    }
 
     // Create channels to/from Jack Engine
 
@@ -111,7 +116,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         println!("local loopback disabled");
     }
 
-    let engine = JamEngine::new(lights_tx, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
+    let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);
     });

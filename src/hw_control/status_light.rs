@@ -2,6 +2,17 @@ use rppal::gpio::{Gpio, OutputPin};
 use crate::common::box_error::BoxError;
 use serde::{Deserialize, Serialize};
 
+pub fn has_lights() -> bool {
+    match Gpio::new() {
+        Ok(_) => {
+            true
+        }
+        Err(e) => {
+            dbg!(e);
+            false
+        }
+    }
+}
 
 pub enum StatusFunction {
     InputOne,

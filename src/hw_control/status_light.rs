@@ -85,11 +85,11 @@ impl StatusLight {
 
     pub fn power(&mut self, power: f64) -> () {
 
-        if power < -32.0 {
+        if power < -59.9 {
             self.set(Color::Black);
-        } else if power < -29.5 {
+        } else if power < -35.5 {
             self.set(Color::Green);
-        } else if power < -24.0 {
+        } else if power < -20.0 {
             self.set(Color::Orange);
         } else {
             self.set(Color::Red);

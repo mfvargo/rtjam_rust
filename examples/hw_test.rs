@@ -1,12 +1,11 @@
 use std::{sync::mpsc, thread};
-use serde_json::Value;
 
-use rtjam_rust::{common::box_error::BoxError, hw_control::hw_control_thread::hw_control_thread};
+use rtjam_rust::{common::box_error::BoxError, hw_control::{hw_control_thread::hw_control_thread, status_light::LightMessage}};
 
 fn main() -> Result<(), BoxError> {
     // note: add error checking yourself.
 
-    let (_lights_tx, lights_rx): (mpsc::Sender<Value>, mpsc::Receiver<Value>) =
+    let (_lights_tx, lights_rx): (mpsc::Sender<LightMessage>, mpsc::Receiver<LightMessage>) =
     mpsc::channel();
 
     let hw_handle = thread::spawn(move || {

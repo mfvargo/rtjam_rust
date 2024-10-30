@@ -47,7 +47,7 @@ impl CodecControl {
         codec.write(&buf)?;
 
         let reg_data_p0: [[u8;2]; 20] = [
-            [7, 0x0A], [8, 0xC0], [9, 0x30], [14, 0x80], [18, 0x0F], [19, 0x04], [22, 0x04], 
+            [07, 0x0A], [08, 0xC0], [09, 0x30], [14, 0x80], [18, 0x0F], [19, 0x04], [22, 0x04], 
             [25, 0x80], [37, 0xC0], [43, 0x00], [44, 0x00], [47, 0x80], [51, 0x0F], [64, 0x80], 
             [65, 0x0F], [82, 0x80], [86, 0x09], [92, 0x80], [93, 0x09], [101, 0x01]
         ];
@@ -60,8 +60,8 @@ impl CodecControl {
         }
 
         let reg_data_p1: [[u8;2]; 12] = [
-            [65, 0x7F], [66, 0xE9], [67, 0x80], [68, 0x17], [69, 0x7F], [70, 0xD4], [71, 0x7F],
-            [72, 0xE9], [73, 0x80], [74, 0x17], [75, 0x7F], [76, 0xD4]
+            [65, 0x7F], [66, 0xE9], [67, 0x80], [68, 0x17], [69, 0x7F], [70, 0xD4], 
+            [71, 0x7F], [72, 0xE9], [73, 0x80], [74, 0x17], [75, 0x7F], [76, 0xD4]
         ];
 
         // Set Reg 1 - select Page 1
@@ -125,6 +125,7 @@ impl CodecControl {
         // Setup i2c bus to talk to the codec
         self.i2c_int.set_slave_address(0x18)?;
 
+        // Initialize Buffer to be used to write to i2c  devices
         let mut buf: [u8; 2] = [0,0];
 
         // Pot 1 - channel 0 - Instrument input gain
@@ -140,6 +141,7 @@ impl CodecControl {
             buf[0] = 15;
             buf[1] = (self.pot_values[0] / 5.0).clamp(0.0, 255.0) as u8;
             self.i2c_int.write(&buf)?;
+            self.prev_pot_values[0] = self.pot_values[0];
         }
 
         // Pot 2 - channel 1 - mic/headset input gain
@@ -158,6 +160,7 @@ impl CodecControl {
             buf[0] = 16;
             buf[1] = (self.pot_values[1] / 4.0).clamp(0.0, 255.0) as u8;
             self.i2c_int.write(&buf)?;
+            self.prev_pot_values[1] = self.pot_values[1];
         }
 
         // Pot 3 - channel 2 - Headphone amp gain
@@ -185,40 +188,28 @@ impl CodecControl {
             buf[1] = 255 - ((self.pot_values[2]/2.0).clamp(-127.99, 127.99)) as u8;
             buf[1] |= 0x80;
             self.i2c_int.write(&buf)?;
-        }
-
-        // store current state for next time through loop
-        for i in [0, 1, 2] {
-            self.prev_pot_values[i] = self.pot_values[i];
+            self.prev_pot_values[2] = self.pot_values[2];
         }
 
         Ok(())
     }
 
     fn adc_scan_inputs(&mut self) -> Result<(), BoxError> {
+
         // setup i1c to write to ADC at address 0x29
         self.i2c_int.set_slave_address(0x29)?;
 
-        // write to ADC to start conversion
-        // TODO:  This looks like it is trying to force two bytes into one?
-        // m_adcCommand[0] = 0b11110000; // CH3-CH0,
-        // if (write(m_file, m_adcCommand, 1) != 1)
-        // {
-        //     cerr << "Failed to write to adc on i2c bus" << endl;
-        //     exit(-1);
-        // }
-        // TODO:  How to port this?
-        // self.i2c_int.write([0])?;
+        let start_conv: [u8; 1] = [0xf0];
+        self.i2c_int.write(&start_conv)?;
 
         sleep(Duration::new(0, 10_000));
 
         let mut buf: [u8; 2] = [0,0];
         for _i in [0, 1, 2] {
             self.i2c_int.read(&mut buf)?;   // Read data
-            let adc_chan = ((buf[0] & 0x30) >> 4);  // Get channel id
-            // TODO:  This needs some work. 
-            self.adc_values[adc_chan as usize] = (((buf[0] & 0x0F) << 8) + buf[1]) as u64; // Get value
-            self.adc_values[adc_chan as usize] /= 16;  // scale down for knobs
+            let adc_chan = (buf[0] & 0x30) >> 4;  // Get channel id
+            let val: u64 = buf[0] as u64;
+            self.adc_values[adc_chan as usize] = (val << 8 + buf[1] as u64) / 16;
         }
 
         Ok(())

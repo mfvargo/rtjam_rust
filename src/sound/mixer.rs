@@ -38,7 +38,7 @@ impl Mixer {
     }
     /// set master volume for the overall mix
     pub fn set_master(&mut self, v: f64) -> () {
-        self.master_vol = v;
+        self.master_vol = to_lin(v);
     }
     /// retrieve avg power of the total mix
     pub fn get_master_level_avg(&self) -> f64 {
@@ -76,9 +76,21 @@ impl Mixer {
     pub fn get_channel_gain(&self, idx: usize) -> f64 {
         self.strips[idx].get_gain()
     }
+    /// set mute on a particular channel
+    pub fn set_channel_mute(&mut self, idx: usize, enabled: bool) -> () {
+        self.strips[idx].set_mute(enabled);
+    }
+    /// get the mute setting for a particular channel
+    pub fn get_channel_mute(&self, idx: usize) -> bool {
+        self.strips[idx].get_mute()
+    }
     /// set pan for a specific channel
     pub fn set_channel_fade(&mut self, idx: usize, val: f32) -> () {
         self.strips[idx].set_fade(val);
+    }
+    /// get the pan for a specific channel
+    pub fn get_channel_fade(&self, idx: usize) -> f32 {
+        self.strips[idx].get_fade()
     }
     /// get a frame of audio from the mixer.  this will
     /// - pull audio from all jitter buffers for all channels

@@ -18,7 +18,7 @@ pub fn dec2bcd(dec: u8) -> u8 {
 
 pub struct CodecControl {
     i2c_int: I2c,
-    adc_values: [u64; 4],
+    adc_values: [u64; 3],
     pot_values: [f64; 3],
     prev_pot_values: [f64; 3],
     filters: [SmoothingFilter; 3],
@@ -89,7 +89,7 @@ impl CodecControl {
 
         Ok(CodecControl {
             i2c_int: codec,
-            adc_values: [0, 0, 0, 0],
+            adc_values: [0, 0, 0],
             pot_values: [0.0, 0.0, 0.0],
             prev_pot_values: [0.0, 0.0, 0.0],
             filters: [
@@ -213,20 +213,12 @@ impl CodecControl {
         sleep(Duration::new(0, 10_000));
 
         let mut buf: [u8; 2] = [0,0];
-
-        // read all 4 channels of ADC - ADC will increment the channel after each read.
-        // the 4th value is noise - not connected to anything on the board.
-        for _i in [0, 1, 2, 4] {
-        //    self.i2c_int.read(&mut buf)?;   // Read data
-        //    let adc_chan = (buf[0] & 0x30) >> 4;  // Get channel id
-        //    let val: u64 = buf[0] as u64;
-        //    self.adc_values[adc_chan as usize] = (val << 8 + buf[1] as u64) / 16;
+        for _i in [0, 1, 2] {
             self.i2c_int.read(&mut buf)?;   // Read data
-            let adc_chan = ((buf[0] & 0x30) >> 4) as usize;  // Get channel ID as usize for indexing
-            // Extract the full 12-bit ADC value by including all 8 bits from buf[0] and buf[1]
-            let value = (((buf[0] & 0xFF) as u64) << 8) | (buf[1] as u64);  // Combine full byte of buf[0] and buf[1]
-            self.adc_values[adc_chan] = value / 16;  // Scale down for knobs
-        
+            let adc_chan = ((buf[0] & 0x30) >> 4);  // Get channel id
+            // TODO:  This needs some work. 
+            self.adc_values[adc_chan as usize] = (((buf[0] & 0x0F) << 8) + buf[1]) as u64; // Get value
+            self.adc_values[adc_chan as usize] /= 16;  // scale down for knobs
         }
 
         Ok(())

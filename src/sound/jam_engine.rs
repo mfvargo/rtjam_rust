@@ -12,9 +12,7 @@ use crate::{
         get_micro_time,
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
-    },
-    dsp::{power_meter::PowerMeter, tuner::Tuner},
-    pedals::{midi_event::MidiEvent, pedal_board::PedalBoard},
+    }, dsp::{power_meter::PowerMeter, tuner::Tuner}, hw_control::status_light::LightMessage, pedals::{midi_event::MidiEvent, pedal_board::PedalBoard}
 };
 
 use super::{
@@ -65,7 +63,7 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 ///             mpsc::Sender<PedalBoard>,
 ///             mpsc::Receiver<PedalBoard>
 ///         ) = mpsc::channel();
-///     let mut engine = JamEngine::new(status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).expect("oops");
+///     let mut engine = JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).expect("oops");
 ///     // At this point some audio engine would use engine.process() as the callback for audio frames
 ///     let in_a = [0.0;128];
 ///     let in_b = [0.0;128];
@@ -82,6 +80,7 @@ pub struct JamEngine {
     sock: JamSocket,
     recv_message: JamMessage,
     xmit_message: JamMessage,
+    lights_option: Option<mpsc::Sender<LightMessage>>,
     status_data_tx: mpsc::Sender<serde_json::Value>,
     command_rx: mpsc::Receiver<ParamMessage>,
     pedal_rx: mpsc::Receiver<PedalBoard>,
@@ -116,6 +115,7 @@ impl JamEngine {
     ///
     /// See [`crate::sound::client`]
     pub fn new(
+        lights_option: Option<mpsc::Sender<LightMessage>>,
         tx: mpsc::Sender<serde_json::Value>,
         rx: mpsc::Receiver<ParamMessage>,
         prx: mpsc::Receiver<PedalBoard>,
@@ -128,6 +128,7 @@ impl JamEngine {
             sock: JamSocket::new(9991)?,
             recv_message: JamMessage::new(),
             xmit_message: JamMessage::new(),
+            lights_option: lights_option,
             status_data_tx: tx,
             command_rx: rx,
             pedal_rx: prx,
@@ -225,6 +226,21 @@ impl JamEngine {
             // send level updates
             let event = self.build_level_event();
             let _res = self.status_data_tx.send(event);
+            // send level update for lights
+            match &self.lights_option {
+                Some(tx) => {
+                    let _res = tx.send(
+                        LightMessage{
+                            input_one: self.room_meters[0].get_avg(),
+                            input_two: self.room_meters[1].get_avg(),
+                            status: crate::hw_control::status_light::Color::Green
+                        });
+        
+                }
+                None => {
+                    // Not on a system that has lights
+                }
+            }
             // println!("disconnect: {}", self.disconnect_timer.since(self.now));
             // println!("mixer: {}", self.mixer);
         }
@@ -588,7 +604,7 @@ mod test_jam_engine {
             mpsc::channel();
     
 
-        JamEngine::new(status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).unwrap()
+        JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).unwrap()
     }
 
     #[test]

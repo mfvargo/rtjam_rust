@@ -28,13 +28,14 @@ use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
-    }, pedals::pedal_board::PedalBoard, sound::{
+    }, hw_control::{hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage}}, pedals::pedal_board::PedalBoard, sound::{
         jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, utils
 };
 use serde_json::json;
+// use serde_json::json;
 use std::{
     io::{ErrorKind, Write},
     process::Command,
@@ -42,6 +43,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+
 
 /// call this from the main function to start the whole thing running.
 ///
@@ -81,6 +83,19 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
+    let mut light_option: Option<mpsc::Sender<LightMessage>> = None;
+    // Lets create a thread to control custom hardware
+    let (lights_tx, lights_rx): (mpsc::Sender<LightMessage>, mpsc::Receiver<LightMessage>) =
+    mpsc::channel();
+
+    if has_lights() {
+        light_option = Some(lights_tx);
+
+        let _hw_handle = thread::spawn(move || {
+            let _res = hw_control_thread(lights_rx);
+        });
+    }
+
     // Create channels to/from Jack Engine
 
     // This is the channel the audio engine will use to send us status data
@@ -100,8 +115,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     if no_loopback {
         println!("local loopback disabled");
     }
-    
-    let engine = JamEngine::new(status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
+
+    let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
     let _jack_thread_handle = thread::spawn(move || {
         let _res = jack_thread::run(engine);
     });
@@ -114,6 +129,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let mut websock_room_ping = MicroTimer::new(get_micro_time(), 2_000_000);
     // Now this main thread will listen on the mpsc channels
     loop {
+        // This is how you would send a message to the hw control thread!
+        // let _res = lights_tx.send(json!({"msg": "hello"}));
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {

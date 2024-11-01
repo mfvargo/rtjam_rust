@@ -55,3 +55,4 @@ pub mod pedals;
 pub mod server;
 pub mod sound;
 pub mod utils;
+pub mod hw_control;

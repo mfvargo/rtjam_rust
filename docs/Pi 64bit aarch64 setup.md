@@ -14,6 +14,7 @@ sudo apt upgrade
 ```
 sudo apt install jackd2
 sudo apt install git
+sudo apt install libssl1.1
 git clone https://github.com/mfvargo/rtjam_rust.git
 cd rtjam_rust
 ```

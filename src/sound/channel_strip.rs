@@ -36,6 +36,7 @@ pub struct ChannelStrip {
     gain: f64,
     buffer: JitterBuffer,
     level: PowerMeter,
+    mute: bool,
 }
 
 impl ChannelStrip {
@@ -45,6 +46,7 @@ impl ChannelStrip {
             gain: 1.0,
             buffer: JitterBuffer::new(),
             level: PowerMeter::new(),
+            mute: false,
         }
     }
     fn calc_values(&self, in_val: f32) -> (f32, f32) {
@@ -61,9 +63,20 @@ impl ChannelStrip {
     pub fn get_gain(&self) -> f64 {
         self.gain
     }
+    /// set the mute on the strip.
+    pub fn set_mute(&mut self, enabled: bool) -> () {
+        self.mute = enabled;
+    }
+    /// retrieve the current gain setting
+    pub fn get_mute(&self) -> bool {
+        self.mute
+    }
     /// set the fade value on the channels fader.  -1.0 hard left, +1.0 hard right
     pub fn set_fade(&mut self, v: f32) -> () {
         self.fader.set(v);
+    }
+    pub fn get_fade(&self) -> f32 {
+        self.fader.get()
     }
     /// Call this pull data out of the strip and mix it into the output frames
     ///
@@ -73,12 +86,15 @@ impl ChannelStrip {
         // First get some data from the buff
         let samps = self.buffer.get(out_a.len(), self.level.get_avg());
         self.level.add_frame(&samps, self.gain);
+        // mix in the frame to the output if not muted
+        if !self.mute {
         let mut i: usize = 0;
-        for v in samps {
-            let (l, r) = self.calc_values(v);
-            out_a[i] = out_a[i] + l;
-            out_b[i] = out_b[i] + r;
-            i += 1;
+            for v in samps {
+                let (l, r) = self.calc_values(v);
+                out_a[i] = out_a[i] + l;
+                out_b[i] = out_b[i] + r;
+                i += 1;
+            }
         }
     }
     /// Get the average power from the strips PowerMeter

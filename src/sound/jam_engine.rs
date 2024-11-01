@@ -343,8 +343,14 @@ impl JamEngine {
                 "clientId": self.xmit_message.get_client_id(),
                 "depth": self.mixer.get_depth_in_msec(0),  // convert to msec
                 "level0": self.mixer.get_channel_power_avg(0),
-                "level1": self.mixer.get_channel_power_avg(1),
+                "mute0": self.mixer.get_channel_mute(0),
+                "fade0": self.mixer.get_channel_fade(0),
+                "gain0": self.mixer.get_channel_gain(0),
                 "peak0": self.mixer.get_channel_power_peak(0),
+                "level1": self.mixer.get_channel_power_avg(1),
+                "mute1": self.mixer.get_channel_mute(1),
+                "fade1": self.mixer.get_channel_fade(1),
+                "gain1": self.mixer.get_channel_gain(1),
                 "peak1": self.mixer.get_channel_power_peak(1),
                 "drops": 0,
             }
@@ -357,8 +363,14 @@ impl JamEngine {
                         "clientId": c.client_id,
                         "depth": self.mixer.get_depth_in_msec(idx),
                         "level0": self.mixer.get_channel_power_avg(idx),
-                        "level1": self.mixer.get_channel_power_avg(idx+1),
+                        "mute0": self.mixer.get_channel_mute(idx),
+                        "fade0": self.mixer.get_channel_fade(idx),
+                        "gain0": self.mixer.get_channel_gain(idx),
                         "peak0": self.mixer.get_channel_power_peak(idx),
+                        "level1": self.mixer.get_channel_power_avg(idx+1),
+                        "mute1": self.mixer.get_channel_mute(idx+1),
+                        "fade1": self.mixer.get_channel_fade(idx+1),
+                        "gain1": self.mixer.get_channel_gain(idx+1),
                         "peak1": self.mixer.get_channel_power_peak(idx+1),
                         "drops": c.get_drops(),
                     }
@@ -452,10 +464,25 @@ impl JamEngine {
             JamParam::ChanGain14 => {
                 self.mixer.set_channel_gain(13, msg.fvalue);
             }
+            JamParam::MasterVol => {
+                self.mixer.set_master(msg.fvalue);
+            }
             JamParam::SetFader => {
                 if Self::check_index(msg.ivalue_1 as usize) {
                     self.mixer
                         .set_channel_fade(msg.ivalue_1 as usize, msg.fvalue as f32);
+                }
+            }
+            JamParam::ChannelGain => {
+                if Self::check_index(msg.ivalue_1 as usize) {
+                    self.mixer
+                        .set_channel_gain(msg.ivalue_1 as usize, msg.fvalue);
+                }
+            }
+            JamParam::ChannelMute => {
+                if Self::check_index(msg.ivalue_1 as usize) {
+                    self.mixer
+                        .set_channel_mute(msg.ivalue_1 as usize, msg.ivalue_2 == 1);
                 }
             }
             JamParam::MuteToRoom => {

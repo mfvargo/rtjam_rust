@@ -42,7 +42,7 @@ pub fn get_git_hash() -> String {
 pub fn get_frame_power_in_db(frame: &[f32], gain: f64) -> f64 {
     // linear calcution.  sum of the squares / number of values
     if frame.len() == 0 {
-        return to_db(0.0);
+        return to_db(0.0000001);
     }
     let mut pow: f64 = 0.0;
     for v in frame {

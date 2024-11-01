@@ -16,6 +16,8 @@
 //!
 use std::str::FromStr;
 
+use crate::dsp::biquad::{BiQuadFilter, FilterType};
+
 use super::{
     bass_di::BassDI, bass_envelope::BassEnvelope, chorus::Chorus, compressor::Compressor,
     delay::Delay, guitar_envelope::GuitarEnvelope, noise_gate::NoiseGate, pedal::Pedal,
@@ -35,14 +37,18 @@ pub struct PedalBoard {
     pedals: Vec<BoxedPedal>,
     board_id: i64,
     channel: usize, // Channel this board will be used on
+    dc_removal: BiQuadFilter,
 }
 
 impl PedalBoard {
     pub fn new(chan: usize) -> PedalBoard {
+        let mut filter = BiQuadFilter::new();
+        filter.init(FilterType::HighPass, 6.0, 1.0, 0.707, 48000.0 );
         PedalBoard {
             pedals: vec![],
             board_id: -1,
             channel: chan,
+            dc_removal: filter,
         }
     }
     pub fn get_channel(&self) -> usize {
@@ -50,8 +56,16 @@ impl PedalBoard {
     }
 
     pub fn process(&mut self, input: &[f32], output: &mut [f32]) -> () {
-        let mut buf1: Vec<f32> = input.to_vec();
+
+        let mut buf1: Vec<f32> = vec![0.0; input.len()];
         let mut buf2: Vec<f32> = vec![0.0; input.len()];
+
+        // Remove any dc offset in the input
+        let mut j : usize = 0;
+        for s in input {
+            buf1[j] = self.dc_removal.get_sample(s);
+            j += 1;
+        }
 
         let mut i: usize = 0;
         for pedal in &mut self.pedals {

@@ -129,14 +129,6 @@ impl CodecControl {
         let mut buf: [u8; 2] = [0,0];
 
         // Pot 1 - channel 0 - Instrument input gain
-        // if (abs(m_pot1Value - m_lastPot1Value) > 2)
-        // {
-        //     m_I2cDataBuffer[0] = 15;
-        //     m_I2cDataBuffer[1] = m_pot1Value / 5;
-        //     if (write(m_file, m_I2cDataBuffer, 2) != 2)
-        //     {
-        //         cerr << "Failed to write instrument gain to i2c bus" << endl;
-        //     }
         if f64::abs(self.prev_pot_values[0] - self.pot_values[0]) > 2.0 {
             buf[0] = 15;
             buf[1] = (self.pot_values[0] / 5.0).clamp(0.0, 255.0) as u8;
@@ -145,17 +137,6 @@ impl CodecControl {
         }
 
         // Pot 2 - channel 1 - mic/headset input gain
-        // if (abs(m_pot2Value - m_lastPot2Value) > 2)
-        // {
-
-        //     m_I2cDataBuffer[0] = 16;
-        //     m_I2cDataBuffer[1] = m_pot2Value / 4;
-        //     if (write(m_file, m_I2cDataBuffer, 2) != 2)
-        //     {
-        //         cerr << "Failed to write mic gain to i2c bus" << endl;
-        //     }
-        // }
-
         if f64::abs(self.prev_pot_values[1] - self.pot_values[1]) > 2.0 {
             buf[0] = 16;
             buf[1] = (self.pot_values[1] / 4.0).clamp(0.0, 255.0) as u8;
@@ -164,25 +145,6 @@ impl CodecControl {
         }
 
         // Pot 3 - channel 2 - Headphone amp gain
-        // if (abs(m_pot3Value - m_lastPot3Value) > 2)
-        // {
-        //     int temp = (255 - m_pot3Value / 2); // invert and scale pot value
-        //     temp |= 0x80;                       // set bit 7 (enable DAC-HP path)
-
-        //     m_I2cDataBuffer[0] = 47;
-        //     m_I2cDataBuffer[1] = temp;
-        //     if (write(m_file, m_I2cDataBuffer, 2) != 2)
-        //     {
-        //         cerr << "Failed to write left headphone gain to i2c bus" << endl;
-        //     }
-
-        //     m_I2cDataBuffer[0] = 64;
-        //     m_I2cDataBuffer[1] = temp;
-        //     if (write(m_file, m_I2cDataBuffer, 2) != 2)
-        //     {
-        //         cerr << "Failed to write right headphone gain to i2c bus" << endl;
-        //     }
-        // }
         if f64::abs(self.prev_pot_values[2] - self.pot_values[2]) > 2.0 {
             buf[0] = 47;
             buf[1] = 255 - ((self.pot_values[2]/2.0).clamp(-127.99, 127.99)) as u8;

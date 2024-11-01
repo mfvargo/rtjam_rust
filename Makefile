@@ -12,9 +12,9 @@ debug:
 	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --example r2_2_wave --example rt_2_csv
 
 deploy: all
-	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust
-	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_broadcast  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust
-	scp -i ~/.ssh/rtjam.cer target/release/examples/version.txt  ubuntu@rtjam-nation.com:/home/ubuntu/www/html/pi/rust
+	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.com:/home/ubuntu/rust
+	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_broadcast  ubuntu@rtjam-nation.com:/home/ubuntu/rust
+	scp -i ~/.ssh/rtjam.cer target/release/examples/version.txt  ubuntu@rtjam-nation.com:/home/ubuntu/rust
 
 install-base:
 	mkdir -p $(RTJAM_HOME)

@@ -3,16 +3,47 @@ NATION=http://rtjam-nation.com/pi/rust
 WEBVER=version.txt
 LOCALVER=version.local.txt
 PROGRAM=rtjam_sound
+# This is how we will fetch from the network
+WGET='wget -q --tries=2 --timeout=3'
+# Step one is to get the version of the software on the web
 rm $WEBVER
-wget -q -O $WEBVER $NATION/$WEBVER
+$WGET -O $WEBVER $NATION/$WEBVER
 if [ "$?" -ne "0" ]; then
+  # not able to get the web version, so we will just continue on and run
+  # This is likely the no network scenario or the server is down for maintenance
   echo "could not get version from server"
 else
+  # Get the version number out of the local program
   ./$PROGRAM --version > $LOCALVER
+  if [ "$?" -ne "0" ]; then
+    # This is an error so the rtjam_sound is corrupt.  Do the recovery here....
+    echo "program will not give version.  something wrong with it"
+    # TODO:  Should we do this here?  Get the version stashed in rollback
+    # cp -f rollback/$PROGRAM $PROGRAM
+  fi
+  # compare the local version with the one on the web
   cmp -s $WEBVER $LOCALVER
   if [ "$?" -ne "0" ]; then
-    /usr/bin/wget -q -O $PROGRAM $NATION/$PROGRAM
-    /usr/bin/chmod +x $PROGRAM
+    # There is a new version on the web  Stash the old one
+    echo "New version available"
+    mkdir -p rollback
+    cp -f $PROGRAM rollback
+    $WGET -O $PROGRAM $NATION/$PROGRAM
+    if [ "$?" -ne "0" ]; then
+      # Something went wrong fetching the program file.  rollback
+      cp -f rollback/$PROGRAM $PROGRAM
+    else
+      # We successfully downloaded the program
+      chmod +x $PROGRAM
+      # Make sure the executable will run a version
+      ./$PROGRAM --version 
+      if [ "$?" -ne "0" ]; then
+        # Yikes, the thing we downloaded wont run here.  better rollback
+        cp -f rollback/$PROGRAM $PROGRAM
+      fi
+    fi
+  else
+    echo "Softare is up to date"
   fi
 fi
 # Check for soundin.cfg

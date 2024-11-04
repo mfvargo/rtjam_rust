@@ -11,7 +11,7 @@ $WGET -O $WEBVER $NATION/$WEBVER
 if [ "$?" -ne "0" ]; then
   # not able to get the web version, so we will just continue on and run
   # This is likely the no network scenario or the server is down for maintenance
-  echo "could not get version from server"
+  echo "Cannot contact the nation:  no version from server"
 else
   # Get the version number out of the local program
   ./$PROGRAM --version > $LOCALVER
@@ -25,12 +25,13 @@ else
   cmp -s $WEBVER $LOCALVER
   if [ "$?" -ne "0" ]; then
     # There is a new version on the web  Stash the old one
-    echo "New version available"
+    echo "New version available, gonna download"
     mkdir -p rollback
     cp -f $PROGRAM rollback
     $WGET -O $PROGRAM $NATION/$PROGRAM
     if [ "$?" -ne "0" ]; then
       # Something went wrong fetching the program file.  rollback
+      echo "failed to download new version.  Rollback"
       cp -f rollback/$PROGRAM $PROGRAM
     else
       # We successfully downloaded the program
@@ -39,6 +40,7 @@ else
       ./$PROGRAM --version 
       if [ "$?" -ne "0" ]; then
         # Yikes, the thing we downloaded wont run here.  better rollback
+        echo "Something wrong with new version, rollback!"
         cp -f rollback/$PROGRAM $PROGRAM
       fi
     fi

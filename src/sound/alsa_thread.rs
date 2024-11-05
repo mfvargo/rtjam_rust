@@ -4,19 +4,26 @@ use alsa::{Direction, ValueOr};
 
 // use crate::JamEngine;
 use crate::common::box_error::BoxError;
+use crate::JamEngine;
 
 type SF = i16;
-const FRAME_SIZE: usize = 1024;
+const FRAME_SIZE: usize = 128;
 const SAMPLE_RATE: u32 = 48_000;
-const CHANNELS: u32 = 1;
+const CHANNELS: u32 = 2;
 
 struct OutputBuffer {
     pos: usize,
-    buf: [SF; FRAME_SIZE],
+    buf: [SF; FRAME_SIZE * CHANNELS as usize],
 }
 
 impl OutputBuffer {
-    pub fn load(&mut self, buf: &[SF; FRAME_SIZE]) -> () {
+    pub fn new() -> OutputBuffer {
+        OutputBuffer {
+            pos: 0,
+            buf: [0; FRAME_SIZE * CHANNELS as usize]
+        }
+    }
+    pub fn load(&mut self, buf: &[SF]) -> () {
         let mut i: usize = 0;
         for v in buf {
             self.buf[i] = *v;
@@ -118,9 +125,11 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
 
     if avail >= FRAME_SIZE {
         let frames = io.mmap(avail, |b| {
+            let mut count = 0;
             for sample in b.iter_mut() {
                 match buf.next() {
                     Some(v) => {
+                        count += 1;
                         *sample = v
                     }
                     None => {
@@ -129,7 +138,7 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
                 }
                 // *sample = buf.next().unwrap()
             };
-            b.len() / CHANNELS as usize
+            count / CHANNELS as usize
         })?;
         println!("Wrote {} franes", frames);
     }
@@ -155,28 +164,39 @@ fn rms(buf: &[i16]) -> f64 {
 }
 
 // Run the loop to read/write alsa
-pub fn run(device: &str) -> Result<(), BoxError> {
+pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
+    let device = "hw:CODEC";
     // Started by the client thread.  Our job is to read/write to the audio device
     let indev = open_record_dev(device)?;
     indev.start()?;
     let io_in = indev.io_i16()?;
-    let mut in_buf = [0; FRAME_SIZE];
+    let mut in_buf = [0; FRAME_SIZE * CHANNELS as usize];
 
     let outdev = open_playback_dev(device)?;
     // let mut mmap = outdev.direct_mmap_playback::<SF>()?;
     let mut io_out = outdev.io_i16()?;
     // outdev.start().unwrap();
-    let mut out_buf = OutputBuffer {
-        pos: 0,
-        buf: [0; FRAME_SIZE],
-    };
+    let mut out_buf = OutputBuffer::new();
 
     // let io_out = outdev.io_i16()?;
     // let mut out_buf = [0i16, 128];
+    let mut in_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
+    let mut in_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
     loop {
-        assert_eq!(io_in.readi(&mut in_buf)?, in_buf.len());
-        // assert_eq!(io_out.writei(&in_buf)?, in_buf.len());
-        println!("rms = {}", rms(&in_buf));
+        assert_eq!(io_in.readi(&mut in_buf)?, FRAME_SIZE);
+
+        //  Convert the input date into f32 for the engine:
+        let mut i = 0;
+        for v in in_buf {
+            if i%2 == 0 {
+                in_a[i/2] = v as f32;
+            } else {
+                in_b[i/2] = v as f32;
+            }
+            i += 1;
+        }
+        engine.process_inputs(&in_a, &in_b);
+        // println!("rms = {}", rms(&in_buf));
         out_buf.load(&in_buf);
 
         // Write to output

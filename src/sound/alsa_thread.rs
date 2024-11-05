@@ -6,7 +6,9 @@ use alsa::{Direction, ValueOr};
 use crate::common::box_error::BoxError;
 
 type SF = i16;
-const FRAME_SIZE: usize = 128;
+const FRAME_SIZE: usize = 1024;
+const SAMPLE_RATE: u32 = 48_000;
+const CHANNELS: u32 = 1;
 
 struct OutputBuffer {
     pos: usize,
@@ -29,7 +31,7 @@ impl Iterator for OutputBuffer {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.pos >= FRAME_SIZE {
-            return Some(0);
+            return None;
         }
         let val = self.buf[self.pos];
         self.pos += 1;
@@ -37,22 +39,20 @@ impl Iterator for OutputBuffer {
     }
 }
 
-fn start_capture(device: &str) -> Result<PCM, BoxError> {
+fn open_record_dev(device: &str) -> Result<PCM, BoxError> {
     let pcm = PCM::new(device, Direction::Capture, false)?;
     {
         let hwp = HwParams::any(&pcm)?;
-        hwp.set_channels(1)?;
-        hwp.set_rate(48000, ValueOr::Nearest)?;
+        hwp.set_channels(CHANNELS)?;
+        hwp.set_rate(SAMPLE_RATE, ValueOr::Nearest)?;
         hwp.set_format(Format::s16())?;
         hwp.set_access(Access::RWInterleaved)?;
         pcm.hw_params(&hwp)?;
     }
-    pcm.start()?;
     Ok(pcm)
 }
 
 fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
-    let req_samplerate = 48_000;
     let req_bufsize: i64 = (FRAME_SIZE * 2) as i64;  // A few ms latency by default, that should be nice
 
     // Open the device
@@ -61,12 +61,12 @@ fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
     // Set hardware parameters
     {
         let hwp = HwParams::any(&p)?;
-        hwp.set_channels(1)?;
-        hwp.set_rate(req_samplerate, alsa::ValueOr::Nearest)?;
+        hwp.set_channels(CHANNELS)?;
+        hwp.set_rate(SAMPLE_RATE, alsa::ValueOr::Nearest)?;
         hwp.set_format(Format::s16())?;
         hwp.set_access(Access::MMapInterleaved)?;
         hwp.set_buffer_size(req_bufsize)?;
-        hwp.set_period_size(req_bufsize, alsa::ValueOr::Nearest)?;
+        hwp.set_period_size(req_bufsize / 4, alsa::ValueOr::Nearest)?;
         p.hw_params(&hwp)?;
     }
 
@@ -104,7 +104,7 @@ fn write_samples_direct(p: &alsa::PCM, mmap: &mut MmapPlayback<SF>, outbuf: &mut
     Ok(true) // Call us again, please, there might be more data to write
 }
 
-fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, synth: &mut OutputBuffer) -> Result<bool, BoxError> {
+fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputBuffer) -> Result<bool, BoxError> {
     let avail = match p.avail_update() {
         Ok(n) => n,
         Err(e) => {
@@ -114,18 +114,29 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, synth: &mut Outpu
         }
     } as usize;
 
-    if avail > 0 {
-        io.mmap(avail, |buf| {
-            for sample in buf.iter_mut() {
-                *sample = synth.next().unwrap()
+    println!("PRE: avail: {}, state: {:?}", avail, p.state());
+
+    if avail >= FRAME_SIZE {
+        let frames = io.mmap(avail, |b| {
+            for sample in b.iter_mut() {
+                match buf.next() {
+                    Some(v) => {
+                        *sample = v
+                    }
+                    None => {
+                        break
+                    }
+                }
+                // *sample = buf.next().unwrap()
             };
-            buf.len() / 2
+            b.len() / CHANNELS as usize
         })?;
+        println!("Wrote {} franes", frames);
     }
     use alsa::pcm::State;
     match p.state() {
         State::Running => Ok(false), // All fine
-        State::Prepared => { println!("Starting audio output stream"); p.start()?; Ok(true) },
+        State::Prepared => { println!("Starting audio output stream"); p.start().unwrap(); Ok(true) },
         State::Suspended | State::XRun => Ok(true), // Recover from this in next round
         n @ _ => Err(format!("Unexpected pcm state {:?}", n))?,
     }
@@ -146,13 +157,15 @@ fn rms(buf: &[i16]) -> f64 {
 // Run the loop to read/write alsa
 pub fn run(device: &str) -> Result<(), BoxError> {
     // Started by the client thread.  Our job is to read/write to the audio device
-    let indev = start_capture(device)?;
+    let indev = open_record_dev(device)?;
+    indev.start()?;
     let io_in = indev.io_i16()?;
     let mut in_buf = [0; FRAME_SIZE];
 
     let outdev = open_playback_dev(device)?;
     // let mut mmap = outdev.direct_mmap_playback::<SF>()?;
     let mut io_out = outdev.io_i16()?;
+    // outdev.start().unwrap();
     let mut out_buf = OutputBuffer {
         pos: 0,
         buf: [0; FRAME_SIZE],
@@ -163,13 +176,13 @@ pub fn run(device: &str) -> Result<(), BoxError> {
     loop {
         assert_eq!(io_in.readi(&mut in_buf)?, in_buf.len());
         // assert_eq!(io_out.writei(&in_buf)?, in_buf.len());
-        // println!("rms = {}", rms(&in_buf));
+        println!("rms = {}", rms(&in_buf));
         out_buf.load(&in_buf);
 
         // Write to output
         while write_samples_io(&outdev, &mut io_out, &mut out_buf)? { 
             // writing sample
-            println!("wrote frame");
+            // println!("wrote frame");
         }
     }
 

@@ -1,15 +1,19 @@
-use alsa::direct::pcm::MmapPlayback;
+// use alsa::direct::pcm::MmapPlayback;
 use alsa::pcm::*;
 use alsa::{Direction, ValueOr};
+use thread_priority::{set_current_thread_priority, ThreadPriority};
 
 // use crate::JamEngine;
 use crate::common::box_error::BoxError;
+use crate::common::get_micro_time;
+use crate::common::stream_time_stat::{MicroTimer, StreamTimeStat};
 use crate::JamEngine;
 
 type SF = i16;
 const FRAME_SIZE: usize = 128;
 const SAMPLE_RATE: u32 = 48_000;
 const CHANNELS: u32 = 2;
+const MAX_SAMPLE: f32 = 32766.0;
 
 struct OutputBuffer {
     pos: usize,
@@ -23,10 +27,12 @@ impl OutputBuffer {
             buf: [0; FRAME_SIZE * CHANNELS as usize]
         }
     }
-    pub fn load(&mut self, buf: &[SF]) -> () {
+    pub fn load_data(&mut self, out_a: &[f32], out_b: &[f32]) -> () {
+        // interleave and convert floats
         let mut i: usize = 0;
-        for v in buf {
-            self.buf[i] = *v;
+        while i < FRAME_SIZE {
+            self.buf[i*2] = (out_a[i] * MAX_SAMPLE) as i16;
+            self.buf[i*2+1] = (out_b[i] * MAX_SAMPLE) as i16;
             i += 1;
         }
         self.pos = 0;
@@ -37,7 +43,7 @@ impl Iterator for OutputBuffer {
     type Item = SF;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.pos >= FRAME_SIZE {
+        if self.pos >= FRAME_SIZE * CHANNELS as usize {
             return None;
         }
         let val = self.buf[self.pos];
@@ -54,8 +60,11 @@ fn open_record_dev(device: &str) -> Result<PCM, BoxError> {
         hwp.set_rate(SAMPLE_RATE, ValueOr::Nearest)?;
         hwp.set_format(Format::s16())?;
         hwp.set_access(Access::RWInterleaved)?;
+        hwp.set_buffer_size(2 * FRAME_SIZE as i64)?;
+        hwp.set_period_size(FRAME_SIZE as i64, alsa::ValueOr::Nearest)?;
         pcm.hw_params(&hwp)?;
     }
+    println!("Opened audio input with parameters: {:?}, {:?}", pcm.hw_params_current(), pcm.sw_params_current());
     Ok(pcm)
 }
 
@@ -93,23 +102,23 @@ fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
 }
 
 
-fn write_samples_direct(p: &alsa::PCM, mmap: &mut MmapPlayback<SF>, outbuf: &mut OutputBuffer)
-    -> Result<bool, BoxError> {
+// fn write_samples_direct(p: &alsa::PCM, mmap: &mut MmapPlayback<SF>, outbuf: &mut OutputBuffer)
+//     -> Result<bool, BoxError> {
 
-    if mmap.avail() > 0 {
-        // Write samples to DMA area from iterator
-        mmap.write(outbuf);
-    }
-    use alsa::pcm::State;
-    match mmap.status().state() {
-        State::Running => { return Ok(false); }, // All fine
-        State::Prepared => { println!("Starting audio output stream"); p.start()? },
-        State::XRun => { println!("Underrun in audio output stream!"); p.prepare()? },
-        State::Suspended => { println!("Resuming audio output stream"); p.resume()? },
-        n @ _ => Err(format!("Unexpected pcm state {:?}", n))?,
-    }
-    Ok(true) // Call us again, please, there might be more data to write
-}
+//     if mmap.avail() > 0 {
+//         // Write samples to DMA area from iterator
+//         mmap.write(outbuf);
+//     }
+//     use alsa::pcm::State;
+//     match mmap.status().state() {
+//         State::Running => { return Ok(false); }, // All fine
+//         State::Prepared => { println!("Starting audio output stream"); p.start()? },
+//         State::XRun => { println!("Underrun in audio output stream!"); p.prepare()? },
+//         State::Suspended => { println!("Resuming audio output stream"); p.resume()? },
+//         n @ _ => Err(format!("Unexpected pcm state {:?}", n))?,
+//     }
+//     Ok(true) // Call us again, please, there might be more data to write
+// }
 
 fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputBuffer) -> Result<bool, BoxError> {
     let avail = match p.avail_update() {
@@ -121,10 +130,10 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
         }
     } as usize;
 
-    println!("PRE: avail: {}, state: {:?}", avail, p.state());
+    // println!("PRE: avail: {}, state: {:?}", avail, p.state());
 
     if avail >= FRAME_SIZE {
-        let frames = io.mmap(avail, |b| {
+        io.mmap(FRAME_SIZE, |b| {
             let mut count = 0;
             for sample in b.iter_mut() {
                 match buf.next() {
@@ -139,8 +148,7 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
                 // *sample = buf.next().unwrap()
             };
             count / CHANNELS as usize
-        })?;
-        println!("Wrote {} franes", frames);
+        }).unwrap();
     }
     use alsa::pcm::State;
     match p.state() {
@@ -151,20 +159,14 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
     }
 }
 
-// Calculates RMS (root mean square) as a way to determine volume
-fn rms(buf: &[i16]) -> f64 {
-    if buf.len() == 0 { return 0f64; }
-    let mut sum = 0f64;
-    for &x in buf {
-        sum += (x as f64) * (x as f64);
-    }
-    let r = (sum / (buf.len() as f64)).sqrt();
-    // Convert value to decibels
-    20.0 * (r / (i16::MAX as f64)).log10()
-}
-
 // Run the loop to read/write alsa
 pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
+    set_current_thread_priority(ThreadPriority::Crossplatform(0.try_into().unwrap())).unwrap();
+    // stats for callback
+    let mut stats = StreamTimeStat::new(500);
+    let mut timer = MicroTimer::new(get_micro_time(), 10_000);
+    let mut frame_count: usize = 0;
+
     let device = "hw:CODEC";
     // Started by the client thread.  Our job is to read/write to the audio device
     let indev = open_record_dev(device)?;
@@ -182,27 +184,82 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
     // let mut out_buf = [0i16, 128];
     let mut in_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
     let mut in_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
+    let mut out_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
+    let mut out_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
     loop {
-        assert_eq!(io_in.readi(&mut in_buf)?, FRAME_SIZE);
+        frame_count += 1;
+        let now = get_micro_time();
+
+        match io_in.readi(&mut in_buf) {
+            Ok(samps) => {
+                if samps < FRAME_SIZE {
+                    println!("Not enough samples: {}", samps);
+                    continue;
+                }
+            }
+            Err(e) => {
+                dbg!(e);
+                indev.recover(e.errno() as std::os::raw::c_int, true)?;
+            }
+        }
+
+        stats.add_sample(timer.since(now) as f64);
+        timer.reset(now);
+        if frame_count%1000 == 0 {
+            println!("stats: {}", stats);
+        }
 
         //  Convert the input date into f32 for the engine:
         let mut i = 0;
         for v in in_buf {
             if i%2 == 0 {
-                in_a[i/2] = v as f32;
+                in_a[i/2] = v as f32 / MAX_SAMPLE;
             } else {
-                in_b[i/2] = v as f32;
+                in_b[i/2] = v as f32 / MAX_SAMPLE;
             }
             i += 1;
         }
         engine.process_inputs(&in_a, &in_b);
-        // println!("rms = {}", rms(&in_buf));
-        out_buf.load(&in_buf);
 
-        // Write to output
-        while write_samples_io(&outdev, &mut io_out, &mut out_buf)? { 
-            // writing sample
-            // println!("wrote frame");
+
+        // Here we write until the outdev does not have space for a frame
+        let mut avail = FRAME_SIZE;
+
+        while avail >= FRAME_SIZE {
+
+            // Now figure out how much we need to feed the output
+            avail = match outdev.avail_update() {
+                Ok(n) => n,
+                Err(e) => {
+                    println!("Recovering from {}", e);
+                    outdev.recover(e.errno() as std::os::raw::c_int, true)?;
+                    outdev.avail_update()?
+                }
+            } as usize;
+
+            // println!("avail: {}", avail);
+            if avail >= FRAME_SIZE {
+                // We need to feed the meter
+                engine.get_playback_data(&mut out_a, &mut out_b);
+                out_buf.load_data(&out_a, &out_b);
+                // out_buf.load(&in_buf);
+                // out_buf.load(&in_buf);
+                // lets try to write a frame to the io device
+                // Might have to recurse in there based on state, hence the pumping
+                let mut pumping = true;
+                while pumping {
+                    match write_samples_io(&outdev, &mut io_out, &mut out_buf) {
+                        Ok(more) => {
+                            pumping = more;
+                        }
+                        Err(e) => {
+                            pumping = false;
+                            dbg!(e);
+                        }
+                    }
+                }
+                avail -= FRAME_SIZE;
+            }
         }
     }
 

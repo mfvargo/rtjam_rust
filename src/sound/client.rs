@@ -29,7 +29,7 @@ use crate::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
     }, hw_control::{hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage}}, pedals::pedal_board::PedalBoard, sound::{
-        jack_thread,
+        // jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, utils
@@ -43,6 +43,8 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+
+use super::alsa_thread;
 
 
 /// call this from the main function to start the whole thing running.
@@ -117,8 +119,11 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     }
 
     let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
-    let _jack_thread_handle = thread::spawn(move || {
-        let _res = jack_thread::run(engine);
+    // let _jack_thread_handle = thread::spawn(move || {
+    //     let _res = jack_thread::run(engine);
+    // });
+    let _alsa_thread_handle = thread::spawn(move || {
+        let _res = alsa_thread::run(engine);
     });
 
     let _ping_handle = thread::spawn(move || {

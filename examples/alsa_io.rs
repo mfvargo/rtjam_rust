@@ -1,20 +1,21 @@
-use std::{sync::mpsc, thread};
+use std::sync::mpsc;
 
 use rtjam_rust::{common::box_error::BoxError, pedals::pedal_board::PedalBoard, sound::alsa_thread, JamEngine, ParamMessage};
+use thread_priority::*;
 
 fn main() -> Result<(), BoxError> {
 
     // This is the channel the audio engine will use to send us status data
-    let (status_data_tx, status_data_rx): (
+    let (status_data_tx, _status_data_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,
     ) = mpsc::channel();
 
     // This is the channel we will use to send commands to the jack engine
-    let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
+    let (_command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
-    let (pedal_tx, pedal_rx): (mpsc::Sender<PedalBoard>, mpsc::Receiver<PedalBoard>) =
+    let (_pedal_tx, pedal_rx): (mpsc::Sender<PedalBoard>, mpsc::Receiver<PedalBoard>) =
         mpsc::channel();
 
 
@@ -22,11 +23,18 @@ fn main() -> Result<(), BoxError> {
     
     // note: add error checking yourself.
 
-    let alsa_handle = thread::spawn(move || {
-        let _res = alsa_thread::run(engine);
-    });
+    let builder = ThreadBuilder::default()
+                        .name("Real-Time Thread".to_string())
+                        .priority(ThreadPriority::Max);
+                        
+                        // .spawn_with_priority(ThreadPriority::Max, f);
 
-    let res = alsa_handle.join();
-    dbg!(res);
+                    //     .priority(std::thread::Priority::Realtime); 
+
+    let alsa_handle = builder.spawn(move |_result| {
+        let _res = alsa_thread::run(engine);
+    })?;
+
+    let _e = alsa_handle.join();
     Ok(())
 }

@@ -32,10 +32,10 @@ use crate::{
         // jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
-    }, utils
+    }, utils,
 };
 use serde_json::json;
-// use serde_json::json;
+use thread_priority::{ThreadBuilder, ThreadPriority};
 use std::{
     io::{ErrorKind, Write},
     process::Command,
@@ -51,7 +51,7 @@ use super::alsa_thread;
 ///
 /// note the git_hash string allows the software to tell rtjam-nation what version of code it
 /// is currently running.
-pub fn run(git_hash: &str) -> Result<(), BoxError> {
+pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxError> {
     // This is the entry rtjam client
 
     // load up the config to get required info
@@ -122,9 +122,24 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // let _jack_thread_handle = thread::spawn(move || {
     //     let _res = jack_thread::run(engine);
     // });
-    let _alsa_thread_handle = thread::spawn(move || {
-        let _res = alsa_thread::run(engine);
-    });
+    // let _alsa_thread_handle = thread::spawn(move || {
+    //     let _res = alsa_thread::run(engine);
+    // });
+
+    let builder = ThreadBuilder::default()
+        .name("Real-Time Thread".to_string())
+        .priority(ThreadPriority::Max);
+
+    let _alsa_handle = builder.spawn(move |_result| {
+        match alsa_thread::run(engine, &in_dev, &out_dev) {
+            Ok(()) => {
+            println!("alsa ended with OK");
+            }
+            Err(e) => {
+                println!("alsa exited with error {}", e);
+            }
+        }
+    })?;
 
     let _ping_handle = thread::spawn(move || {
         let _res = jam_unit_ping_thread(api);

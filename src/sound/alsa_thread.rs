@@ -1,7 +1,6 @@
 // use alsa::direct::pcm::MmapPlayback;
 use alsa::pcm::*;
 use alsa::{Direction, ValueOr};
-use thread_priority::{set_current_thread_priority, ThreadPriority};
 
 // use crate::JamEngine;
 use crate::common::box_error::BoxError;
@@ -15,6 +14,8 @@ const SAMPLE_RATE: u32 = 48_000;
 const CHANNELS: u32 = 2;
 const MAX_SAMPLE: f32 = 32766.0;
 
+
+// Iterable output buffer that converts from floats to ints for alsa device
 struct OutputBuffer {
     pos: usize,
     buf: [SF; FRAME_SIZE * CHANNELS as usize],
@@ -82,7 +83,7 @@ fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
         hwp.set_format(Format::s16())?;
         hwp.set_access(Access::MMapInterleaved)?;
         hwp.set_buffer_size(req_bufsize)?;
-        hwp.set_period_size(req_bufsize / 4, alsa::ValueOr::Nearest)?;
+        hwp.set_period_size(req_bufsize / 2, alsa::ValueOr::Nearest)?;
         p.hw_params(&hwp)?;
     }
 
@@ -130,8 +131,7 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
         }
     } as usize;
 
-    // println!("PRE: avail: {}, state: {:?}", avail, p.state());
-
+    // write the data to the alsa device when there is room
     if avail >= FRAME_SIZE {
         io.mmap(FRAME_SIZE, |b| {
             let mut count = 0;
@@ -145,47 +145,42 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
                         break
                     }
                 }
-                // *sample = buf.next().unwrap()
             };
             count / CHANNELS as usize
-        }).unwrap();
+        })?;
     }
     use alsa::pcm::State;
     match p.state() {
         State::Running => Ok(false), // All fine
-        State::Prepared => { println!("Starting audio output stream"); p.start().unwrap(); Ok(true) },
+        State::Prepared => { println!("Starting audio output stream"); p.start()?; Ok(true) },
         State::Suspended | State::XRun => Ok(true), // Recover from this in next round
         n @ _ => Err(format!("Unexpected pcm state {:?}", n))?,
     }
 }
 
 // Run the loop to read/write alsa
-pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
-    set_current_thread_priority(ThreadPriority::Crossplatform(0.try_into().unwrap())).unwrap();
+pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(), BoxError> {
     // stats for callback
-    let mut stats = StreamTimeStat::new(500);
+    let mut stats = StreamTimeStat::new(100);
     let mut timer = MicroTimer::new(get_micro_time(), 10_000);
     let mut frame_count: usize = 0;
 
-    let device = "hw:CODEC";
-    // Started by the client thread.  Our job is to read/write to the audio device
-    let indev = open_record_dev(device)?;
+    let indev = open_record_dev(in_device)?;
     indev.start()?;
     let io_in = indev.io_i16()?;
     let mut in_buf = [0; FRAME_SIZE * CHANNELS as usize];
 
-    let outdev = open_playback_dev(device)?;
+    let outdev = open_playback_dev(out_device)?;
     // let mut mmap = outdev.direct_mmap_playback::<SF>()?;
     let mut io_out = outdev.io_i16()?;
-    // outdev.start().unwrap();
     let mut out_buf = OutputBuffer::new();
 
-    // let io_out = outdev.io_i16()?;
-    // let mut out_buf = [0i16, 128];
+    // Buffers for processing in f32
     let mut in_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
     let mut in_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
     let mut out_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
     let mut out_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
+
     loop {
         frame_count += 1;
         let now = get_micro_time();
@@ -203,13 +198,14 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
             }
         }
 
+        // stats on read i/o jitter
         stats.add_sample(timer.since(now) as f64);
         timer.reset(now);
         if frame_count%1000 == 0 {
             println!("stats: {}", stats);
         }
 
-        //  Convert the input date into f32 for the engine:
+        //  Convert the input date from interleaved i16 into f32 for the engine:
         let mut i = 0;
         for v in in_buf {
             if i%2 == 0 {
@@ -223,10 +219,8 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
 
 
         // Here we write until the outdev does not have space for a frame
-        let mut avail = FRAME_SIZE;
-
+        let mut avail = FRAME_SIZE;  // set avail on the first time so it will at least try
         while avail >= FRAME_SIZE {
-
             // Now figure out how much we need to feed the output
             avail = match outdev.avail_update() {
                 Ok(n) => n,
@@ -237,7 +231,6 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
                 }
             } as usize;
 
-            // println!("avail: {}", avail);
             if avail >= FRAME_SIZE {
                 // We need to feed the meter
                 engine.get_playback_data(&mut out_a, &mut out_b);

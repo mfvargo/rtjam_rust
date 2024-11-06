@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::{sync::mpsc, thread::sleep, time::Duration};
 
 use rtjam_rust::{common::box_error::BoxError, pedals::pedal_board::PedalBoard, sound::alsa_thread, JamEngine, ParamMessage};
 use thread_priority::*;
@@ -6,7 +6,7 @@ use thread_priority::*;
 fn main() -> Result<(), BoxError> {
 
     // This is the channel the audio engine will use to send us status data
-    let (status_data_tx, _status_data_rx): (
+    let (status_data_tx, status_data_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,
     ) = mpsc::channel();
@@ -32,9 +32,28 @@ fn main() -> Result<(), BoxError> {
                     //     .priority(std::thread::Priority::Realtime); 
 
     let alsa_handle = builder.spawn(move |_result| {
-        let _res = alsa_thread::run(engine);
+        match alsa_thread::run(engine, "hw:CODEC", "hw:CODEC") {
+            Ok(()) => {
+                println!("alsa ended with OK");
+            }
+            Err(e) => {
+                println!("alsa exited with error {}", e);
+            }
+            
+        }
     })?;
 
-    let _e = alsa_handle.join();
+    // Read data from JamEngine
+    while !alsa_handle.is_finished() {
+        match status_data_rx.try_recv() {
+            Ok(m) => {
+                println!("status message: {}", m.to_string());
+            }
+            Err(_e) => {
+                // dbg!(_e);
+            }
+        }
+        sleep(Duration::new(0, 200_000));
+    }
     Ok(())
 }

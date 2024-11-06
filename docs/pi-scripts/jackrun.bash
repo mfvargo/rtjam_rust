@@ -1,5 +1,5 @@
 #!/bin/bash
-NATION=http://rtjam-nation.com/pi/rust
+NATION=http://rtjam-nation.com/pi/rust-alsa
 WEBVER=version.txt
 LOCALVER=version.local.txt
 PROGRAM=rtjam_sound

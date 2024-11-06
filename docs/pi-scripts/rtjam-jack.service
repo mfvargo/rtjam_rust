@@ -2,6 +2,8 @@
 Description=rtjam service for jack
 Wants=network-online.target
 After=network-online.target
+StartLimitInterval=30
+StartLimitBurst=3
 
 [Service]
 LimitRTPRIO=infinity
@@ -11,6 +13,7 @@ WorkingDirectory=/home/pi/rtjam
 StandardOutput=inherit
 StandardError=inherit
 Restart=always
+RestartSec=7
 User=pi
 Environment="JACK_NO_AUDIO_RESERVATION=1"
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/games:/usr/games

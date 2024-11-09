@@ -12,9 +12,11 @@ use crate::{
         get_micro_time,
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
-    }, dsp::{power_meter::PowerMeter, tuner::Tuner}, hw_control::status_light::LightMessage, pedals::{midi_event::MidiEvent, pedal_board::PedalBoard}
+    }, hw_control::status_light::LightMessage
 };
-
+use crate::sound::midi_event::MidiEvent;
+use pedal_board::dsp::{power_meter::PowerMeter, tuner::Tuner};
+use pedal_board::pedals::pedal_board::PedalBoard;
 use super::{
     channel_map::ChannelMap,
     jam_socket::JamSocket,

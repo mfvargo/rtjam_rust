@@ -45,13 +45,13 @@ extern crate json;
 #[macro_use]
 extern crate num_derive;
 
-pub use self::pedals::pedal::Pedal;
+// pub use self::pedals::pedal::Pedal;
 pub use self::sound::jam_engine::JamEngine;
 pub use self::sound::param_message::ParamMessage;
 
 pub mod common;
-pub mod dsp;
-pub mod pedals;
+// pub mod dsp;
+// pub mod pedals;
 pub mod server;
 pub mod sound;
 pub mod utils;

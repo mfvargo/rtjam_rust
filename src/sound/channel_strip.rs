@@ -25,7 +25,7 @@
 //!     strip.mix_into(&mut output_left, &mut output_right);
 //! }
 //! ```
-use crate::dsp::power_meter::PowerMeter;
+use pedal_board::dsp::power_meter::PowerMeter;
 use std::fmt;
 
 use super::{fader::Fader, jitter_buffer::JitterBuffer};

@@ -19,9 +19,10 @@ use rand::random;
 
 use crate::{
     common::stream_time_stat::StreamTimeStat,
-    dsp::{attack_hold_release::AttackHoldRelease, smoothing_filter::SmoothingFilter},
     utils::to_lin,
 };
+use pedal_board::dsp::{attack_hold_release::AttackHoldRelease, smoothing_filter::SmoothingFilter};
+
 use std::fmt;
 
 const MIN_DEPTH: usize = 512;

@@ -34,7 +34,6 @@ use crate::{
         param_message::{JamParam, ParamMessage},
     }, utils
 };
-use serde::de;
 use serde_json::json;
 // use serde_json::json;
 use std::{
@@ -123,7 +122,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     if no_loopback {
         info!("Local loopback disabled");
     }
-    let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_tx, api.get_token(), git_hash, no_loopback)?;
+    let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
     
     let _jack_thread_handle = thread::spawn(move || { 
         let _res = jack_thread::run(engine);

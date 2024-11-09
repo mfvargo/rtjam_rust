@@ -3,6 +3,7 @@
 //! The engine drives off the [`JamEngine::process`] function
 use std::{str::FromStr, sync::mpsc};
 
+use jack::RawMidi;
 use serde_json::json;
 
 use crate::{
@@ -11,9 +12,7 @@ use crate::{
         get_micro_time,
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
-    },
-    dsp::{tuner::Tuner, power_meter::PowerMeter},
-    pedals::pedal_board::PedalBoard,
+    }, dsp::{power_meter::PowerMeter, tuner::Tuner}, hw_control::status_light::LightMessage, pedals::{midi_event::MidiEvent, pedal_board::PedalBoard}
 };
 
 use super::{
@@ -24,7 +23,7 @@ use super::{
 };
 
 // Set a timer for how long a connect will hold up without a keepalive from the web client
-pub const IDLE_DISCONNECT: u128 = 15 * 60 * 1000 * 1000; // 15 minutes
+pub const IDLE_DISCONNECT: u128 = 90 * 60 * 1000 * 1000; // 90 minutes
 pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 
 /// Aggregates all the sound components into a single structure
@@ -50,6 +49,7 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 /// use std::sync::mpsc;
 /// use rtjam_rust::JamEngine;
 /// use rtjam_rust::ParamMessage;
+/// use rtjam_rust::pedals::pedal_board::PedalBoard;
 /// fn main() {
 ///     let (status_data_tx, _status_data_rx): (
 ///             mpsc::Sender<serde_json::Value>,
@@ -59,7 +59,11 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 ///             mpsc::Sender<ParamMessage>,
 ///             mpsc::Receiver<ParamMessage>
 ///         ) = mpsc::channel();
-///     let mut engine = JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash", false).expect("oops");
+///     let (_pedal_tx, pedal_rx): (
+///             mpsc::Sender<PedalBoard>,
+///             mpsc::Receiver<PedalBoard>
+///         ) = mpsc::channel();
+///     let mut engine = JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).expect("oops");
 ///     // At this point some audio engine would use engine.process() as the callback for audio frames
 ///     let in_a = [0.0;128];
 ///     let in_b = [0.0;128];
@@ -76,8 +80,10 @@ pub struct JamEngine {
     sock: JamSocket,
     recv_message: JamMessage,
     xmit_message: JamMessage,
+    lights_option: Option<mpsc::Sender<LightMessage>>,
     status_data_tx: mpsc::Sender<serde_json::Value>,
     command_rx: mpsc::Receiver<ParamMessage>,
+    pedal_rx: mpsc::Receiver<PedalBoard>,
     update_timer: MicroTimer,
     update_fallback_timer: MicroTimer,
     disconnect_timer: MicroTimer,
@@ -91,7 +97,9 @@ pub struct JamEngine {
     tuners: [Tuner; 2],
     jack_jitter: StreamTimeStat,
     input_meters: [PowerMeter; 2],
+    room_meters: [PowerMeter; 2],
     no_loopback: bool,
+    room_mutes: [bool; 2],
 }
 
 impl JamEngine {
@@ -107,8 +115,10 @@ impl JamEngine {
     ///
     /// See [`crate::sound::client`]
     pub fn new(
+        lights_option: Option<mpsc::Sender<LightMessage>>,
         tx: mpsc::Sender<serde_json::Value>,
         rx: mpsc::Receiver<ParamMessage>,
+        prx: mpsc::Receiver<PedalBoard>,
         tok: &str,
         git_hash: &str,
         no_loopback: bool,
@@ -118,8 +128,10 @@ impl JamEngine {
             sock: JamSocket::new(9991)?,
             recv_message: JamMessage::new(),
             xmit_message: JamMessage::new(),
+            lights_option: lights_option,
             status_data_tx: tx,
             command_rx: rx,
+            pedal_rx: prx,
             update_timer: MicroTimer::new(now, IDLE_REFRESH),
             update_fallback_timer: MicroTimer::new(now, IDLE_REFRESH * 5),
             disconnect_timer: MicroTimer::new(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
@@ -129,12 +141,14 @@ impl JamEngine {
             chan_map: ChannelMap::new(),
             git_hash: String::from(git_hash),
             now: now,
-            pedal_boards: vec![PedalBoard::new(), PedalBoard::new()],
+            pedal_boards: vec![PedalBoard::new(0), PedalBoard::new(1)],
             tuners: [Tuner::new(), Tuner::new()],
             jack_jitter: StreamTimeStat::new(100),
             input_meters: [PowerMeter::new(), PowerMeter::new()],
+            room_meters: [PowerMeter::new(), PowerMeter::new()],
             // no_loopback = true will disable the local monitoring
             no_loopback: no_loopback,
+            room_mutes: [false, false],
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -156,6 +170,7 @@ impl JamEngine {
         self.send_status();
         self.check_disconnect();
         self.check_command();
+        self.check_pedal_board();
         self.read_network();
         self.send_my_audio(in_a, in_b);
         // This is where we would get the playback data
@@ -211,9 +226,37 @@ impl JamEngine {
             // send level updates
             let event = self.build_level_event();
             let _res = self.status_data_tx.send(event);
+            // send level update for lights
+            match &self.lights_option {
+                Some(tx) => {
+                    let _res = tx.send(
+                        LightMessage{
+                            input_one: self.room_meters[0].get_avg(),
+                            input_two: self.room_meters[1].get_avg(),
+                            status: crate::hw_control::status_light::Color::Green
+                        });
+        
+                }
+                None => {
+                    // Not on a system that has lights
+                }
+            }
             // println!("disconnect: {}", self.disconnect_timer.since(self.now));
             // println!("mixer: {}", self.mixer);
         }
+    }
+    // This is where we check for a new pedalboard
+    fn check_pedal_board(&mut self) -> () {
+        match self.pedal_rx.try_recv() {
+            Ok(board) => {
+                let idx = board.get_channel();
+                if idx < 2 {
+                    self.pedal_boards[idx] = board;
+                }
+                self.send_pedal_info();
+            }
+            Err(_) => (),
+        }        
     }
     // This is where we check for any commands we need to process
     fn check_command(&mut self) -> () {
@@ -275,13 +318,23 @@ impl JamEngine {
         self.tuners[1].get_note();
         self.pedal_boards[0].process(in_a, &mut a_temp);
         self.pedal_boards[1].process(in_b, &mut b_temp);
-        self.xmit_message.encode_audio(&a_temp, &b_temp);
-        let _res = self.sock.send(&mut self.xmit_message);
+        // This is the power we are sending into the room
+        self.room_meters[0].add_frame(&a_temp, 1.0);
+        self.room_meters[1].add_frame(&b_temp, 1.0);
         // Stuff my buffers into the mixer for local monitoring, unless no_loopback is toggled on
         if ! self.no_loopback {
             self.mixer.add_to_channel(0, &a_temp);
             self.mixer.add_to_channel(1, &b_temp);
         }
+        // room mutes
+        if self.room_mutes[0] {
+            a_temp = vec![0.0; in_a.len()];
+        }
+        if self.room_mutes[1] {
+            b_temp = vec![0.0; in_b.len()];
+        }
+        self.xmit_message.encode_audio(&a_temp, &b_temp);
+        let _res = self.sock.send(&mut self.xmit_message);
     }
     fn build_level_event(&mut self) -> serde_json::Value {
         let mut players: Vec<serde_json::Value> = vec![];
@@ -290,8 +343,14 @@ impl JamEngine {
                 "clientId": self.xmit_message.get_client_id(),
                 "depth": self.mixer.get_depth_in_msec(0),  // convert to msec
                 "level0": self.mixer.get_channel_power_avg(0),
-                "level1": self.mixer.get_channel_power_avg(1),
+                "mute0": self.mixer.get_channel_mute(0),
+                "fade0": self.mixer.get_channel_fade(0),
+                "gain0": self.mixer.get_channel_gain(0),
                 "peak0": self.mixer.get_channel_power_peak(0),
+                "level1": self.mixer.get_channel_power_avg(1),
+                "mute1": self.mixer.get_channel_mute(1),
+                "fade1": self.mixer.get_channel_fade(1),
+                "gain1": self.mixer.get_channel_gain(1),
                 "peak1": self.mixer.get_channel_power_peak(1),
                 "drops": 0,
             }
@@ -304,8 +363,14 @@ impl JamEngine {
                         "clientId": c.client_id,
                         "depth": self.mixer.get_depth_in_msec(idx),
                         "level0": self.mixer.get_channel_power_avg(idx),
-                        "level1": self.mixer.get_channel_power_avg(idx+1),
+                        "mute0": self.mixer.get_channel_mute(idx),
+                        "fade0": self.mixer.get_channel_fade(idx),
+                        "gain0": self.mixer.get_channel_gain(idx),
                         "peak0": self.mixer.get_channel_power_peak(idx),
+                        "level1": self.mixer.get_channel_power_avg(idx+1),
+                        "mute1": self.mixer.get_channel_mute(idx+1),
+                        "fade1": self.mixer.get_channel_fade(idx+1),
+                        "gain1": self.mixer.get_channel_gain(idx+1),
                         "peak1": self.mixer.get_channel_power_peak(idx+1),
                         "drops": c.get_drops(),
                     }
@@ -327,17 +392,17 @@ impl JamEngine {
                   "peakLeft": self.input_meters[0].get_peak(),
                   "peakRight": self.input_meters[1].get_peak(),
                   // These are what the channel is sending to the room
-                  "roomInputLeft": self.mixer.get_channel_power_avg(0),
-                  "roomInputRight": self.mixer.get_channel_power_avg(1),
-                  "roomPeakLeft": self.mixer.get_channel_power_peak(0),
-                  "roomPeakRight": self.mixer.get_channel_power_peak(1),
+                  "roomInputLeft": self.room_meters[0].get_avg(),
+                  "roomInputRight": self.room_meters[1].get_avg(),
+                  "roomPeakLeft": self.room_meters[0].get_peak(),
+                  "roomPeakRight": self.room_meters[1].get_peak(),
+                  "leftRoomMute": self.room_mutes[0],
+                  "rightRoomMute": self.room_mutes[1],
                   // TODO  These are stubs for now
                   "inputLeftFreq": self.tuners[0].get_note(),
                   "inputRightFreq": self.tuners[1].get_note(),
                   "leftTunerOn": self.tuners[0].enable,
                   "rightTunerOn": self.tuners[1].enable,
-                  "leftRoomMute": false,
-                  "rightRoomMute": false,
                   "beat": 0,
                   "jsonTimeStamp": 0,
                   "midiDevice": "not supported",
@@ -346,6 +411,14 @@ impl JamEngine {
         });
 
         data
+    }
+    pub fn send_midi_event (&mut self, e: RawMidi) -> () {
+        let mevent = MidiEvent::new(e);
+        let data = json!({
+            "speaker": "UnitChatRobot",
+            "midiEvent": mevent,
+        });
+        let _res = self.status_data_tx.send(data);
     }
     fn process_param_command(&mut self, msg: ParamMessage) -> () {
         match msg.param {
@@ -391,10 +464,30 @@ impl JamEngine {
             JamParam::ChanGain14 => {
                 self.mixer.set_channel_gain(13, msg.fvalue);
             }
+            JamParam::MasterVol => {
+                self.mixer.set_master(msg.fvalue);
+            }
             JamParam::SetFader => {
                 if Self::check_index(msg.ivalue_1 as usize) {
                     self.mixer
                         .set_channel_fade(msg.ivalue_1 as usize, msg.fvalue as f32);
+                }
+            }
+            JamParam::ChannelGain => {
+                if Self::check_index(msg.ivalue_1 as usize) {
+                    self.mixer
+                        .set_channel_gain(msg.ivalue_1 as usize, msg.fvalue);
+                }
+            }
+            JamParam::ChannelMute => {
+                if Self::check_index(msg.ivalue_1 as usize) {
+                    self.mixer
+                        .set_channel_mute(msg.ivalue_1 as usize, msg.ivalue_2 == 1);
+                }
+            }
+            JamParam::MuteToRoom => {
+                if Self::check_index(msg.ivalue_1 as usize) {
+                    self.room_mutes[msg.ivalue_1 as usize] = msg.ivalue_2 == 1;
                 }
             }
             JamParam::RoomChange => {
@@ -424,13 +517,6 @@ impl JamEngine {
                 let to_idx: usize = msg.fvalue.round() as usize;
                 if idx < self.pedal_boards.len() {
                     self.pedal_boards[idx].move_pedal(from_idx, to_idx);
-                }
-                self.send_pedal_info();
-            }
-            JamParam::LoadBoard => {
-                let idx = msg.ivalue_1 as usize;
-                if idx < self.pedal_boards.len() {
-                    self.pedal_boards[idx].load_from_json(&msg.svalue);
                 }
                 self.send_pedal_info();
             }
@@ -514,8 +600,11 @@ mod test_jam_engine {
         // This is the channel we will use to send commands to the jack engine
         let (_command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
             mpsc::channel();
+        let (_pedal_tx, pedal_rx): (mpsc::Sender<PedalBoard>, mpsc::Receiver<PedalBoard>) =
+            mpsc::channel();
+    
 
-        JamEngine::new(status_data_tx, command_rx, "someToken", "some_git_hash", false).unwrap()
+        JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).unwrap()
     }
 
     #[test]

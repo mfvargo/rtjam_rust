@@ -1,6 +1,6 @@
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use crate::{common::{box_error::BoxError, jam_packet::{JamMessage}, packet_stream::PacketReader, get_micro_time, stream_time_stat::MicroTimer}, sound::{mixer::Mixer, channel_map::ChannelMap}, server::cmd_message::RoomParam};
+use crate::{common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer}, server::cmd_message::RoomParam, sound::{channel_map::ChannelMap, mixer::Mixer}, utils::to_lin};
 
 use super::cmd_message::RoomCommandMessage;
 
@@ -76,12 +76,14 @@ pub struct PlaybackMixer {
 
 impl PlaybackMixer {
     pub fn new() -> PlaybackMixer {
-        PlaybackMixer {
+        let mut mixer = PlaybackMixer {
             mixer: Mixer::new(),
             chan_map: ChannelMap::new(),
             stream: None,
             seq: 0,
-        }
+        };
+        mixer.mixer.set_master(to_lin(-3.0));
+        mixer
     }
 
     pub fn get_a_packet(&mut self, now: u128) -> Option<JamMessage> {
@@ -98,6 +100,21 @@ impl PlaybackMixer {
             packet.encode_audio(&out_a, &out_b);
             // println!("mixer: {}", self.mixer);
             return Some(packet);
+        }
+        None
+        // if let Some(reader) = &mut self.stream {
+        //     match reader.read_up_to(now)
+        // }
+    }
+
+    pub fn get_a_frame(&mut self)-> Option<[[f32; 128]; 2]> {
+        if self.stream.is_some() {
+            // We are currently playing back.  Mix out a packet
+            let mut out_a: [f32; 128] = [0.0; 128];
+            let mut out_b: [f32; 128] = [0.0; 128];
+            self.mixer.get_mix(&mut out_a, &mut out_b);
+            // println!("mixer: {}", self.mixer);
+            return Some([out_a, out_b]);
         }
         None
         // if let Some(reader) = &mut self.stream {
@@ -125,7 +142,7 @@ impl PlaybackMixer {
     }
 
     /// This will load data from the stream into the mixer up to now in time
-    fn load_up_till_now(&mut self, now: u128) -> Result<(), BoxError> {
+    pub fn load_up_till_now(&mut self, now: u128) -> Result<(), BoxError> {
         if let Some(reader) = &mut self.stream {
             let mut looping = true;
             while looping {

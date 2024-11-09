@@ -28,16 +28,15 @@ use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
-    },
-    sound::{
+    }, hw_control::{hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage}}, pedals::pedal_board::PedalBoard, sound::{
         jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
-    },
-    utils,
+    }, utils
 };
 use serde::de;
 use serde_json::json;
+// use serde_json::json;
 use std::{
     io::{ErrorKind, Write},
     process::Command,
@@ -93,6 +92,19 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
+    let mut light_option: Option<mpsc::Sender<LightMessage>> = None;
+    // Lets create a thread to control custom hardware
+    let (lights_tx, lights_rx): (mpsc::Sender<LightMessage>, mpsc::Receiver<LightMessage>) =
+    mpsc::channel();
+
+    if has_lights() {
+        light_option = Some(lights_tx);
+
+        let _hw_handle = thread::spawn(move || {
+            let _res = hw_control_thread(lights_rx);
+        });
+    }
+
     // Create channels to/from Jack Engine
 
     // This is the channel the audio engine will use to send us status data
@@ -105,12 +117,15 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let (command_tx, command_rx): (mpsc::Sender<ParamMessage>, mpsc::Receiver<ParamMessage>) =
         mpsc::channel();
 
-    // TODO: move the info message to the JamEngine ctor
+    let (pedal_tx, pedal_rx): (mpsc::Sender<PedalBoard>, mpsc::Receiver<PedalBoard>) =
+        mpsc::channel();
+
     if no_loopback {
         info!("Local loopback disabled");
     }
-    let engine = JamEngine::new(status_data_tx, command_rx, api.get_token(), git_hash, no_loopback)?;
-    let _jack_thread_handle = thread::spawn(move || {
+    let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_tx, api.get_token(), git_hash, no_loopback)?;
+    
+    let _jack_thread_handle = thread::spawn(move || { 
         let _res = jack_thread::run(engine);
     });
 
@@ -122,6 +137,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let mut websock_room_ping = MicroTimer::new(get_micro_time(), 2_000_000);
     // Now this main thread will listen on the mpsc channels
     loop {
+        // This is how you would send a message to the hw control thread!
+        // let _res = lights_tx.send(json!({"msg": "hello"}));
         let res = from_ws_rx.try_recv();
         match res {
             Ok(m) => {
@@ -160,6 +177,15 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                                 info!("Exiting app");
                                 std::process::exit(-1);
                             }
+                            JamParam::LoadBoard => {
+                                let idx = msg.ivalue_1 as usize;
+                                if idx < 2 {
+                                    // Build a pedalboard and send it to the jack thread
+                                    let mut board = PedalBoard::new(idx);
+                                    board.load_from_json(&msg.svalue);
+                                    let _res = pedal_tx.send(board);
+                                }
+                            }                
                             // This message is for the jamEngine to handle
                             _ => {
                                 let _res = command_tx.send(msg);
@@ -216,13 +242,20 @@ fn jam_unit_ping_thread(mut api: JamNationApi) -> Result<(), BoxError> {
     loop {
         while api.has_token() == true {
             // While in this loop, we are going to ping every 10 seconds
-            let ping = api.jam_unit_ping()?;
-            if ping["jamUnit"].is_null() {
-                // Error in the ping.  better re-register
-                api.forget_token();
-            } else {
-                // Successful ping.. Sleep for 10
-                sleep(Duration::new(10, 0));
+            match api.jam_unit_ping() {
+                Ok(ping) => {
+                    if ping["jamUnit"].is_null() {
+                        // Error in the ping.  better re-register
+                        api.forget_token();
+                    } else {
+                        // Successful ping.. Sleep for 10
+                        sleep(Duration::new(10, 0));
+                    }
+                }
+                Err(e) => {
+                    api.forget_token();
+                    debug!("jam_unit_ping Error: {}", e);
+                }
             }
         }
         if !api.has_token() {
@@ -309,7 +342,7 @@ fn write_string_to_file(fname: &str, contents: &str) -> () {
                     }
                 }
                 other_error => {
-                    debug!("{}", other_error);
+                    debug!("Unexpected Error type writing to file: {}", other_error);
                     warn!("Failed to create file: {}", fname);
                 }
             }

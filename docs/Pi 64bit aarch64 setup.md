@@ -14,6 +14,7 @@ sudo apt upgrade
 ```
 sudo apt install jackd2
 sudo apt install git
+sudo apt install libssl1.1
 git clone https://github.com/mfvargo/rtjam_rust.git
 cd rtjam_rust
 ```
@@ -41,7 +42,7 @@ It creates a directory called rtjam under /home/pi and then copies files there.\
 
 - install rust - curl https://sh.rustup.rs -sSf | sh
 - install libssl - sudo apt install libssl-dev
-- install libjack-dev - sudo apt install jackd2 libjack-dev
+- install libjack-dev - sudo apt install libjack-dev
 - git clone https://github.com/mfvargo/rtjam_rust.git
 - cd rtjam_rust
 - cargo build etc ( or you can make )

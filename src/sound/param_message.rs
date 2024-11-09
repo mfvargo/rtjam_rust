@@ -9,33 +9,33 @@ use crate::common::box_error::BoxError;
 
 #[derive(FromPrimitive, ToPrimitive)]
 pub enum JamParam {
-    ChanGain1 = 0,
-    ChanGain2,
-    ChanGain3,
-    ChanGain4,
-    ChanGain5,
-    ChanGain6,
-    ChanGain7,
-    ChanGain8,
-    ChanGain9,
-    ChanGain10,
-    ChanGain11,
-    ChanGain12,
-    ChanGain13,
-    ChanGain14,
-    MasterVol,
-    InputMonitor,
-    Room0,
-    Room1,
-    Room2,
-    ReverbChanOne,
-    ReverbMix,
-    RoomChange,
-    Disconnect,
-    HPFOn,
-    HPFOff,
-    ReverbOne,
-    ReverbTwo,
+    ChanGain1 = 0,  //deprecated
+    ChanGain2,  //deprecated
+    ChanGain3,  //deprecated
+    ChanGain4,  //deprecated
+    ChanGain5,  //deprecated
+    ChanGain6,  //deprecated
+    ChanGain7,  //deprecated
+    ChanGain8,  //deprecated
+    ChanGain9,  //deprecated
+    ChanGain10,  //deprecated
+    ChanGain11,  //deprecated
+    ChanGain12,  //deprecated
+    ChanGain13,  //deprecated
+    ChanGain14,  //deprecated
+    MasterVol,  // Set gain on master volume
+    InputMonitor,  //deprecated
+    Room0,  //deprecated
+    Room1,  //deprecated
+    Room2,  //deprecated
+    ReverbChanOne,  //deprecated
+    ReverbMix,  //deprecated
+    RoomChange, // Connect to a room (aka joinRoom)
+    Disconnect, // Disconnect from a room
+    HPFOn,  //deprecated
+    HPFOff,  //deprecated
+    ReverbOne,  //deprecated
+    ReverbTwo,  //deprecated
     GetConfigJson,
     SetEffectConfig,
     InsertPedal,
@@ -43,20 +43,22 @@ pub enum JamParam {
     MovePedal,
     LoadBoard,
     TuneChannel,
-    MetronomeVolume,
-    SetFader,
-    MuteToRoom,
+    MetronomeVolume,  // TBD
+    SetFader,  // Change fader on a channel
+    MuteToRoom, // Send silence to the room (but not to the mixer)
     ConnectionKeepAlive,
-    SetBufferSize,
-    Count,
+    SetBufferSize,  // Changes the framesize (experimental for Joel, did not help)
+    ChannelMute,  // Set the must stus on a channel
+    ChannelGain,  // Set the channel gain (replaces ChanGain1-14)
+    Count,  // Count of basic apis  (not really used)
     SetAudioInput = 1000,
     SetAudioOutput,
     ListAudioConfig,
     CheckForUpdate,
     RandomCommand,
     GetPedalTypes,
-    SetUpdateInterval,
-    RebootDevice = 9998,
+    SetUpdateInterval,  // Sets the frequency the unit will update the ux in the browser
+    RebootDevice = 9998,  // deprecated
     ShutdownDevice = 9999,
 }
 

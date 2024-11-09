@@ -5,6 +5,7 @@ use std::fmt;
 pub struct Fader {
     left: f32,
     right: f32,
+    val: f32,
 }
 
 impl Fader {
@@ -12,6 +13,7 @@ impl Fader {
         let mut f = Fader {
             left: 1.0,
             right: 1.0,
+            val: 0.0,
         };
         f.set(0.0);
         f
@@ -19,9 +21,13 @@ impl Fader {
     /// call this with a value from -1.0 (hard pan left) to +1.0 (hard pan right)
     /// 0.0 means pan center.  
     pub fn set(&mut self, v: f32) -> () {
-        let fade = f32::clamp(v, -1.0, 1.0);
-        self.left = f32::sqrt(1.0 - fade);
-        self.right = f32::sqrt(1.0 + fade);
+        self.val = f32::clamp(v, -1.0, 1.0);
+        self.left = f32::sqrt(1.0 - self.val);
+        self.right = f32::sqrt(1.0 + self.val);
+    }
+
+    pub fn get(&self) -> f32 {
+        self.val
     }
 
     pub fn left(&self) -> f32 {

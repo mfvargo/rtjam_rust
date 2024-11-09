@@ -78,7 +78,7 @@ impl DistortionBase {
             m_tone_mid: BiQuadFilter::new(),  // mid control frequency
             m_tone_treble: BiQuadFilter::new(), // treble control frequency
 
-            /// type of clipping for stage 1
+            // type of clipping for stage 1
             clip1_type: ClipType::Soft, // clip funciton type for stage 1
             clip2_type: ClipType::Soft, // clip funciton type for stage 2
 
@@ -160,6 +160,7 @@ impl DistortionBase {
 
             // Stage 1 - first clipper (set to emulate op-amp clipping before diodes)
             value = clip_sample(&self.clip1_type, value * self.gain1); // clip signal
+            value /= self.gain1;
 
             // filter out higher-order harmonics
             value = self.m_lpf2.get_sample(&value);

@@ -173,10 +173,9 @@ impl CodecControl {
         for _i in [0, 1, 2, 4] {
             self.i2c_int.read(&mut buf)?;   // Read data
             let adc_chan = ((buf[0] & 0x30) >> 4) as usize;  // Get channel ID as usize for indexing
-            // Extract the full 12-bit ADC value by including all 8 bits from buf[0] and buf[1]
-            let value = (((buf[0] & 0xFF) as u64) << 8) | (buf[1] as u64);  // Combine full byte of buf[0] and buf[1]
-            self.adc_values[adc_chan] = value / 16;  // Scale down for knobs
-        
+            // Extract the full 12-bit ADC value by shifting and ORing buf[0] and buf[1]
+            let value = (((buf[0] & 0x0F) as u64) << 4) | ((buf[1] >> 4) as u64);  // Combine full byte of buf[0] and buf[1]
+            self.adc_values[adc_chan] = value;  // Scale down for copy ADC value to array of ADC values
         }
 
         Ok(())

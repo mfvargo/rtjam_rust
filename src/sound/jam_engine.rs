@@ -165,7 +165,13 @@ impl JamEngine {
         out_a: &mut [f32],
         out_b: &mut [f32],
     ) -> Result<(), BoxError> {
-        // Get the local microsecond time
+        self.process_inputs(in_a, in_b);
+        self.get_playback_data(out_a, out_b);
+        self.debug_output();
+        Ok(())
+    }
+    pub fn process_inputs(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
+        // Push a frame of data into the system
         self.set_now();
         self.send_status();
         self.check_disconnect();
@@ -173,14 +179,9 @@ impl JamEngine {
         self.check_pedal_board();
         self.read_network();
         self.send_my_audio(in_a, in_b);
-        // This is where we would get the playback data
-        // For now just copy input to output
-        // let (a, b) = self.xmit_message.decode_audio();
+    }
+    pub fn get_playback_data(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
         self.mixer.get_mix(out_a, out_b);
-        // out_a.clone_from_slice(&a[..]);
-        // out_b.clone_from_slice(&b[..]);
-        self.debug_output();
-        Ok(())
     }
     fn debug_output(&mut self) {
         if self.debug_timer.expired(self.now) {

@@ -29,13 +29,13 @@ use crate::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
     }, hw_control::{hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage}}, pedals::pedal_board::PedalBoard, sound::{
-        jack_thread,
+        // jack_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
-    }, utils
+    }, utils,
 };
 use serde_json::json;
-// use serde_json::json;
+use thread_priority::{ThreadBuilder, ThreadPriority};
 use std::{
     io::{ErrorKind, Write},
     process::Command,
@@ -46,14 +46,15 @@ use std::{
 //use log::{debug, info, warn, error, trace, log_enabled, Level};
 use log::{trace, debug, info, warn,};
 
+use super::alsa_thread;
+
 /// This is the entry for rtjam client
 /// call this from the main function to start the whole thing running.
 ///
 /// note the git_hash string allows the software to tell rtjam-nation what version of code it
 /// is currently running.
-pub fn run(git_hash: &str) -> Result<(), BoxError> {
-    // Init the logger. If it's already been initialized, this will do nothing
-    let _ = env_logger::try_init();
+pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxError> {
+    // This is the entry rtjam client
 
     // load up the config to get required info
     // TODO: keep bubbling up the config file name to remove hard coding, and make configurable for testing fun and games
@@ -123,10 +124,27 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         info!("Local loopback disabled");
     }
     let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
-    
-    let _jack_thread_handle = thread::spawn(move || { 
-        let _res = jack_thread::run(engine);
-    });
+    // let _jack_thread_handle = thread::spawn(move || {
+    //     let _res = jack_thread::run(engine);
+    // });
+    // let _alsa_thread_handle = thread::spawn(move || {
+    //     let _res = alsa_thread::run(engine);
+    // });
+
+    let builder = ThreadBuilder::default()
+        .name("Real-Time Thread".to_string())
+        .priority(ThreadPriority::Max);
+
+    let _alsa_handle = builder.spawn(move |_result| {
+        match alsa_thread::run(engine, &in_dev, &out_dev) {
+            Ok(()) => {
+            println!("alsa ended with OK");
+            }
+            Err(e) => {
+                println!("alsa exited with error {}", e);
+            }
+        }
+    })?;
 
     let _ping_handle = thread::spawn(move || {
         let _res = jam_unit_ping_thread(api);

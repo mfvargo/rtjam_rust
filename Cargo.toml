@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-openssl = { version = "0.10", features = ["vendored"] }
+# openssl = { version = "0.10", features = ["vendored"] }
+openssl = { version = "0.10" }
 json = "*"
 byteorder = "*"
 reqwest = { version = "*", features = ["blocking", "json"] }
@@ -19,7 +20,6 @@ simple-error = "0.2.3"
 num-derive = "0.3.3"
 num = "0.4.0"
 num-traits = "0.2.15"
-rustfft = "6.1.0"
 mac_address = "1.1.4"
 socket2 = "0.5.1"
 rand = "0.8.5"
@@ -29,6 +29,7 @@ hound = "3.5.1"
 csv = "1.3.0"
 wmidi = "4.0.10"
 rppal = "0.19.0"
+pedal-board = { git = "https://github.com/mfvargo/pedal-board.git", branch = "master" }
 
 [build-dependencies]
 vergen = "7.5.0"

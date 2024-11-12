@@ -135,9 +135,15 @@ impl Config {
         Err(MissingConfigError { key: key.to_string() })
     }
 
-
-    pub fn set_value(&mut self, key: &str, val: &str) -> () {
-        self.settings[key] = val.into();
+    pub fn set_value(&mut self, key: &str, val: impl Into<JsonValue>) -> Result<(), String> {
+        let json_val = val.into();
+        match json_val {
+            JsonValue::Short(_) | JsonValue::String(_) | JsonValue::Boolean(_) | JsonValue::Number(_) => {
+                self.settings[key] = json_val;
+                Ok(())
+            },
+            _ => Err(format!("Unsupported value type for key: {}", key)),
+        }
     }
 
     pub fn dump(&self) {
@@ -193,6 +199,12 @@ mod test {
             Ok(config) => config,
             Err(e) => panic!("Failed to build config: {}", e)
         }
+    }
+
+    fn set_config_value_or_boom(config: &mut Config, key: &str, val: impl Into<JsonValue>) -> Result<(), String> {
+        let set_result = config.set_value(key, val);
+        assert_eq!(set_result.is_ok(), true);
+        Ok(())
     }
     
     #[test]
@@ -250,7 +262,7 @@ mod test {
     fn get_str_value_explicit_set() {
         // You should be able to get a set string value that overrides the config default
         let mut config: Config = test_config("no_file.json");
-        config.set_value("name", "new value");
+        let _ = set_config_value_or_boom(&mut config, "name", "new value");
         assert_eq!(config.get_str_value("name", None).unwrap(), "new value");
     }
 
@@ -271,18 +283,90 @@ mod test {
     }
 
     #[test]
-    fn set_value() {
+    fn get_bool_value_config_default() {
+        // You should be able to get config objects default value for a boolean
+        let config: Config = test_config("no_file.json");
+        assert_eq!(config.get_bool_value("enabled", None).unwrap(), true);
+    }
+
+    #[test]
+    fn get_bool_value_explicit_set() {
+        // You should be able to get a set boolean value that overrides the config default
+        let mut config: Config = test_config("no_file.json");
+        let _ = set_config_value_or_boom(&mut config, "enabled", false);
+        assert_eq!(config.get_bool_value("enabled", None).unwrap(), false);
+    }
+
+    #[test]
+    fn get_bool_value_with_explicit_default() {
+        // You should be able to get a boolean value with an explicit default in the get fn
+        let config: Config = test_config("no_file.json");
+        assert_eq!(config.get_bool_value("i_dont_exist", Some(false)).unwrap(), false);
+    }
+
+    #[test]
+    fn get_bool_value_error_on_missing_key() {
+        let config: Config = test_config("no_file.json");
+        let boom: Result<bool, MissingConfigError> = config.get_bool_value("i_dont_exist", None);
+        assert_eq!(boom.is_err(), true);
+        // assert the type is MissingConfigError
+        assert_eq!(boom.err().unwrap().to_string(), "Required configuration value 'i_dont_exist' is missing");
+    }
+
+    #[test]
+    fn get_u32_value_config_default() {
+        // You should be able to get config objects default value for a u32
+        let config: Config = test_config("no_file.json");
+        assert_eq!(config.get_u32_value("count", None).unwrap(), 42);
+    }
+
+    #[test]
+    fn get_u32_value_explicit_set() {
+        // You should be able to get a set u32 value that overrides the config default
+        let mut config: Config = test_config("no_file.json");
+        let _ = set_config_value_or_boom(&mut config, "count", 100);
+        assert_eq!(config.get_u32_value("count", None).unwrap(), 100);
+    }
+
+    #[test]
+    fn get_u32_value_with_explicit_default() {
+        // You should be able to get a u32 value with an explicit default in the get fn
+        let config: Config = test_config("no_file.json");
+        assert_eq!(config.get_u32_value("i_dont_exist", Some(99)).unwrap(), 99);
+    }
+
+    #[test]
+    fn get_u32_value_error_on_missing_key() {
+        let config: Config = test_config("no_file.json");
+        let boom: Result<u32, MissingConfigError> = config.get_u32_value("i_dont_exist", None);
+        assert_eq!(boom.is_err(), true);
+        // assert the type is MissingConfigError
+        assert_eq!(boom.err().unwrap().to_string(), "Required configuration value 'i_dont_exist' is missing");
+    }
+
+    #[test]
+    fn set_value_str() {
         // You should be able to set a value on a key
         let mut config: Config = test_config("no_file.json");
-        config.set_value("lastname", "kajikami");
+        let _ = set_config_value_or_boom(&mut config, "lastname", "kajikami");
         let lastname: Result::<String, MissingConfigError> = config.get_str_value("lastname", None);
         assert_eq!(lastname.unwrap(), "kajikami");
     }
+
+    #[test]
+    fn set_value_with_unsupported_type() {
+        // You should not be able to set a value with an unsupported type (e.g., array)
+        let mut config: Config = test_config("no_file.json");
+        let set_result = config.set_value("unsupported", json::array!["value1", "value2"]);
+        assert_eq!(set_result.is_err(), true);
+        assert_eq!(set_result.err().unwrap(), "Unsupported value type for key: unsupported");
+    }
+
     #[test]
     fn save_settings() {
         // You should be able to flush the settings to the file
         let mut config: Config = test_config("settings.json");
-        config.set_value("foobar", "as Usual");
+        let _ = set_config_value_or_boom(&mut config, "foobar", "as Usual");
         let result = config.save_settings();
         assert_eq!(result.unwrap(), true);
         config.dump();

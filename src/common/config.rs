@@ -35,11 +35,11 @@ impl Config {
     pub fn build(filename: String, defaults: JsonValue) -> Result<Config, std::io::Error> {
         // Try to open the file to validate filename
         // Validate filename only contains valid characters and ends in .json
-        let filename_regex = Regex::new(r"^[a-zA-Z0-9_\-\.]+\.json$").unwrap();
+        let filename_regex = Regex::new(r"^(?:[/a-zA-Z0-9_\-\.]+)*?[/a-zA-Z0-9_\-\.]+\.json$").unwrap();
         if !filename_regex.is_match(&filename) {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
-                "Invalid filename - must contain only letters, numbers, underscore, dash, dot and end in .json"
+                format!("Invalid filename '{}' - must contain only letters, numbers, underscore, dash, dot and end in .json", filename)
             ));
         }
 
@@ -181,24 +181,61 @@ impl Config {
 }
 
 #[cfg(test)]
-mod test {
+mod config_tests {
 
     use super::*;
+    use std::path::PathBuf;
+    use once_cell::sync::Lazy;
 
-    fn test_defaults() -> JsonValue {
-        json::object! {
-            "name": "default_name",
-            "enabled": true,
-            "count": 42
-        }
+    /// A totally over-engineered test context that efficiently creates a one time shared temporary directory and config file
+    /// and deletes them when the test suite is done.
+    struct TestContext {
+        config_path: PathBuf,
+        file_values: JsonValue,
+        defaults: JsonValue,
     }
 
-    fn test_config(filename: &str) -> Config {
-        let defaults = test_defaults();
-        match Config::build(filename.to_string(), defaults) {
-            Ok(config) => config,
-            Err(e) => panic!("Failed to build config: {}", e)
+    static TEST_CONTEXT: Lazy<TestContext> = Lazy::new(|| {
+        let file_content = r#"{
+            "file_string": "I live in a fishbowl",
+            "file_bool": false,
+            "file_u32": 2112
+        }"#;
+        
+        let config_path = std::env::temp_dir().join("test_config.json");
+        let file_values = json::parse(file_content).expect("Failed to parse file content");
+        let defaults = json::object! {
+            "file_string": "default_name",
+            "file_bool": true,
+            "file_u32": 42,
+            "default_string": "default_only",
+        };
+
+        // Create a temporary config file
+        std::fs::write(&config_path, file_content).expect("Failed to write temporary config file");
+
+        // Return a context for referencing expected values
+        TestContext {
+            config_path,
+            file_values,
+            defaults,
         }
+    });
+
+    // Helper function to create a Config instance with the shared config file
+    fn create_config_with_test_file() -> Config {
+        Config::build(
+            TEST_CONTEXT.config_path.to_str().unwrap().to_string(),
+            TEST_CONTEXT.defaults.clone()
+        ).expect("Failed to build config")
+    }
+
+    // Helper function to create a Config instance with the shared config file
+    fn create_config_with_filename(filename: &str) -> Config {
+        Config::build(
+            filename.to_string(),
+            TEST_CONTEXT.defaults.clone()
+        ).expect("Failed to build config")
     }
 
     fn set_config_value_or_boom(config: &mut Config, key: &str, val: impl Into<JsonValue>) -> Result<(), String> {
@@ -208,27 +245,42 @@ mod test {
     }
     
     #[test]
+    fn should_build() {
+        let config: Config = create_config_with_test_file();
+        assert_eq!(config.filename, TEST_CONTEXT.config_path.to_str().unwrap());
+    }
+
+    #[test]
     fn should_build_with_any_valid_name() {
         // you should be able to build a config object from a valid file name, if it doesn't exist
-        let config: Config = test_config("I_see_dead_people.json");
+        let config: Config = create_config_with_filename("I_see_dead_people.json");
         // Confirm that a config instance is returned
         assert_eq!(config.filename, "I_see_dead_people.json");
     }
 
     #[test]
+    fn should_return_file_values() {
+        let config: Config = create_config_with_test_file();
+        assert_eq!(config.get_str_value("file_string", None).unwrap(), TEST_CONTEXT.file_values["file_string"].as_str().unwrap());
+        assert_eq!(config.get_bool_value("file_bool", None).unwrap(), TEST_CONTEXT.file_values["file_bool"].as_bool().unwrap());
+        assert_eq!(config.get_u32_value("file_u32", None).unwrap(), TEST_CONTEXT.file_values["file_u32"].as_u32().unwrap());
+    }
+
+    #[test]
     fn should_get_defaults_with_no_file() {
-        let config: Config = test_config("I_see_dead_people.json");
+        let config: Config = create_config_with_filename("I_see_dead_people.json");
         // Confirm that an instance of each type of value can be retrieved from the config object
-        assert_eq!(config.get_str_value("name", None).unwrap(), "default_name");
-        assert_eq!(config.get_bool_value("enabled", None).unwrap(), true);
-        assert_eq!(config.get_u32_value("count", None).unwrap(), 42);
+        assert_eq!(config.get_str_value("file_string", None).unwrap(), TEST_CONTEXT.defaults["file_string"].as_str().unwrap());
+        assert_eq!(config.get_bool_value("file_bool", None).unwrap(), TEST_CONTEXT.defaults["file_bool"].as_bool().unwrap());
+        assert_eq!(config.get_u32_value("file_u32", None).unwrap(), TEST_CONTEXT.defaults["file_u32"].as_u32().unwrap());
+        assert_eq!(config.get_str_value("default_string", None).unwrap(), TEST_CONTEXT.defaults["default_string"].as_str().unwrap());
     }
 
     #[test]
     fn should_error_with_invalid_name() {
         // you should not be able to build a config object from an invalid file name
         let filename = "I'm_;,`all_{jacked}_up";
-        let boom: Result<Config, std::io::Error> = Config::build(filename.to_string(), test_defaults());
+        let boom: Result<Config, std::io::Error> = Config::build(filename.to_string(), TEST_CONTEXT.defaults.clone());
         // Print the type of boom for debugging
         println!("Type of boom: {}", std::any::type_name_of_val(&boom));
         match boom {
@@ -240,28 +292,21 @@ mod test {
     #[test]
     fn should_dump() {
         // you should be able to dump the config object
-        let config: Config = test_config("settings.json");
+        let config: Config = create_config_with_test_file();
         assert_eq!(config.dump(), ());
-    }
-
-    #[test]
-    fn load_from_file() {
-        // The configuration should serialize itself to JSON
-        let mut config: Config = test_config("settings.json");
-        assert_eq!(config.load_from_file().unwrap(), ());
     }
 
     #[test]
     fn get_str_value_config_default() {
         // You should be able to get config objects default value for a string
-        let config: Config = test_config("no_file.json");
-        assert_eq!(config.get_str_value("name", None).unwrap(), "default_name");
+        let config: Config = create_config_with_filename("no_file.json");
+        assert_eq!(config.get_str_value("file_string", None).unwrap(), TEST_CONTEXT.defaults["file_string"].as_str().unwrap());
     }
 
     #[test]
     fn get_str_value_explicit_set() {
         // You should be able to get a set string value that overrides the config default
-        let mut config: Config = test_config("no_file.json");
+        let mut config: Config = create_config_with_filename("no_file.json");
         let _ = set_config_value_or_boom(&mut config, "name", "new value");
         assert_eq!(config.get_str_value("name", None).unwrap(), "new value");
     }
@@ -269,13 +314,13 @@ mod test {
     #[test]
     fn get_str_value_with_explicit_default() {
         // You should be able to get a string value with an explicit default in the get fn
-        let config: Config = test_config("no_file.json");
+        let config: Config = create_config_with_filename("no_file.json");
         assert_eq!(config.get_str_value("i_dont_exist", Some("default value".to_string())).unwrap(), "default value");
     }
 
     #[test]
     fn get_str_value_error_on_missing_key() {
-        let config: Config = test_config("no_file.json");
+        let config: Config = create_config_with_filename("no_file.json");
         let boom: Result<String, MissingConfigError> = config.get_str_value("i_dont_exist", None);
         assert_eq!(boom.is_err(), true);
         // assert the type is MissingConfigError
@@ -285,14 +330,14 @@ mod test {
     #[test]
     fn get_bool_value_config_default() {
         // You should be able to get config objects default value for a boolean
-        let config: Config = test_config("no_file.json");
-        assert_eq!(config.get_bool_value("enabled", None).unwrap(), true);
+        let config: Config = create_config_with_filename("no_file.json");
+        assert_eq!(config.get_bool_value("file_bool", None).unwrap(), TEST_CONTEXT.defaults["file_bool"].as_bool().unwrap());
     }
 
     #[test]
     fn get_bool_value_explicit_set() {
         // You should be able to get a set boolean value that overrides the config default
-        let mut config: Config = test_config("no_file.json");
+        let mut config: Config = create_config_with_filename("no_file.json");
         let _ = set_config_value_or_boom(&mut config, "enabled", false);
         assert_eq!(config.get_bool_value("enabled", None).unwrap(), false);
     }
@@ -300,13 +345,13 @@ mod test {
     #[test]
     fn get_bool_value_with_explicit_default() {
         // You should be able to get a boolean value with an explicit default in the get fn
-        let config: Config = test_config("no_file.json");
+        let config: Config = create_config_with_filename("no_file.json");
         assert_eq!(config.get_bool_value("i_dont_exist", Some(false)).unwrap(), false);
     }
 
     #[test]
     fn get_bool_value_error_on_missing_key() {
-        let config: Config = test_config("no_file.json");
+        let config: Config = create_config_with_filename("no_file.json");
         let boom: Result<bool, MissingConfigError> = config.get_bool_value("i_dont_exist", None);
         assert_eq!(boom.is_err(), true);
         // assert the type is MissingConfigError
@@ -316,14 +361,14 @@ mod test {
     #[test]
     fn get_u32_value_config_default() {
         // You should be able to get config objects default value for a u32
-        let config: Config = test_config("no_file.json");
-        assert_eq!(config.get_u32_value("count", None).unwrap(), 42);
+        let config: Config = create_config_with_filename("no_file.json");
+        assert_eq!(config.get_u32_value("file_u32", None).unwrap(), TEST_CONTEXT.defaults["file_u32"].as_u32().unwrap());
     }
 
     #[test]
     fn get_u32_value_explicit_set() {
         // You should be able to get a set u32 value that overrides the config default
-        let mut config: Config = test_config("no_file.json");
+        let mut config: Config = create_config_with_filename("no_file.json");
         let _ = set_config_value_or_boom(&mut config, "count", 100);
         assert_eq!(config.get_u32_value("count", None).unwrap(), 100);
     }
@@ -331,13 +376,13 @@ mod test {
     #[test]
     fn get_u32_value_with_explicit_default() {
         // You should be able to get a u32 value with an explicit default in the get fn
-        let config: Config = test_config("no_file.json");
+        let config: Config = create_config_with_filename("no_file.json");
         assert_eq!(config.get_u32_value("i_dont_exist", Some(99)).unwrap(), 99);
     }
 
     #[test]
     fn get_u32_value_error_on_missing_key() {
-        let config: Config = test_config("no_file.json");
+        let config: Config = create_config_with_filename("no_file.json");
         let boom: Result<u32, MissingConfigError> = config.get_u32_value("i_dont_exist", None);
         assert_eq!(boom.is_err(), true);
         // assert the type is MissingConfigError
@@ -347,7 +392,7 @@ mod test {
     #[test]
     fn set_value_str() {
         // You should be able to set a value on a key
-        let mut config: Config = test_config("no_file.json");
+        let mut config: Config = create_config_with_filename("no_file.json");
         let _ = set_config_value_or_boom(&mut config, "lastname", "kajikami");
         let lastname: Result::<String, MissingConfigError> = config.get_str_value("lastname", None);
         assert_eq!(lastname.unwrap(), "kajikami");
@@ -356,7 +401,7 @@ mod test {
     #[test]
     fn set_value_with_unsupported_type() {
         // You should not be able to set a value with an unsupported type (e.g., array)
-        let mut config: Config = test_config("no_file.json");
+        let mut config: Config = create_config_with_filename("no_file.json");
         let set_result = config.set_value("unsupported", json::array!["value1", "value2"]);
         assert_eq!(set_result.is_err(), true);
         assert_eq!(set_result.err().unwrap(), "Unsupported value type for key: unsupported");
@@ -365,7 +410,7 @@ mod test {
     #[test]
     fn save_settings() {
         // You should be able to flush the settings to the file
-        let mut config: Config = test_config("settings.json");
+        let mut config: Config = create_config_with_filename("settings.json");
         let _ = set_config_value_or_boom(&mut config, "foobar", "as Usual");
         let result = config.save_settings();
         assert_eq!(result.unwrap(), true);

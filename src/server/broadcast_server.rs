@@ -21,6 +21,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+use log::{info, warn, error};
 
 /// To start a broadcast component, call this function
 ///
@@ -38,13 +39,26 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 
     // load up the config to get required info
     // TODO: keep bubbling up the config file name to remove hard coding, and make configurable for testing fun and games
-    let mut config = Config::build(String::from("settings.json"));
-    config.load_from_file()?;
+    // NOTE: Is this the best place for these defaults, or should the be either encapsulated in the config object, or passed in as arguments?
+    let defaults = json::object! {
+        "api_url": "http://rtjam-nation.com/api/1/",
+        "ws_url": "ws://rtjam-nation.com/primus",
+        "room_mode": "separate",
+        "port": 7891,
+    };
+    let config = Config::build(String::from("settings.json"), defaults);
+    let config = match config {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Issue with config file or parameter: {}", e);
+            return Err(Box::new(e));
+        }
+    };
 
-    let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
-    let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
-    let room_mode = config.get_value("room_mode", "separate") == "mix";
-    let port: u32 = config.get_u32_value("port", 7891);
+    let api_url = String::from(config.get_str_value("api_url", None)?);
+    let ws_url = String::from(config.get_str_value("ws_url", None)?);
+    let room_mode = config.get_str_value("room_mode", None)? == "mix";
+    let port: u32 = config.get_u32_value("port", None)?;
     let room_port = port.clone();
     let mac_address = utils::get_my_mac_address()?;
     let mut room_token = "".to_string();

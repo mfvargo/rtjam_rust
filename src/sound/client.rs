@@ -44,7 +44,7 @@ use std::{
     time::Duration,
 };
 //use log::{debug, info, warn, error, trace, log_enabled, Level};
-use log::{trace, debug, info, warn,};
+use log::{trace, debug, info, warn, error};
 
 use super::alsa_thread;
 
@@ -57,14 +57,25 @@ pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxErr
     // This is the entry rtjam client
 
     // load up the config to get required info
-    // TODO: keep bubbling up the config file name to remove hard coding, and make configurable for testing fun and games
-    let mut config = Config::build(String::from("settings.json"));
-    config.load_from_file()?;
+    // NOTE: Is this the best place for these defaults, or should the be either encapsulated in the config object, or passed in as arguments?
+    let defaults = json::object! {
+        "api_url": "http://rtjam-nation.com/api/1/",
+        "ws_url": "ws://rtjam-nation.com/primus",
+        "no_loopback": false
+    };
+    let config = Config::build(String::from("settings.json"), defaults);
+    let config = match config {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Issue with config file or parameter: {}", e);
+            return Err(Box::new(e));
+        }
+    };
 
-    let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
-    let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
+    let api_url = String::from(config.get_str_value("api_url", None)?);
+    let ws_url = String::from(config.get_str_value("ws_url", None)?);
     let mac_address = utils::get_my_mac_address()?;
-    let no_loopback = config.get_bool_value("no_loopback", false);
+    let no_loopback: bool = config.get_bool_value("no_loopback", None)?;
     debug!("Config values: api_url: {}, ws_url: {}, mac_address: {}, no_loopback: {}", api_url, ws_url, mac_address, no_loopback);
 
     // Create an api endpoint and register this jamUnit

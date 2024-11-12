@@ -1,10 +1,9 @@
-use clap::Parser;
+use clap::{Parser, command};
 use rtjam_rust::{common::box_error::BoxError, sound::client, utils::get_git_hash};
 use std::process::exit;
 
-
 #[derive(Parser)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, disable_version_flag = true)]
 struct Args {
     /// input alsa device
     #[arg(short, long, default_value = "hw:CODEC")]

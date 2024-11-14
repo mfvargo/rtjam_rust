@@ -29,7 +29,8 @@ use crate::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
         stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
     }, hw_control::{hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage}}, pedals::pedal_board::PedalBoard, sound::{
-        // jack_thread,
+        jack_thread,
+        alsa_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, utils,
@@ -44,9 +45,6 @@ use std::{
     time::Duration,
 };
 
-use super::alsa_thread;
-
-
 /// call this from the main function to start the whole thing running.
 ///
 /// note the git_hash string allows the software to tell rtjam-nation what version of code it
@@ -60,6 +58,8 @@ pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxErr
 
     let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
     let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
+    let use_alsa = config.get_bool_value("use_alsa", false);
+
     let mac_address = utils::get_my_mac_address()?;
 
     // Create an api endpoint and register this jamUnit
@@ -119,27 +119,27 @@ pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxErr
     }
 
     let engine = JamEngine::new(light_option, status_data_tx, command_rx, pedal_rx, api.get_token(), git_hash, no_loopback)?;
-    // let _jack_thread_handle = thread::spawn(move || {
-    //     let _res = jack_thread::run(engine);
-    // });
-    // let _alsa_thread_handle = thread::spawn(move || {
-    //     let _res = alsa_thread::run(engine);
-    // });
+    if use_alsa {
+        let builder = ThreadBuilder::default()
+            .name("Real-Time Thread".to_string())
+            .priority(ThreadPriority::Max);
 
-    let builder = ThreadBuilder::default()
-        .name("Real-Time Thread".to_string())
-        .priority(ThreadPriority::Max);
+        let _alsa_handle = builder.spawn(move |_result| {
+            match alsa_thread::run(engine, &in_dev, &out_dev) {
+                Ok(()) => {
+                println!("alsa ended with OK");
+                }
+                Err(e) => {
+                    println!("alsa exited with error {}", e);
+                }
+            }
+        })?;
+    } else {
+        let _jack_thread_handle = thread::spawn(move || {
+            let _res = jack_thread::run(engine);
+        });
+    }
 
-    let _alsa_handle = builder.spawn(move |_result| {
-        match alsa_thread::run(engine, &in_dev, &out_dev) {
-            Ok(()) => {
-            println!("alsa ended with OK");
-            }
-            Err(e) => {
-                println!("alsa exited with error {}", e);
-            }
-        }
-    })?;
 
     let _ping_handle = thread::spawn(move || {
         let _res = jam_unit_ping_thread(api);

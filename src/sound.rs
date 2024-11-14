@@ -3,6 +3,7 @@ pub mod channel_map;
 pub mod channel_strip;
 pub mod client;
 pub mod fader;
+pub mod alsa_thread;
 pub mod jack_thread;
 pub mod jam_engine;
 pub mod jam_socket;

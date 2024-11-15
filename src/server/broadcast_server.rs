@@ -21,7 +21,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
-use log::{info, warn, error};
+use log::{/*debug,*/ info, warn, error};
 
 /// To start a broadcast component, call this function
 ///
@@ -35,7 +35,7 @@ use log::{info, warn, error};
 /// the original thread that calls run then loops checking mpsc::channels for messages between the websocket
 /// and the audio_thread.  The broadcast ping thread just runs by itself (fire and forget)
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
-    // This is the entry point for the broadcast server
+    info!("Starting run function");
 
     // load up the config to get required info
     // TODO: keep bubbling up the config file name to remove hard coding, and make configurable for testing fun and games
@@ -75,7 +75,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 }
             }
             Err(e) => {
-                dbg!(e);
+                warn!("{}", e);
             }
         }
         if room_token == "" {

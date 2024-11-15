@@ -3,7 +3,8 @@
 use std::{iter, error};
 use alsa::{seq, pcm};
 use std::ffi::CString;
-use dasp::signal;
+use dasp_signal::{self as signal, Signal};
+use dasp_sample::Sample;
 
 type Res<T> = Result<T, Box<dyn error::Error>>;
 
@@ -160,7 +161,7 @@ impl Synth {
 impl Iterator for Synth {
     type Item = SF;
     fn next(&mut self) -> Option<Self::Item> {
-        use dasp::{signal::Signal, Sample};
+//        use dasp::{signal::Signal, Sample};
 
         // Mono -> Stereo
         if let Some(s) = self.stored_sample.take() { return Some(s) };

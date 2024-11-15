@@ -1,0 +1,5 @@
+[toolchain]
+channel = "nightly-2024-11-13"  # Or whatever date you choose
+
+[target.'cfg(not(test))']
+channel = "stable"

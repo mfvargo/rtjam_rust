@@ -70,7 +70,7 @@ fn open_record_dev(device: &str) -> Result<PCM, BoxError> {
 }
 
 fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
-    let req_bufsize: i64 = (FRAME_SIZE * 2) as i64;  // A few ms latency by default, that should be nice
+    let req_bufsize: i64 = (FRAME_SIZE * 4) as i64;  // A few ms latency by default, that should be nice
 
     // Open the device
     let p = alsa::PCM::new(device, alsa::Direction::Playback, false)?;
@@ -83,7 +83,7 @@ fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
         hwp.set_format(Format::s16())?;
         hwp.set_access(Access::MMapInterleaved)?;
         hwp.set_buffer_size(req_bufsize)?;
-        hwp.set_period_size(req_bufsize / 2, alsa::ValueOr::Nearest)?;
+        hwp.set_period_size(req_bufsize / 4, alsa::ValueOr::Nearest)?;
         p.hw_params(&hwp)?;
     }
 
@@ -181,7 +181,7 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
     let mut out_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
     let mut out_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
 
-    loop {
+    while engine.is_running() {
         frame_count += 1;
         let now = get_micro_time();
 
@@ -256,5 +256,5 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
         }
     }
 
-    // Ok(())
+    Ok(())
 }

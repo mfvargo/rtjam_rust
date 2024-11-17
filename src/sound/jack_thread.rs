@@ -20,7 +20,7 @@ use super::jam_engine::JamEngine;
 /// it will never return (unless jack blows up)  TODO: Add jack failure recovery
 pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
     // let's open up a jack port
-    loop {
+    while engine.is_running() {
         match jack::Client::new("rtjam_rust", jack::ClientOptions::NO_START_SERVER) {
             Ok((client, _status)) => {
                 let in_a = client.register_port("rtjam_in_1", jack::AudioIn::default())?;
@@ -83,7 +83,7 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
     }
 
     // active_client.deactivate()?;
-    // Ok(())
+    Ok(())
 }
 
 struct Notifications;

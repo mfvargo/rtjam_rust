@@ -58,7 +58,7 @@ pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxErr
 
     let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
     let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
-    let use_alsa = config.get_bool_value("use_alsa", false);
+    let use_alsa = config.get_bool_value("use_alsa", true);
 
     let mac_address = utils::get_my_mac_address()?;
 

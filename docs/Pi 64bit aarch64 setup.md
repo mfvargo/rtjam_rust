@@ -46,3 +46,11 @@ It creates a directory called rtjam under /home/pi and then copies files there.\
 - git clone https://github.com/mfvargo/rtjam_rust.git
 - cd rtjam_rust
 - cargo build etc ( or you can make )
+
+## Notes about audio run choices
+
+The library comes with two ways to pump audio to/from the sound device.  One is using jack and the other is using ALSA library directly
+
+Currently the direct I/O via alsa works using the hw:DEVICE_ID monikor only on devices that support 16 bit signed samples.  THe jack software does all the required conversions to make everything into f32 buffers.
+
+The alsa thread works great with the Sigma Codec on the i2s bus and with the usb audio devices from Behringer.

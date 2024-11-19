@@ -13,6 +13,7 @@ const FRAME_SIZE: usize = 128;
 const SAMPLE_RATE: u32 = 48_000;
 const CHANNELS: u32 = 2;
 const MAX_SAMPLE: f32 = 32766.0;
+const SMP_FORMAT: Format = Format::s16();
 
 
 // Iterable output buffer that converts from floats to ints for alsa device
@@ -59,7 +60,7 @@ fn open_record_dev(device: &str) -> Result<PCM, BoxError> {
         let hwp = HwParams::any(&pcm)?;
         hwp.set_channels(CHANNELS)?;
         hwp.set_rate(SAMPLE_RATE, ValueOr::Nearest)?;
-        hwp.set_format(Format::s16())?;
+        hwp.set_format(SMP_FORMAT)?;
         hwp.set_access(Access::RWInterleaved)?;
         hwp.set_buffer_size(2 * FRAME_SIZE as i64)?;
         hwp.set_period_size(FRAME_SIZE as i64, alsa::ValueOr::Nearest)?;
@@ -80,7 +81,7 @@ fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
         let hwp = HwParams::any(&p)?;
         hwp.set_channels(CHANNELS)?;
         hwp.set_rate(SAMPLE_RATE, alsa::ValueOr::Nearest)?;
-        hwp.set_format(Format::s16())?;
+        hwp.set_format(SMP_FORMAT)?;
         hwp.set_access(Access::MMapInterleaved)?;
         hwp.set_buffer_size(req_bufsize)?;
         hwp.set_period_size(req_bufsize / 4, alsa::ValueOr::Nearest)?;
@@ -202,7 +203,7 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
         stats.add_sample(timer.since(now) as f64);
         timer.reset(now);
         if frame_count%1000 == 0 {
-            println!("stats: {}", stats);
+            // println!("stats: {}", stats);
         }
 
         //  Convert the input date from interleaved i16 into f32 for the engine:

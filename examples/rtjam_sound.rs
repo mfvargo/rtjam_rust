@@ -16,6 +16,9 @@ struct Args {
 
     #[arg(short, long, default_value_t = false)]
     version: bool,
+
+    #[arg(short, long, default_value_t = false)]
+    alsa: bool,
 }
 
 fn main() -> Result<(), BoxError> {
@@ -26,6 +29,6 @@ fn main() -> Result<(), BoxError> {
         println!("{}", git_hash);
         exit(0);
     }
-    client::run(git_hash.as_str(), args.in_dev, args.out_dev)?;
+    client::run(git_hash.as_str(), args.alsa, args.in_dev, args.out_dev)?;
     Ok(())
 }

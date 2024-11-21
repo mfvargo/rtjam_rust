@@ -21,21 +21,6 @@ use std::convert::TryInto;
 fn mydsp_faustpower2_f(value: F32) -> F32 {
 	return value * value;
 }
-// mod ffi {
-// 	use std::os::raw::c_float;
-// 	// Conditionally compile the link attribute only on non-Windows platforms
-// 	#[cfg_attr(not(target_os = "windows"), link(name = "m"))]
-// 	extern "C" {
-// 		pub fn remainderf(from: c_float, to: c_float) -> c_float;
-// 		pub fn rintf(val: c_float) -> c_float;
-// 	}
-// }
-// fn remainder_f32(from: f32, to: f32) -> f32 {
-// 	unsafe { ffi::remainderf(from, to) }
-// }
-// fn rint_f32(val: f32) -> f32 {
-// 	unsafe { ffi::rintf(val) }
-// }
 
 pub struct PitchDetector {
 	fHslider0: F32,
@@ -61,6 +46,7 @@ impl PitchDetector {
 
 	pub fn new() -> PitchDetector { 
 		let mut det = PitchDetector {
+			// this is the tau value
 			fHslider0: 0.1,
 			fSampleRate: 48_000,
 			fConst0: 0.0,
@@ -79,7 +65,7 @@ impl PitchDetector {
 			fRec0: [0.0;2],
             note: 0.0,
 		};
-        det.init(48000);
+        det.init(48_000);
         det
 	}
 	

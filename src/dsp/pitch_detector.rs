@@ -17,7 +17,6 @@ type F64 = f64;
 
 
 pub type FaustFloat = F32;
-use std::convert::TryInto;
 fn mydsp_faustpower2_f(value: F32) -> F32 {
 	return value * value;
 }

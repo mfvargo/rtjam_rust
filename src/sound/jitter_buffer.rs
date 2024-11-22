@@ -24,7 +24,7 @@ use crate::{
 };
 use std::fmt;
 
-const MIN_DEPTH: usize = 512;
+const MIN_DEPTH: usize = 128 * 3;
 const MIN_HIGH_WATER: usize = MIN_DEPTH * 2;
 const MAX_DEPTH: usize = 8192;
 // const MIN_SIGMA: f64 = 5.0;

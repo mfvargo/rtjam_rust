@@ -10,3 +10,4 @@ pub mod power_meter;
 pub mod smoothing_filter;
 pub mod tuner;
 pub mod pitch_detector;
+pub mod moving_avg;

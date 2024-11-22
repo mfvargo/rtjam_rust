@@ -23,7 +23,7 @@ fn mydsp_faustpower2_f(value: F32) -> F32 {
 }
 
 pub struct PitchDetector {
-	fHslider0: F32,
+	tau: F32,
 	fSampleRate: i32,
 	fConst0: F32,
 	fConst1: F32,
@@ -47,7 +47,7 @@ impl PitchDetector {
 	pub fn new() -> PitchDetector { 
 		let mut det = PitchDetector {
 			// this is the tau value
-			fHslider0: 0.1,
+			tau: 0.15,
 			fSampleRate: 48_000,
 			fConst0: 0.0,
 			fConst1: 0.0,
@@ -70,7 +70,7 @@ impl PitchDetector {
 	}
 	
 	pub fn instance_reset_params(&mut self) {
-		self.fHslider0 = 0.45;
+		self.tau = 0.45;
 	}
 	pub fn instance_clear(&mut self) {
 		for l0 in 0..2 {
@@ -118,10 +118,10 @@ impl PitchDetector {
         self.note = 0.0;
 		let inputs0 = input.iter();
 		let outputs0 = output.iter_mut();
-		let mut fSlow0: F32 = 1.0 * self.fHslider0;
-		let mut iSlow1: i32 = (F32::abs(fSlow0) < 1.1920929e-07) as i32;
-		let mut fSlow2: F32 = (if iSlow1 != 0 {0.0} else {F32::exp(-(self.fConst1 / (if iSlow1 != 0 {1.0} else {fSlow0})))});
-		let mut fSlow3: F32 = 1.0 - fSlow2;
+		let fSlow0: F32 = 1.0 * self.tau;
+		let iSlow1: i32 = (F32::abs(fSlow0) < 1.1920929e-07) as i32;
+		let fSlow2: F32 = (if iSlow1 != 0 {0.0} else {F32::exp(-(self.fConst1 / (if iSlow1 != 0 {1.0} else {fSlow0})))});
+		let fSlow3: F32 = 1.0 - fSlow2;
 		let zipped_iterators = inputs0.zip(outputs0);
 		for (input0, output0) in zipped_iterators {
 			let mut fTemp0: F32 = F32::tan(self.fConst2 * F32::max(2e+01, self.fRec0[1]));
@@ -153,51 +153,5 @@ impl PitchDetector {
         self.note = self.note / output.len() as F32;
         self.note
     }
-
-	pub fn compute_arrays(&mut self, count: usize, inputs: &[&[FaustFloat] ; 1], outputs: &mut [&mut [FaustFloat] ; 1]) {
-		
-		let [inputs0, ] = inputs;
-		let inputs0 = inputs0[..count as usize].iter();
-		let [outputs0, ] = outputs;
-		let outputs0 = outputs0[..count as usize].iter_mut();
-		let mut fSlow0: F32 = 1.0 * self.fHslider0;
-		let mut iSlow1: i32 = (F32::abs(fSlow0) < 1.1920929e-07) as i32;
-		let mut fSlow2: F32 = (if iSlow1 != 0 {0.0} else {F32::exp(-(self.fConst1 / (if iSlow1 != 0 {1.0} else {fSlow0})))});
-		let mut fSlow3: F32 = 1.0 - fSlow2;
-		let zipped_iterators = inputs0.zip(outputs0);
-		for (input0, output0) in zipped_iterators {
-			let mut fTemp0: F32 = F32::tan(self.fConst2 * F32::max(2e+01, self.fRec0[1]));
-			let mut fTemp1: F32 = 1.0 / fTemp0;
-			let mut fTemp2: F32 = (fTemp1 + 0.76536685) / fTemp0 + 1.0;
-			let mut fTemp3: F32 = 1.0 - 1.0 / mydsp_faustpower2_f(fTemp0);
-			let mut fTemp4: F32 = (fTemp1 + 1.847759) / fTemp0 + 1.0;
-			let mut fTemp5: F32 = *input0;
-			self.fVec0[0] = fTemp5;
-			self.fRec4[0] = -(self.fConst5 * (self.fConst4 * self.fRec4[1] - self.fConst3 * (fTemp5 - self.fVec0[1])));
-			self.fRec3[0] = self.fRec4[0] - (self.fRec3[2] * ((fTemp1 + -1.847759) / fTemp0 + 1.0) + 2.0 * self.fRec3[1] * fTemp3) / fTemp4;
-			self.fRec2[0] = (self.fRec3[2] + self.fRec3[0] + 2.0 * self.fRec3[1]) / fTemp4 - (self.fRec2[2] * ((fTemp1 + -0.76536685) / fTemp0 + 1.0) + 2.0 * fTemp3 * self.fRec2[1]) / fTemp2;
-			let mut fTemp6: F32 = self.fRec2[2] + self.fRec2[0] + 2.0 * self.fRec2[1];
-			self.fVec1[0] = fTemp6 / fTemp2;
-			self.fRec1[0] = fSlow3 * (((fTemp6 * self.fVec1[1] / fTemp2) < 0.0) as i32) as u32 as F32 + fSlow2 * self.fRec1[1];
-			self.fRec0[0] = self.fConst6 * self.fRec1[0];
-			*output0 = self.fRec0[0];
-			self.fVec0[1] = self.fVec0[0];
-			self.fRec4[1] = self.fRec4[0];
-			self.fRec3[2] = self.fRec3[1];
-			self.fRec3[1] = self.fRec3[0];
-			self.fRec2[2] = self.fRec2[1];
-			self.fRec2[1] = self.fRec2[0];
-			self.fVec1[1] = self.fVec1[0];
-			self.fRec1[1] = self.fRec1[0];
-			self.fRec0[1] = self.fRec0[0];
-		}
-	}
-
-	
-	pub fn compute(&mut self, count: usize, inputs: & [& [FaustFloat] ], outputs: & mut[& mut[FaustFloat] ]) {
-		let input_array = inputs.split_at(1).0.try_into().expect("too few input buffers");
-		let output_array = outputs.split_at_mut(1).0.try_into().expect("too few output buffers");
-		self.compute_arrays(count, input_array, output_array);
-	}
 
 }

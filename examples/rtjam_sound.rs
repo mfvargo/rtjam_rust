@@ -7,11 +7,11 @@ use std::process::exit;
 #[command(version, about, long_about = None)]
 struct Args {
     /// input alsa device
-    #[arg(short, long, default_value = "hw:CODEC")]
+    #[arg(short, long, default_value = "hw:SigmaI2SCodec,1")]
     in_dev: String,
 
     /// output alsa device
-    #[arg(short, long, default_value = "hw:CODEC")]
+    #[arg(short, long, default_value = "hw:SigmaI2SCodec,0")]
     out_dev: String,
 
     #[arg(short, long, default_value_t = false)]

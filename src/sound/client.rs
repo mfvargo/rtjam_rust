@@ -515,124 +515,51 @@ mod init_websocket_thread {
         Ok(())
     }
 
+    // New mock function that simulates an error
+    fn mock_websocket_thread_error(
+        _token: &str,
+        _ws_url: &str,
+        _ws_tx: mpsc::Sender<serde_json::Value>,
+        _ws_rx: mpsc::Receiver<WebsockMessage>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "WebSocket error")))
+    }
+        
     #[test]
-    fn test_websocket_thread_with_dynamic_behavior() {
+    fn test_websocket_thread_passing_messages() {
         //let (from_ws_tx, from_ws_rx): (mpsc::Sender<serde_json::Value>, mpsc::Receiver<serde_json::Value>) = mpsc::channel();
 
         let result = init_websocket_thread("test_token", "ws://test.com", Some(mock_websocket_thread));
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "Error in call to init_websocket_thread()");
         // Use the channels returned from init_websocket_thread
         let (to_ws_tx, from_ws_rx, _) = result.unwrap();
 
         // Shove a message through and see what comes out the other side
         let payload = json!({"message": "mocked"});
-        let message = WebsockMessage::Chat(payload.clone()); // Create a WebsockMessage
-        let sent = to_ws_tx.send(message); // Send the WebsockMessage
-        assert!(sent.is_ok(), "failed to send test message");
+        let message = WebsockMessage::Chat(payload.clone());
+        let sent = to_ws_tx.send(message);
+        assert!(sent.is_ok(), "Failed to send test message");
+        
         // Assert that sending was successful, but give the mock some time do the needful
         thread::sleep(Duration::from_millis(100));
         let received = from_ws_rx.try_recv().unwrap();
         // Extract the "Chat" object from the received message
         if let Some(chat_object) = received.get("Chat") {
             // Now you can compare the extracted chat object with the expected message
-            assert_eq!(chat_object, &payload, "rcvd message didn't match");
+            assert_eq!(chat_object, &payload, "Payload doesn't match from Chat message");
         } else {
-            panic!("Received message does not contain 'Chat' key");
+            assert!(false, "Received message does not contain 'Chat' key");
         }
     }
 
-    // #[test]
-    // fn test_websocket_thread_with_default_behavior() {
-    //     let (from_ws_tx, from_ws_rx): (mpsc::Sender<serde_json::Value>, mpsc::Receiver<serde_json::Value>) = mpsc::channel();
-
-    //     // Assuming websocket_thread is defined somewhere in your code
-    //     let result = init_websocket_thread("test_token", "ws://test.com", None);
-    //     assert!(result.is_ok());
-
-    //     // Check if the message was sent (you would need to implement this in your actual websocket_thread)
-    //     let received = from_ws_rx.try_recv().unwrap();
-    //     // Replace with the expected message from the actual websocket_thread
-    //     assert_eq!(received, json!({"message": "expected_from_websocket_thread"}));
-    // }
-
-    // #[test]
-    // fn test_init_websocket_thread_success() {
-    //     let token = "test_token";
-    //     let ws_url = "ws://test.com";
-
-    //     // Specify the type for the channel
-    //     let (ws_sender, from_ws_rx): (mpsc::Sender<serde_json::Value>, mpsc::Receiver<serde_json::Value>) = channel();
-    //     let result = init_websocket_thread(token, ws_url, Some(|token, ws_url, from_ws_tx, from_ws_rx| {
-    //         mock_websocket_thread(token, ws_url, &ws_sender, from_ws_rx, || {
-    //             // Attempt to send the message and check for success
-    //             from_ws_tx.send(json!({"message": "test"})).map_err(|e| {
-    //                 // Handle the error, e.g., log it or return a custom error
-    //                 error!("Failed to send message: {}", e);
-    //                 Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-    //             })?;
-    //             Ok(()) // Return Ok to match the expected return type
-    //         })
-    //     }));
-    //     assert!(result.is_ok());
-
-    //     // Add a small delay to allow the message to be sent
-    //     thread::sleep(Duration::from_millis(100));
-        
-    //     // Check if a message was sent to the from_ws_rx channel
-    //     let received = from_ws_rx.try_recv();
-    //     // Debugging: Print the received value
-    //     println!("Received value: {:?}", received);
-    //     // Check for Err and fail the test with error info
-    //     match received {
-    //         Ok(value) => assert_eq!(value, json!({"message": "test"})),
-    //         Err(e) => {
-    //             panic!("Failed to receive value from channel: {:?}", e);
-    //         }
-    //     }
-    // }
-
-    // //#[test]
-    // fn test_init_websocket_thread_error() {
-    //     let token = "test_token";
-    //     let ws_url = "ws://test.com";
-
-    //     // Specify the type for the channel
-    //     let (_from_ws_tx, from_ws_rx): (mpsc::Sender<serde_json::Value>, mpsc::Receiver<serde_json::Value>) = channel();
-    //     let result = init_websocket_thread(token, ws_url, Some(|token, ws_url, from_ws_tx, from_ws_rx| {
-    //         mock_websocket_thread(token, ws_url, &from_ws_tx, from_ws_rx, || {
-    //             Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "WebSocket error")))
-    //         })
-    //     }));
-    //     assert!(result.is_err());
-
-    //     // Ensure that the error is related to the websocket opening failure
-    //     let err = result.err().unwrap();
-    //     assert!(err.to_string().contains("WebSocket error"));
-    // }
-
-    // #[test]
-    // fn test_direct_channel_communication() {
-    //     let token = "test_token";
-    //     let ws_url = "ws://test.com";
-
-    //     // Specify the type for the channel
-    //     let (from_ws_tx, from_ws_rx): (mpsc::Sender<serde_json::Value>, mpsc::Receiver<serde_json::Value>) = channel();
-
-    //     // Directly send a message to the channel
-    //     from_ws_tx.send(json!({"message": "test"})).expect("Failed to send message");
-
-    //     // Check if a message was sent to the from_ws_rx channel
-    //     let received = from_ws_rx.try_recv();
-        
-    //     // Check for Err and fail the test with error info
-    //     match received {
-    //         Ok(value) => assert_eq!(value, json!({"message": "test"})),
-    //         Err(e) => {
-    //             panic!("Failed to receive value from channel: {:?}", e);
-    //         }
-    //     }
-    // }
+    #[test]
+    fn test_websocket_thread_error_handling() {
+        let result = init_websocket_thread("test_token", "ws://test.com", Some(mock_websocket_thread_error));
+        assert!(result.is_err(), "Expected an error from init_websocket_thread()");
+        assert_eq!(result.err().unwrap().to_string(), "WebSocket error");
+    }    
 }
+
 
 // mod init_hardware_control {
 //     // use super::*;

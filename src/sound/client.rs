@@ -26,11 +26,17 @@
 //! have it re-initialize into acquire more if jack falls down in the middle.
 use crate::{
     common::{
-        box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
-        stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket::websocket_thread,
+        box_error::BoxError,
+        config::Config,
+        get_micro_time,
+        jam_nation_api::JamNationApi,
+        stream_time_stat::MicroTimer,
+        websock_message::WebsockMessage, 
+        websocket::{websocket_thread, WebSocketThreadFn},
     }, 
     hw_control::{
-        hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage},
+        hw_control_thread::hw_control_thread, 
+        status_light::{has_lights, LightMessage},
     }, 
     pedals::pedal_board::PedalBoard, 
     sound::{
@@ -54,9 +60,6 @@ use log::{trace, debug, info, warn, error};
 
 use super::alsa_thread;
 
-type WebSocketThreadFn = 
-    fn(&str, &str, mpsc::Sender<serde_json::Value>, mpsc::Receiver<WebsockMessage>) 
-    -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 
 /// This is the entry for rtjam client
 /// call this from the main function to start the whole thing running.

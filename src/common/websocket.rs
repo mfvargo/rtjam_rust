@@ -7,6 +7,11 @@ use crate::common::room::Room;
 use crate::common::websock_message::WebsockMessage;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
+/// Used for dependency injection to test init_web_socket and any other theoretical consumers
+pub type WebSocketThreadFn = 
+    fn(&str, &str, mpsc::Sender<serde_json::Value>, mpsc::Receiver<WebsockMessage>) 
+    -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
 /// start a thread with this function.  Pass it the token (name of the room), the
 /// websocket uri to use, and two channels.  the first will be used to forward messages
 /// received on the websocket to the thread to called us.  The second will be used to

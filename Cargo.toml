@@ -46,7 +46,6 @@ testing_logger = "0.1.1"
 tempfile = "3.2"
 once_cell = "1.18"
 ctor = "0.2.6"
-mocktopus = "0.8.0"
 
 [profile.release]
 # opt-level = 'z'     # Optimize for size

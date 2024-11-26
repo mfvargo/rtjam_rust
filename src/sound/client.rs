@@ -27,7 +27,7 @@
 use crate::{
     common::{
         box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
-        stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket,
+        stream_time_stat::MicroTimer, websock_message::WebsockMessage, websocket::websocket_thread,
     }, 
     hw_control::{
         hw_control_thread::hw_control_thread, status_light::{has_lights, LightMessage},
@@ -54,6 +54,10 @@ use log::{trace, debug, info, warn, error};
 
 use super::alsa_thread;
 
+type WebSocketThreadFn = 
+    fn(&str, &str, mpsc::Sender<serde_json::Value>, mpsc::Receiver<WebsockMessage>) 
+    -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
 /// This is the entry for rtjam client
 /// call this from the main function to start the whole thing running.
 ///
@@ -69,7 +73,7 @@ pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxErr
     debug!("API token: {}", token);
 
     // Initialize websocket channels and thread
-    let (to_ws_tx, from_ws_rx, _ws_handle) = init_websocket_thread(&token, &ws_url)?;
+    let (to_ws_tx, from_ws_rx, _ws_handle) = init_websocket_thread(&token, &ws_url, None)?;
 
     // Initialize hardware control channels and thread if needed
     let (light_option, _hw_handle) = init_hardware_control()?;
@@ -152,18 +156,25 @@ fn init_api_connection(api_url: &str, mac_address: &str, git_hash: &str) -> Resu
 }
 
 fn init_websocket_thread(
-    token: &str, ws_url: &str
+    token: &str,
+    ws_url: &str,
+    websocket_thread_fn: Option<WebSocketThreadFn>,
 ) -> Result<(mpsc::Sender<WebsockMessage>, mpsc::Receiver<serde_json::Value>, thread::JoinHandle<()>), BoxError> {
-    info!("Initializing websocket thread");
+    let websocket_thread_fn = websocket_thread_fn.unwrap_or(websocket_thread);
+
+    println!("Initializing websocket thread with token: {} and ws_url: {}", token, ws_url);
+    
     let (to_ws_tx, to_ws_rx) = mpsc::channel();
     let (from_ws_tx, from_ws_rx) = mpsc::channel();
 
     let token = token.to_string();
     let ws_url = ws_url.to_string();
+    
     let websocket_handle = thread::spawn(move || {
-        let _res = websocket::websocket_thread(&token, &ws_url, from_ws_tx, to_ws_rx);
+        let _ = websocket_thread_fn(&token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
+    println!("Websocket thread spawned successfully");
     Ok((to_ws_tx, from_ws_rx, websocket_handle))
 }
 
@@ -425,3 +436,101 @@ fn write_string_to_file(fname: &str, contents: &str) -> () {
     }
 }
 
+#[cfg(test)]
+mod init_config {
+    use super::*;
+
+    #[test]
+    fn test_default() {
+        // Test with non-existent file and validate passed in defaults
+        // From init_config:
+        /*
+            let default_params = json::object! {
+                "api_url": "http://rtjam-nation.com/api/1/",
+                "ws_url": "ws://rtjam-nation.com/primus",
+                "no_loopback": false
+            };
+        */
+        let expected_api_url = "http://rtjam-nation.com/api/1/";
+        let expected_ws_url = "ws://rtjam-nation.com/primus";
+        let expected_no_loopback = false;
+
+        let result = init_config(Some("custom_settings.json"));
+        assert!(result.is_ok());
+        let (api_url, ws_url, mac_address, no_loopback) = result.unwrap();
+        assert_eq!(api_url, expected_api_url);
+        assert_eq!(ws_url, expected_ws_url);
+        assert!(!mac_address.is_empty());
+        assert_eq!(no_loopback, expected_no_loopback);
+    }
+
+    #[test]
+    fn test_bad_file_name() {
+        // Test with custom config file
+        let result = init_config(Some("Illegal*File$Name"));
+        assert!(result.is_err());
+        assert!(result.err().unwrap().to_string().starts_with("Invalid filename 'Illegal*File$Name'"));
+    }
+}
+
+#[cfg(test)]
+mod init_api_connection {
+    use super::*;
+    
+    #[test]
+    fn test_init_api_connection() {
+        let api_url = "http://test.com";
+        let mac = "00:11:22:33:44:55";
+        let git_hash = "abc123";
+
+        let result = init_api_connection(api_url, mac, git_hash);
+        assert!(result.is_ok());
+    }
+}
+
+#[cfg(test)]
+mod init_websocket_thread {
+    use super::*;
+
+    // Mock implementation of websocket_thread
+    fn mock_websocket_thread(
+        token: &str,
+        ws_url: &str,
+        _from_ws_tx: mpsc::Sender<serde_json::Value>,
+        _to_ws_rx: mpsc::Receiver<WebsockMessage>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        println!("Mock websocket_thread called with token: {}, ws_url: {}", token, ws_url);
+        // Simulate behavior here, e.g., sending messages to from_ws_tx
+        Ok(()) // Return Ok to match the expected return type
+    }
+
+    #[test]
+    fn test_init_websocket_thread() {
+        let token = "test_token";
+        let ws_url = "ws://test.com";
+
+        // Call the function with the mock implementation
+        let result = init_websocket_thread(token, ws_url, Some(mock_websocket_thread));
+        assert!(result.is_ok());
+
+        // Additional assertions can be made here
+    }
+}
+
+// mod init_hardware_control {
+//     // use super::*;
+    
+//     #[test]
+//     fn test_init_hardware_control() {
+//         let result = init_hardware_control();
+//         assert!(result.is_ok());
+        
+//         let (light_option, _handle) = result.unwrap();
+//         // Light option should be Some if hardware lights are available
+//         // None if not available
+//         match has_lights() {
+//             true => assert!(light_option.is_some()),
+//             false => assert!(light_option.is_none())
+//         }
+//     }
+// }

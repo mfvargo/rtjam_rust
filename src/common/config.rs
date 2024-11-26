@@ -182,10 +182,9 @@ impl Config {
 
 #[cfg(test)]
 mod config_tests {
-
     use super::*;
-    use std::path::PathBuf;
     use once_cell::sync::Lazy;
+    use std::path::PathBuf;
 
     /// A totally over-engineered test context that efficiently creates a one time shared temporary directory and config file
     /// and deletes them when the test suite is done.

@@ -1,5 +1,5 @@
 [toolchain]
-channel = "nightly-2024-11-13"  # Or whatever date you choose
-
-[target.'cfg(not(test))']
 channel = "stable"
+
+# [target.'cfg(test))']
+# channel = "nightly-2024-11-20"  # pinned for now, to get things working with mocktopus

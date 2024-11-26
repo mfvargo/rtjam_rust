@@ -17,6 +17,7 @@ pub fn websocket_thread(
     ws_tx: mpsc::Sender<Value>,            // channel to main thread
     ws_rx: mpsc::Receiver<WebsockMessage>, // channel from main thread
 ) -> Result<(), BoxError> {
+    println!("websocket::websocket_thread - Running websocket_thread with token: {}, ws_url: {}", token, ws_url);
     loop {
         match Room::new(token, ws_url) {
             Ok(mut room) => {

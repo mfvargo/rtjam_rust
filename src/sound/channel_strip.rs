@@ -121,7 +121,7 @@ impl fmt::Display for ChannelStrip {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "[ gain: {:.2}, fade: {:.2}, peak: {:.2}, avg: {:.2}, \tbuffer: {} ]",
+            "[ gain: {:.2}, fade: {}, peak: {:.2}, avg: {:.2}, \tbuffer: {} ]",
             self.gain,
             self.fader,
             self.level.get_peak(),

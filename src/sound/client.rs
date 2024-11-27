@@ -59,30 +59,51 @@ use log::{trace, debug, info, warn, error};
 
 use super::alsa_thread;
 
-/// This is the entry for rtjam client
-/// call this from the main function to start the whole thing running.
+/// This is the entry point for the rtjam client.
 ///
-/// note the git_hash string allows the software to tell rtjam-nation what version of code it
-/// is currently running.
+/// Call this function from the main function to start the entire sound component running.
+///
+/// # Parameters
+///
+/// - `git_hash`: A `String` representing the current version of the code, which will be sent to the rtjam-nation server.
+/// - `in_dev`: A `String` specifying the input device to be used for audio processing.
+/// - `out_dev`: A `String` specifying the output device for audio playback.
+///
+/// # Returns
+///
+/// This function returns a `Result<(), BoxError>`. On success, it returns `Ok(())`. 
+/// If an error occurs during initialization or execution, it returns an error wrapped in `BoxError`.
+///
+/// # Errors
+///
+/// This function may return errors related to:
+/// - Configuration loading issues.
+/// - API connection failures.
+/// - WebSocket initialization problems.
+/// - Audio engine setup errors.
+///
+/// # Notes
+///
+/// The `git_hash` string allows the software to inform rtjam-nation about the version of the code currently running.
 pub fn run(git_hash: String, in_dev: String, out_dev: String) -> Result<(), BoxError> {
-    info!("Starting run function");
+    info!("client - starting run function");
     // Initialize config and API connection
     // TODO: pass in the config file name as an optional parameter
     let (api_url, ws_url, mac_address, no_loopback) = init_config(None)?;
-    debug!("Config file init complete");
+    debug!("client::run - config file init complete");
 
     let mut api = JamNationApi::new(&api_url, &mac_address, &git_hash);
     let _connected_api = init_api_connection(&mut api)?;
     let token = String::from(api.get_token());
-    debug!("API connection established. Token: {}", token);
+    debug!("client::run - API connection established. Token: {}", token);
 
     // Initialize websocket channels and thread
     let (to_ws_tx, from_ws_rx, _ws_handle) = init_websocket_thread(&token, &ws_url, None)?;
-    debug!("Websocket connection established");
+    debug!("client::run - websocket connection established");
 
     // Initialize hardware control channels and thread if needed
     let (light_option, _hw_handle) = init_hardware_control()?;
-    debug!("Hardware control established");
+    debug!("client::run - hardware control established");
 
     // Initialize audio engine channels
     let (status_data_tx, status_data_rx) = mpsc::channel();
@@ -103,19 +124,19 @@ pub fn run(git_hash: String, in_dev: String, out_dev: String) -> Result<(), BoxE
         git_hash.as_str(),
         no_loopback,
     )?;
-    debug!("Audio engine started");
+    debug!("client::run - audio engine started");
 
     // Start ALSA thread
     let _alsa_handle = start_alsa_thread(engine, &in_dev, &out_dev)?;
-    debug!("ALSA thread started");
+    debug!("client::run - ALSA thread started");
 
     // Start ping thread
     let _ping_handle = thread::spawn(move || {
         let _res = jam_unit_ping_thread(api);
     });
-    debug!("Ping handle started");
+    debug!("client::run - ping handle started");
 
-    debug!("Setup complete, beginning main event loop");
+    debug!("client::run - setup complete, beginning main event loop");
     run_main_loop(from_ws_rx, to_ws_tx, command_tx, pedal_tx, status_data_rx)?;
 
     Ok(())
@@ -144,6 +165,7 @@ fn init_config(config_file: Option<&str>) -> Result<(String, String, String, boo
 
     // Default to settings.json if no file is provided
     let filename = config_file.unwrap_or("settings.json");
+    info!("Using config file: {}", filename);
 
     let config = Config::build(String::from(filename), default_params)
         .map_err(|e| {
@@ -156,7 +178,7 @@ fn init_config(config_file: Option<&str>) -> Result<(String, String, String, boo
     let mac_address = utils::get_my_mac_address()?;
     let no_loopback = config.get_bool_value("no_loopback", None)?;
 
-    debug!(
+    info!(
         "Config values: api_url: {}, ws_url: {}, mac_address: {}, no_loopback: {}",
         api_url, ws_url, mac_address, no_loopback
     );
@@ -164,19 +186,44 @@ fn init_config(config_file: Option<&str>) -> Result<(String, String, String, boo
     Ok((api_url, ws_url, mac_address, no_loopback))
 }
 
-pub fn init_api_connection(api: &mut dyn JamNationApiTrait) -> Result<usize, BoxError> {
+/// Initializes the API connection by registering the jam unit and retrying if necessary.
+/// 
+/// Returns the number of attempts made to establish the connection.
+fn init_api_connection(api: &mut dyn JamNationApiTrait) -> Result<usize, BoxError> {
     let mut checks = 1;
     api.jam_unit_register()?;
+    debug!("Registered API token");
     while !api.has_token() {
         info!("Can't connect to rtjam-nation. Sleeping 2 seconds then retrying");
         sleep(Duration::new(2, 0));
         checks += 1;
         api.jam_unit_register()?;
     }
-
+    debug!("API connected in {} tries", checks);
     Ok(checks)
 }
 
+/// Initializes and spawns a new websocket thread.
+/// 
+/// This function initializes a new websocket thread using the provided token and URL. It also allows for a custom websocket thread function to be passed in, defaulting to the standard `websocket_thread` function if none is provided.
+/// 
+/// # Parameters
+/// 
+/// * `token`: The token to use for authentication in the websocket connection.
+/// * `ws_url`: The URL of the websocket endpoint to connect to.
+/// * `websocket_thread_fn`: An optional custom function to use for the websocket thread. Defaults to `websocket_thread` if not provided.
+/// 
+/// # Returns
+/// 
+/// A tuple containing:
+/// 
+/// * `mpsc::Sender<WebsockMessage>`: A sender for sending messages to the websocket thread.
+/// * `mpsc::Receiver<serde_json::Value>`: A receiver for receiving messages from the websocket thread.
+/// * `thread::JoinHandle<()>`: A handle to the spawned websocket thread.
+/// 
+/// # Errors
+/// 
+/// This function will return an error if the websocket thread cannot be spawned or if there's an issue with the provided parameters.
 fn init_websocket_thread(
     token: &str,
     ws_url: &str,
@@ -184,18 +231,16 @@ fn init_websocket_thread(
 ) -> Result<(mpsc::Sender<WebsockMessage>, mpsc::Receiver<serde_json::Value>, thread::JoinHandle<()>), BoxError> {
     // Use the provided function or default to the websocket_thread
     let websocket_thread_fn = websocket_thread_fn.unwrap_or(websocket_thread);
-
-    println!("Initializing websocket thread with token: {} and ws_url: {}", token, ws_url);
+    debug!("Initializing websocket thread with token: {} and ws_url: {}", token, ws_url);
     
     let (to_ws_tx, to_ws_rx) = mpsc::channel();
     let (from_ws_tx, from_ws_rx) = mpsc::channel();
 
-    let token = token.to_string();
-    let ws_url = ws_url.to_string();
- 
+    let token_clone = token.to_string();
+    let ws_url_clone = ws_url.to_string();
     let websocket_handle = thread::spawn(move || {
-        if let Err(e) = websocket_thread_fn(&token, &ws_url, from_ws_tx, to_ws_rx) {
-            println!("Websocket thread encountered an error: {}", e);
+        if let Err(e) = websocket_thread_fn(&token_clone, &ws_url_clone, from_ws_tx, to_ws_rx) {
+            error!("Websocket thread encountered an error: {}", e);
             // Terminate the thread if there's an error
             return()
         }
@@ -203,7 +248,7 @@ fn init_websocket_thread(
 
     // TODO: set up an error channel to relay issues with the websocket thread to the main program
     // For now, there's no easy way to catch errors, thus life can only be good, so let's tell them to be happy
-    println!("Websocket thread spawned successfully");
+    debug!("Websocket thread spawned successfully");
     Ok((to_ws_tx, from_ws_rx, websocket_handle))
 }
 

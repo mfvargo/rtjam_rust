@@ -29,7 +29,7 @@ use crate::{
         box_error::BoxError,
         config::Config,
         get_micro_time,
-        jam_nation_api::JamNationApi,
+        jam_nation_api::{JamNationApi,JamNationApiTrait},
         stream_time_stat::MicroTimer,
         websock_message::WebsockMessage, 
         websocket::{websocket_thread, WebSocketThreadFn},
@@ -55,31 +55,34 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
-//use log::{debug, info, warn, error, trace, log_enabled, Level};
 use log::{trace, debug, info, warn, error};
 
 use super::alsa_thread;
-
 
 /// This is the entry for rtjam client
 /// call this from the main function to start the whole thing running.
 ///
 /// note the git_hash string allows the software to tell rtjam-nation what version of code it
 /// is currently running.
-pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxError> {
+pub fn run(git_hash: String, in_dev: String, out_dev: String) -> Result<(), BoxError> {
     info!("Starting run function");
     // Initialize config and API connection
     // TODO: pass in the config file name as an optional parameter
     let (api_url, ws_url, mac_address, no_loopback) = init_config(None)?;
-    let api = init_api_connection(&api_url, &mac_address, git_hash)?;
+    debug!("Config file init complete");
+
+    let mut api = JamNationApi::new(&api_url, &mac_address, &git_hash);
+    let _connected_api = init_api_connection(&mut api)?;
     let token = String::from(api.get_token());
-    debug!("API token: {}", token);
+    debug!("API connection established. Token: {}", token);
 
     // Initialize websocket channels and thread
     let (to_ws_tx, from_ws_rx, _ws_handle) = init_websocket_thread(&token, &ws_url, None)?;
+    debug!("Websocket connection established");
 
     // Initialize hardware control channels and thread if needed
     let (light_option, _hw_handle) = init_hardware_control()?;
+    debug!("Hardware control established");
 
     // Initialize audio engine channels
     let (status_data_tx, status_data_rx) = mpsc::channel();
@@ -97,24 +100,41 @@ pub fn run(git_hash: &str, in_dev: String, out_dev: String) -> Result<(), BoxErr
         command_rx,
         pedal_rx,
         api.get_token(),
-        git_hash,
+        git_hash.as_str(),
         no_loopback,
     )?;
+    debug!("Audio engine started");
 
     // Start ALSA thread
     let _alsa_handle = start_alsa_thread(engine, &in_dev, &out_dev)?;
+    debug!("ALSA thread started");
 
     // Start ping thread
     let _ping_handle = thread::spawn(move || {
         let _res = jam_unit_ping_thread(api);
     });
+    debug!("Ping handle started");
 
-    // Main event loop
+    debug!("Setup complete, beginning main event loop");
     run_main_loop(from_ws_rx, to_ws_tx, command_tx, pedal_tx, status_data_rx)?;
 
     Ok(())
 }
 
+/// Wraps client specific config value extraction into a convenience function.
+/// 
+/// This function attempts to load configuration values from a specified file. 
+/// If no file is provided, it defaults to "settings.json". It returns a 
+/// tuple containing the following values:
+/// 
+/// - `api_url`: The URL for the API endpoint.
+/// - `ws_url`: The WebSocket URL for real-time communication.
+/// - `mac_address`: The MAC address of the device.
+/// - `no_loopback`: A boolean indicating whether local loopback is disabled.
+/// 
+/// # Errors
+/// This function will return an error if the configuration file cannot be 
+/// read or if any of the expected values are missing or invalid. 
 fn init_config(config_file: Option<&str>) -> Result<(String, String, String, bool), BoxError> {
     let default_params = json::object! {
         "api_url": "http://rtjam-nation.com/api/1/",
@@ -144,18 +164,17 @@ fn init_config(config_file: Option<&str>) -> Result<(String, String, String, boo
     Ok((api_url, ws_url, mac_address, no_loopback))
 }
 
-fn init_api_connection(api_url: &str, mac_address: &str, git_hash: &str) -> Result<JamNationApi, BoxError> {
-    let mut api = JamNationApi::new(api_url, mac_address, git_hash);
-    
+pub fn init_api_connection(api: &mut dyn JamNationApiTrait) -> Result<usize, BoxError> {
+    let mut checks = 1;
+    api.jam_unit_register()?;
     while !api.has_token() {
-        let _register = api.jam_unit_register();
-        if !api.has_token() {
-            info!("Can't connect to rtjam-nation. Sleeping 2 seconds then retrying");
-            sleep(Duration::new(2, 0));
-        }
+        info!("Can't connect to rtjam-nation. Sleeping 2 seconds then retrying");
+        sleep(Duration::new(2, 0));
+        checks += 1;
+        api.jam_unit_register()?;
     }
 
-    Ok(api)
+    Ok(checks)
 }
 
 fn init_websocket_thread(
@@ -484,21 +503,6 @@ mod init_config {
 }
 
 #[cfg(test)]
-mod init_api_connection {
-    use super::*;
-    
-    #[test]
-    fn test_init_api_connection() {
-        let api_url = "http://test.com";
-        let mac = "00:11:22:33:44:55";
-        let git_hash = "abc123";
-
-        let result = init_api_connection(api_url, mac, git_hash);
-        assert!(result.is_ok());
-    }
-}
-
-#[cfg(test)]
 mod init_websocket_thread {
     use super::*;
     use std::sync::mpsc::{self};
@@ -526,8 +530,6 @@ mod init_websocket_thread {
         
     #[test]
     fn test_websocket_thread_passing_messages() {
-        //let (from_ws_tx, from_ws_rx): (mpsc::Sender<serde_json::Value>, mpsc::Receiver<serde_json::Value>) = mpsc::channel();
-
         let result = init_websocket_thread("test_token", "ws://test.com", Some(mock_websocket_thread));
         assert!(result.is_ok(), "Error in call to init_websocket_thread()");
         // Use the channels returned from init_websocket_thread
@@ -552,6 +554,82 @@ mod init_websocket_thread {
     }   
 }
 
+#[cfg(test)]
+mod init_api_connection {
+    use super::*;
+    use json::JsonValue;
+
+    struct MockJamNationApi {
+        token: Option<String>,
+        failure_count: usize,
+        register_failure: bool,
+    }
+    
+    // Mock implementation of JamNationApi
+    impl MockJamNationApi {
+        fn new(failure_count: usize, register_failure: bool) -> Self {
+            Self { 
+                token: None, 
+                failure_count: failure_count,
+                register_failure: register_failure,
+            }
+        }
+    }
+    
+    impl JamNationApiTrait for MockJamNationApi {
+        fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError> {
+            if self.register_failure {
+                Err(BoxError::from("Mock register failure"))
+            } else {
+                // Simulate successful registration by generating a token
+                self.token = Some("mock_token".to_string());
+                Ok(JsonValue::String("registered".to_string()))
+            }
+        }
+    
+        fn get_token(&self) -> &str {
+            self.token.as_ref().map_or("no_token", |token| token.as_str())
+        }
+    
+        fn has_token(&self) -> bool {
+            // Declare a static mutable variable to track failures
+            static mut CURRENT_FAILURES: usize = 0;
+    
+            unsafe {
+                if CURRENT_FAILURES < self.failure_count {
+                    CURRENT_FAILURES += 1; // Increment failure count
+                    false // Return false for the specified number of failures
+                } else {
+                    true // Return true after failures are exhausted
+                }
+            }
+        }
+    }
+    
+    #[test]
+    fn test_init_api_connection() {
+        let mut mock = MockJamNationApi::new(0, false);
+        let result = init_api_connection(&mut mock);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_init_api_connection_retries() {
+        let mut mock = MockJamNationApi::new(3, false); // Set failure count to 3
+        let result = init_api_connection(&mut mock);
+        // I'm not sure whether to error or not, but for now just verify the number of tries 
+        assert!(result.is_ok(), "Expected Ok after 1 initial and 3 retries");
+        assert!(result.unwrap() == 4, "Expected total try value of 4");
+    }
+
+    #[test]
+    fn test_init_api_connection_register_fail() {
+        let mut mock = MockJamNationApi::new(1, true); // Set failure count to 1 and register failure flag to true
+        let result = init_api_connection(&mut mock);
+        assert!(result.is_err(), "Expected Err after 1 initial and 1 retry");
+        assert_eq!(result.unwrap_err().to_string(), "Mock register failure");
+    }
+}
 
 // mod init_hardware_control {
 //     // use super::*;

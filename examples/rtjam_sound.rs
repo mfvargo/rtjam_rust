@@ -25,6 +25,6 @@ fn main() -> Result<(), BoxError> {
         println!("{}", git_hash);
         exit(0);
     }
-    client::run(git_hash.as_str(), args.in_dev, args.out_dev)?;
+    client::run(git_hash, args.in_dev, args.out_dev)?;
     Ok(())
 }

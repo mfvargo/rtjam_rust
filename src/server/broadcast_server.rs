@@ -6,9 +6,16 @@
 //! - let the rtjam-nation know this component is registered and alive
 use crate::{
     common::{
-        box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
-        jam_packet::JamMessage, packet_stream::PacketWriter, stream_time_stat::MicroTimer,
-        websock_message::WebsockMessage, websocket, recording::RecordingCatalog,
+        box_error::BoxError, 
+        config::Config, 
+        get_micro_time, 
+        jam_nation_api::{JamNationApi, JamNationApiTrait}, 
+        jam_packet::JamMessage, 
+        packet_stream::PacketWriter, 
+        recording::RecordingCatalog,
+        stream_time_stat::MicroTimer, 
+        websock_message::WebsockMessage, 
+        websocket
     },
     server::{
         audio_thread,
@@ -64,7 +71,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     let mut room_token = "".to_string();
     // Create an api endpoint and register this server
     // TODO: figure out way to get lan ip and mac address
-    let mut api = JamNationApi::new(api_url.as_str(), mac_address.as_str(), git_hash);
+    let mut api = JamNationApi::new(&api_url, &mac_address, &String::from(git_hash));
     while room_token == "" {
         let _register = api.broadcast_unit_register();
         // Activate the room

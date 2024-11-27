@@ -64,7 +64,7 @@ impl JitterBuffer {
     pub fn new() -> JitterBuffer {
         JitterBuffer {
             buffer: Vec::<f32>::new(),
-            depth_stats: StreamTimeStat::new(200),
+            depth_stats: StreamTimeStat::new(500),
             low_water: MIN_DEPTH,
             high_water: MAX_DEPTH,
             filling: true,
@@ -110,7 +110,7 @@ impl JitterBuffer {
         self.depth_stats.add_sample(self.buffer.len() as f64); // Gather depth stats
 
         // Adjust low water depth based on near or current starve (attach hold release filter)
-        self.low_water = MIN_DEPTH + (self.depth_filter.get(self.buffer.len() < MIN_DEPTH / 2) * 256.0 as f64) as usize;
+        self.low_water = MIN_DEPTH + (self.depth_filter.get(self.buffer.len() < self.low_water / 4) * MIN_DEPTH as f64) as usize;
         // Adjust high-water based on jitter sigma
         self.high_water = MIN_DEPTH + self.low_water + (self.depth_stats.get_sigma() * 8.0) as usize;
 

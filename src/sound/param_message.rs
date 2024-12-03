@@ -60,6 +60,7 @@ pub enum JamParam {
     SetUpdateInterval,  // Sets the frequency the unit will update the ux in the browser
     RebootDevice = 9998,  // deprecated
     ShutdownDevice = 9999,
+    StopAudio,    // Stop the jamEngine audio component
 }
 
 /// The ParamMessage is used to define the API to the sound engine from the outside

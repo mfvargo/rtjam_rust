@@ -77,6 +77,7 @@ pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
 
 pub struct JamEngine {
     // gonna have some stuff
+    is_running: bool,
     sock: JamSocket,
     recv_message: JamMessage,
     xmit_message: JamMessage,
@@ -125,6 +126,7 @@ impl JamEngine {
     ) -> Result<JamEngine, BoxError> {
         let now = get_micro_time();
         let mut engine = JamEngine {
+            is_running: true,
             sock: JamSocket::new(9991)?,
             recv_message: JamMessage::new(),
             xmit_message: JamMessage::new(),
@@ -153,6 +155,10 @@ impl JamEngine {
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
         Ok(engine)
+    }
+    /// This will let you know if the engine is still running
+    pub fn is_running(&self) -> bool {
+        self.is_running
     }
     /// This is the function that the audio engine will call with frames of data.  The four arguments are the
     /// two input channels for the component, and the stereo output.
@@ -566,6 +572,9 @@ impl JamEngine {
                     "speaker": "UnitChatRobot",
                     "pedalTypes": PedalBoard::get_pedal_types()
                 }));
+            }
+            JamParam::StopAudio => {
+                self.is_running = false;
             }
             _ => {
                 println!("unknown command: {}", msg);

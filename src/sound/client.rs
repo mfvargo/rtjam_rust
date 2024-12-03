@@ -40,7 +40,8 @@ use crate::{
     }, 
     pedals::pedal_board::PedalBoard, 
     sound::{
-        // jack_thread,
+        jack_thread,
+        alsa_thread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, 
@@ -57,8 +58,6 @@ use std::{
 };
 use log::{trace, debug, info, warn, error};
 
-use super::alsa_thread;
-
 /// This is the entry point for the rtjam client.
 ///
 /// Call this function from the main function to start the entire sound component running.
@@ -69,28 +68,24 @@ use super::alsa_thread;
 /// - `in_dev`: A `String` specifying the input device to be used for audio processing.
 /// - `out_dev`: A `String` specifying the output device for audio playback.
 ///
-/// # Returns
-///
-/// This function returns a `Result<(), BoxError>`. On success, it returns `Ok(())`. 
-/// If an error occurs during initialization or execution, it returns an error wrapped in `BoxError`.
-///
-/// # Errors
-///
-/// This function may return errors related to:
-/// - Configuration loading issues.
-/// - API connection failures.
-/// - WebSocket initialization problems.
-/// - Audio engine setup errors.
-///
-/// # Notes
-///
-/// The `git_hash` string allows the software to inform rtjam-nation about the version of the code currently running.
-pub fn run(git_hash: String, in_dev: String, out_dev: String) -> Result<(), BoxError> {
+/// note the git_hash string allows the software to tell rtjam-nation what version of code it
+/// is currently running.
+pub fn run(
+    git_hash: String, 
+    use_alsa: bool, 
+    in_dev: String, 
+    out_dev: String
+) -> Result<(), BoxError> {
     info!("client - starting run function");
     // Initialize config and API connection
     // TODO: pass in the config file name as an optional parameter
     let (api_url, ws_url, mac_address, no_loopback) = init_config(None)?;
     debug!("client::run - config file init complete");
+
+    info!(
+        "Config values: api_url: {}, ws_url: {}, mac_address: {}, no_loopback: {}",
+        api_url, ws_url, mac_address, no_loopback
+    );
 
     let mut api = JamNationApi::new(&api_url, &mac_address, &git_hash);
     let _connected_api = init_api_connection(&mut api)?;
@@ -111,9 +106,8 @@ pub fn run(git_hash: String, in_dev: String, out_dev: String) -> Result<(), BoxE
     let (pedal_tx, pedal_rx) = mpsc::channel();
 
     if no_loopback {
-        info!("Local loopback disabled");
+        info!("client - local loopback disabled");        
     }
-
     // Create and start audio engine
     let engine = JamEngine::new(
         light_option,
@@ -126,9 +120,16 @@ pub fn run(git_hash: String, in_dev: String, out_dev: String) -> Result<(), BoxE
     )?;
     debug!("client::run - audio engine started");
 
-    // Start ALSA thread
-    let _alsa_handle = start_alsa_thread(engine, &in_dev, &out_dev)?;
-    debug!("client::run - ALSA thread started");
+    // Start appropriate hardware level sound thread
+    if use_alsa {
+        info!("client - using ALSA");
+        let _sound_handle = start_alsa_thread(engine, &in_dev, &out_dev)?;
+        debug!("client::run - ALSA thread started");
+    } else {
+        info!("client - using Jack");
+        let _sound_handle = start_jack_thread(engine)?;
+        debug!("client::run - Jack thread started");        
+    }
 
     // Start ping thread
     let _ping_handle = thread::spawn(move || {
@@ -279,7 +280,7 @@ fn start_alsa_thread(engine: JamEngine, in_dev: &str, out_dev: &str) -> Result<t
     let handle = builder.spawn(move |_result| {
         match alsa_thread::run(engine, &in_dev, &out_dev) {
             Ok(()) => {
-                info!("alsa ended with OK");
+                debug!("alsa ended with OK");
             }
             Err(e) => {
                 error!("alsa exited with error {}", e);
@@ -288,6 +289,21 @@ fn start_alsa_thread(engine: JamEngine, in_dev: &str, out_dev: &str) -> Result<t
     })?;
 
     Ok(handle)
+}
+
+fn start_jack_thread(engine: JamEngine) -> Result<thread::JoinHandle<()>, BoxError> {
+    let handle = thread::spawn(move || {
+        match jack_thread::run(engine) {
+            Ok(()) => {
+                debug!("jack_thread::run OK");
+            }
+            Err(e) => {
+                error!("Jack thread exited with error {}", e);
+            }            
+        }
+    });
+
+    Ok(handle)     
 }
 
 fn run_main_loop(

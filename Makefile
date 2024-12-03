@@ -1,4 +1,4 @@
-NATION=http://rtjam-nation.com/pi/rust-alsa
+NATION=http://rtjam-nation.com/pi/rust-2
 RTJAM_HOME=/home/pi/rtjam
 
 all:

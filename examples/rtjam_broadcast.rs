@@ -2,6 +2,9 @@ use rtjam_rust::{common::box_error::BoxError, server::broadcast_server, utils::g
 use std::{env, process::exit};
 
 fn main() -> Result<(), BoxError> {
+    // Turn on the logger
+    env_logger::init();
+
     // note: add error checking yourself.
     let git_hash = get_git_hash();
     let args: Vec<String> = env::args().collect();

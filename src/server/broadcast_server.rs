@@ -6,9 +6,16 @@
 //! - let the rtjam-nation know this component is registered and alive
 use crate::{
     common::{
-        box_error::BoxError, config::Config, get_micro_time, jam_nation_api::JamNationApi,
-        jam_packet::JamMessage, packet_stream::PacketWriter, stream_time_stat::MicroTimer,
-        websock_message::WebsockMessage, websocket, recording::RecordingCatalog,
+        box_error::BoxError, 
+        config::Config, 
+        get_micro_time, 
+        jam_nation_api::{JamNationApi, JamNationApiTrait}, 
+        jam_packet::JamMessage, 
+        packet_stream::PacketWriter, 
+        recording::RecordingCatalog,
+        stream_time_stat::MicroTimer, 
+        websock_message::WebsockMessage, 
+        websocket
     },
     server::{
         audio_thread,
@@ -21,6 +28,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+use log::{/*debug,*/ info, warn, error};
 
 /// To start a broadcast component, call this function
 ///
@@ -34,22 +42,36 @@ use std::{
 /// the original thread that calls run then loops checking mpsc::channels for messages between the websocket
 /// and the audio_thread.  The broadcast ping thread just runs by itself (fire and forget)
 pub fn run(git_hash: &str) -> Result<(), BoxError> {
-    // This is the entry point for the broadcast server
+    info!("Starting run function");
 
     // load up the config to get required info
-    let mut config = Config::build();
-    config.load_from_file()?;
+    // TODO: keep bubbling up the config file name to remove hard coding, and make configurable for testing fun and games
+    // NOTE: Is this the best place for these defaults, or should the be either encapsulated in the config object, or passed in as arguments?
+    let defaults = json::object! {
+        "api_url": "http://rtjam-nation.com/api/1/",
+        "ws_url": "ws://rtjam-nation.com/primus",
+        "room_mode": "separate",
+        "port": 7891,
+    };
+    let config = Config::build(String::from("settings.json"), defaults);
+    let config = match config {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Issue with config file or parameter: {}", e);
+            return Err(Box::new(e));
+        }
+    };
 
-    let api_url = String::from(config.get_value("api_url", "http://rtjam-nation.com/api/1/"));
-    let ws_url = String::from(config.get_value("ws_url", "ws://rtjam-nation.com/primus"));
-    let room_mode = config.get_value("room_mode", "separate") == "mix";
-    let port: u32 = config.get_u32_value("port", 7891);
+    let api_url = String::from(config.get_str_value("api_url", None)?);
+    let ws_url = String::from(config.get_str_value("ws_url", None)?);
+    let room_mode = config.get_str_value("room_mode", None)? == "mix";
+    let port: u32 = config.get_u32_value("port", None)?;
     let room_port = port.clone();
     let mac_address = utils::get_my_mac_address()?;
     let mut room_token = "".to_string();
     // Create an api endpoint and register this server
     // TODO: figure out way to get lan ip and mac address
-    let mut api = JamNationApi::new(api_url.as_str(), mac_address.as_str(), git_hash);
+    let mut api = JamNationApi::new(&api_url, &mac_address, &String::from(git_hash));
     while room_token == "" {
         let _register = api.broadcast_unit_register();
         // Activate the room
@@ -60,7 +82,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 }
             }
             Err(e) => {
-                dbg!(e);
+                warn!("{}", e);
             }
         }
         if room_token == "" {

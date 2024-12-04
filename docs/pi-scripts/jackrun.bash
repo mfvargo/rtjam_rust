@@ -6,6 +6,12 @@ PROGRAM=rtjam_sound
 # This is how we will fetch from the network
 WGET='wget -q --tries=2 --timeout=3'
 
+# if RUST_LOG is not set, set it to info, otherwise use the prior setting
+if [ -z ${RUST_LOG} ]; then
+  export RUST_LOG=info
+fi
+echo "RUST_LOG is set to ${RUST_LOG}"
+
 if [ -z $SKIP_UPDATE ]; then
   # Step one is to get the version of the software on the web
   rm $WEBVER
@@ -52,6 +58,7 @@ if [ -z $SKIP_UPDATE ]; then
 else
   echo "Skipping Update"
 fi
+
 # Check for soundin.cfg
 if [ -f soundin.cfg ];
 then

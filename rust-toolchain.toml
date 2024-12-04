@@ -1,0 +1,5 @@
+[toolchain]
+channel = "stable"
+
+# [target.'cfg(test))']
+# channel = "nightly-2024-11-20"  # pinned for now, to get things working with mocktopus

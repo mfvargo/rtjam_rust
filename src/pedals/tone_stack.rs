@@ -1,6 +1,6 @@
 //! Effect to simulate the Tone controls on a typical amplifier.
 //!
-//! It uses three [`BiQuadFilter`](crate::dsp::biquad::BiQuadFilter) filters to implement a tone stack similar
+//! It uses three [`BiQuadFilter`] filters to implement a tone stack similar
 //! to that on a Fender amp.  The cutoff frequencies of the filters and their Q are preset.  The settings
 //! here just affect the boost on the filters.
 use serde_json::json;

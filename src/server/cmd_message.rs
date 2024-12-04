@@ -21,7 +21,7 @@ pub enum RoomParam {
 /// The RoomCommandMessage is used to define the API to the room component from the outside
 /// world.
 ///
-/// A RoomCommandMessage consist of a param value [`RoomParam`](RoomParam), and 3
+/// A RoomCommandMessage consist of a param value [`RoomParam`], and 3
 /// other values.  interpretation of the values is dependent on the nature of the command.
 ///
 /// other values are ivalue_1: integer, fvalue: float, and svalue: string.

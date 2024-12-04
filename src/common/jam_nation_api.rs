@@ -10,6 +10,13 @@ use json::JsonValue;
 use reqwest::blocking::Client;
 // use serde::{Deserialize, Serialize};
 
+/// Define the trait for JamNationApi
+pub trait JamNationApiTrait {
+    fn get_token(&self) -> &str;
+    fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError>;
+    fn has_token(&self) -> bool;   // Add other methods as needed...
+}
+
 /// The structure that holds state about the api connection
 pub struct JamNationApi {
     url_base: String,
@@ -19,6 +26,31 @@ pub struct JamNationApi {
     // pub args: NationArgs,
 }
 
+impl JamNationApiTrait for JamNationApi {
+    /// returns the token for the component once it has registered
+    fn get_token(&self) -> &str {
+        self.token.as_str()
+    }
+    /// Indicates the component has successfully registered
+    fn has_token(&self) -> bool {
+        !self.token.is_empty()
+    }
+
+    /// Tell the rtjam-nation the sound component exists
+    fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError> {
+        let mut args = self.build_def_args();
+        args.insert("canTalkOnWebsocket", String::from("true"));
+        let result = self.post("jamUnit", &args)?;
+        match result["jamUnit"]["token"].as_str() {
+            Some(v) => {
+                self.token = String::from(v);
+            }
+            None => {}
+        }
+        Ok(result)
+    }
+}
+
 impl JamNationApi {
     /// used to build the api.  The fields are
     ///
@@ -26,7 +58,7 @@ impl JamNationApi {
     /// - lan_ip: legacy parameter.  Should be deprecasted (TODO)
     /// - mac_address: the mac address of the component. Used to uniquely identify the componet
     /// - git_hash: the current git hash string for the build.  Lets the nation know what software component has
-    pub fn new(base: &str, mac_address: &str, git_hash: &str) -> JamNationApi {
+    pub fn new(base: &String, mac_address: &String, git_hash: &String) -> JamNationApi {
         JamNationApi {
             token: String::new(),
             url_base: base.to_string(),
@@ -34,18 +66,12 @@ impl JamNationApi {
             git_hash: git_hash.to_string(),
         }
     }
-    /// returns the token for the component once it has registered
-    pub fn get_token(&self) -> &str {
-        self.token.as_str()
-    }
+
     /// Clear the token.  used if the network fails and reconnects
     pub fn forget_token(&mut self) -> () {
         self.token = "".to_string();
     }
-    /// Indicates the component has successfully registered
-    pub fn has_token(&self) -> bool {
-        !self.token.is_empty()
-    }
+
     fn build_def_args(&self) -> HashMap<&str, String> {
         let mut args = HashMap::new();
         args.insert("token", self.token.clone());
@@ -111,19 +137,7 @@ impl JamNationApi {
         }
         Ok(result)
     }
-    /// Tell the rtjam-nation the sound component exists
-    pub fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError> {
-        let mut args = self.build_def_args();
-        args.insert("canTalkOnWebsocket", String::from("true"));
-        let result = self.post("jamUnit", &args)?;
-        match result["jamUnit"]["token"].as_str() {
-            Some(v) => {
-                self.token = String::from(v);
-            }
-            None => {}
-        }
-        Ok(result)
-    }
+
     /// Tell the nation the sound component is alive
     pub fn jam_unit_ping(&self) -> Result<JsonValue, BoxError> {
         let args = self.build_def_args();
@@ -136,8 +150,13 @@ mod test_api {
     use super::*;
 
     fn build_new_api() -> JamNationApi {
-        JamNationApi::new("http://localhost:8080/api/1/", "test:mac", "gitHashString")
+        JamNationApi::new(
+            &String::from("http://localhost:8080/api/1/"), 
+            &String::from("test:mac"), 
+            &String::from("gitHashString")
+        )
     }
+
     #[test]
     fn get_status() {
         // You should get the status from the server

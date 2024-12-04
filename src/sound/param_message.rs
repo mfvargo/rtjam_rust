@@ -67,7 +67,7 @@ pub enum JamParam {
 /// world.  Interpretation of this message is by the
 /// [`JamEngine`](crate::sound::jam_engine::JamEngine).
 ///
-/// A ParamMessage consist of a param value [`JamParam`](JamParam), and 4
+/// A ParamMessage consist of a param value [`JamParam`], and 4
 /// other values.  interpretation of the values is dependent on the nature of the command.
 ///
 /// other values are ivalue_1: integer, ivalue_2: integer, fvalue: float, and svalue: string.

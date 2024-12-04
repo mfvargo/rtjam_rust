@@ -19,11 +19,25 @@ use std::str::FromStr;
 use crate::dsp::biquad::{BiQuadFilter, FilterType};
 
 use super::{
-    bass_di::BassDI, bass_envelope::BassEnvelope, chorus::Chorus, compressor::Compressor,
-    delay::Delay, guitar_envelope::GuitarEnvelope, noise_gate::NoiseGate, pedal::Pedal,
-    sigma_reverb::SigmaReverb, soul_drive::SoulDrive, speaker_sim_iir::SpeakerSimIIR,
-    tone_stack::ToneStack, tremelo::Tremelo, tube_drive::TubeDrive, template_pedal::TemplatePedal,
-    champ::Champ, princeton::Princeton, tube_screamer::TubeScreamer
+    bass_di::BassDI, 
+    bass_envelope::BassEnvelope, 
+    champ::Champ, 
+    chorus::Chorus, 
+    compressor::Compressor, 
+    delay::Delay, 
+    guitar_envelope::GuitarEnvelope, 
+    noise_gate::NoiseGate, 
+    pedal::Pedal, 
+    princeton::Princeton, 
+    room_simulator::RoomSimulator, 
+    sigma_reverb::SigmaReverb, 
+    soul_drive::SoulDrive, 
+    speaker_sim_iir::SpeakerSimIIR, 
+    template_pedal::TemplatePedal, 
+    tone_stack::ToneStack, 
+    tremelo::Tremelo, 
+    tube_drive::TubeDrive, 
+    tube_screamer::TubeScreamer
 };
 use serde_json::{json, Value};
 
@@ -107,6 +121,7 @@ impl PedalBoard {
            "Guitar Envelope": "Guitar Envelope Filter Pedal (auto-wah)",
            "Champ": "Fender Champ",
            "Princeton": "Fender Princeton",
+           "Room Simulator": "Room Simulator for rich sound",
         })
     }
 
@@ -133,6 +148,7 @@ impl PedalBoard {
             "Champ" => Some(Box::new(Champ::new())),
             "Princeton" => Some(Box::new(Princeton::new())),
             "Tube Screamer" => Some(Box::new(TubeScreamer::new())),
+            "Room Simulator" => Some(Box::new(RoomSimulator::new())),
             _ => {
                 // No pedal for that name
                 println!("Can't create pedal {}", type_name);

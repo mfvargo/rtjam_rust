@@ -28,7 +28,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
-use log::{/*debug,*/ info, warn, error};
+use log::{debug, error, info, warn};
 
 /// To start a broadcast component, call this function
 ///
@@ -140,7 +140,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         match res {
             Ok(m) => {
                 // This is where we listen for commands from the room to do stuff.
-                println!("websocket message: {}", m.to_string());
+                debug!("websocket message: {}", m.to_string());
                 transport_update_timer.reset(0);
                 match RoomCommandMessage::from_json(&m) {
                     Ok(mut cmd) => match cmd.param {

@@ -22,6 +22,9 @@ use super::{
     param_message::{JamParam, ParamMessage},
 };
 
+use log::debug;
+
+
 // Set a timer for how long a connect will hold up without a keepalive from the web client
 pub const IDLE_DISCONNECT: u128 = 90 * 60 * 1000 * 1000; // 90 minutes
 pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
@@ -198,7 +201,7 @@ impl JamEngine {
             //     self.jack_jitter.get_mean(),
             //     self.jack_jitter.get_sigma()
             // );
-            // println!("mixer: {}", self.mixer);
+            debug!("mixer: {}", self.mixer);
             // println!("map: {}", self.chan_map);
         }
     }

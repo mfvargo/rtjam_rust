@@ -4,7 +4,7 @@
 //! run the rtjam_sound component.
 //!
 //! It will first use the [`JamNationApi`] to register the component.  This will return a token
-//! from the rtjam-nation.  This token will then be passed to the [`websocket::websocket_thread`] so it
+//! from the rtjam-nation.  This token will then be passed to the [`websocket_thread`] so it
 //! can create a room on the rtjam-nation server to be used to communicate with the U/X
 //!
 //! The same token will be passed to a [`JamEngine`] object that will be moved into the

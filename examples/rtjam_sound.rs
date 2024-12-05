@@ -20,7 +20,12 @@ struct Args {
     alsa: bool,
 }
 
+
 fn main() -> Result<(), BoxError> {
+
+    // Turn on the logger
+    env_logger::init();
+    
     // note: add error checking yourself.
     let git_hash = get_git_hash().to_string();
     let args = Args::parse();

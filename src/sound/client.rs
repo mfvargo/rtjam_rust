@@ -23,7 +23,7 @@
 //! started.  Once it can connect to jack for audio, it will continue.
 //!
 //! TODO:  jack_thread does not recover from jack being stopped after it's already running.  Need to
-//! have it re-initialize into acquire more if jack falls down in the middle.
+//! have it re-initialize into acquire mode if jack falls down in the middle.
 use crate::{
     common::{
         box_error::BoxError,
@@ -133,7 +133,7 @@ pub fn run(
 
     // Start ping thread
     let _ping_handle = thread::spawn(move || {
-        let _res = jam_unit_ping_thread(api);
+        let _res = jam_unit_ping_thread(&mut api);
     });
     debug!("client::run - ping handle started");
 
@@ -410,7 +410,7 @@ fn handle_room_ping(
     Ok(())
 }
 
-fn jam_unit_ping_thread(mut api: JamNationApi) -> Result<(), BoxError> {
+fn jam_unit_ping_thread(api: &mut dyn JamNationApiTrait) -> Result<(), BoxError> {
     loop {
         while api.has_token() == true {
             // While in this loop, we are going to ping every 10 seconds
@@ -618,7 +618,7 @@ mod init_websocket_thread {
 #[cfg(test)]
 mod init_api_connection {
     use super::*;
-    use json::JsonValue;
+    //use json::JsonValue;
 
     struct MockJamNationApi {
         token: Option<String>,
@@ -638,14 +638,12 @@ mod init_api_connection {
     }
     
     impl JamNationApiTrait for MockJamNationApi {
-        fn jam_unit_register(&mut self) -> Result<JsonValue, BoxError> {
+        fn jam_unit_register(&mut self) -> Result<(), BoxError> {
             if self.register_failure {
-                Err(BoxError::from("Mock register failure"))
-            } else {
-                // Simulate successful registration by generating a token
-                self.token = Some("mock_token".to_string());
-                Ok(JsonValue::String("registered".to_string()))
+                return Err(BoxError::from("Mock register failure"));
             }
+
+            Ok(())
         }
     
         fn get_token(&self) -> &str {
@@ -664,6 +662,18 @@ mod init_api_connection {
                     true // Return true after failures are exhausted
                 }
             }
+        }
+
+        fn forget_token(&mut self) -> () {
+            ()
+        }
+
+        fn broadcast_unit_ping(&self) -> Result<serde_json::Value, BoxError> {
+            Ok(serde_json::Value::Null)           
+        }
+
+        fn jam_unit_ping(&self) -> Result<serde_json::Value, BoxError> {
+            Ok(().into())           
         }
     }
     

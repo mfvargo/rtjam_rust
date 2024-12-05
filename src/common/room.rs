@@ -184,8 +184,4 @@ mod test_room {
         let _room = Room::new("foobar", "ws://rtjam-nation.com/primus");
     }
 
-    #[test]
-    fn can_tcp() {
-        let _stream = TcpStream::connect("3.101.28.175:80").unwrap();
-    }
 }

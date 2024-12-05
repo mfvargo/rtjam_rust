@@ -1,6 +1,9 @@
+use serde::{ Deserialize, Serialize };
 
 
 
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct MovingAverage {
     window: usize,
     total: f64,
@@ -17,6 +20,10 @@ impl MovingAverage {
     }
     pub fn get_mean(&self) -> f64 {
         self.total / self.window as f64
+    }
+
+    pub fn get_total(&self) -> f64 {
+        self.total
     }
 
     pub fn get_window(&self) -> usize {

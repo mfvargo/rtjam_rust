@@ -11,43 +11,44 @@ use std::fmt;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::dsp::moving_avg::MovingAverage;
+
 /// moving average filter that collect peak, mean, and sigma values for sequences
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StreamTimeStat {
-    mean: f64,
-    sigma: f64,
     window: u64,
+    avg: MovingAverage,
+    dev: MovingAverage,
 }
 
 impl StreamTimeStat {
     /// create a new stat collector with a specific window size
     pub fn new(window_size: u64) -> StreamTimeStat {
         StreamTimeStat {
-            mean: 0.0,
-            sigma: 0.0,
             window: window_size,
+            avg: MovingAverage::new(window_size as usize),
+            dev: MovingAverage::new(window_size as usize),
         }
     }
     pub fn clear(&mut self) -> () {
-        self.mean = 0.0;
-        self.sigma = 0.0;
+        self.avg = MovingAverage::new(self.window as usize);
+        self.dev = MovingAverage::new(self.window as usize);
     }
     pub fn get_mean(&self) -> f64 {
-        self.mean
+        self.avg.get_mean()
     }
     pub fn get_sigma(&self) -> f64 {
-        self.sigma
+        f64::sqrt(self.dev.get_total()) / self.dev.get_window() as f64
     }
     pub fn get_window(&self) -> u64 {
         self.window
     }
     /// add a sample to the moving average sequence
     ///
-    /// the average is cheap appoximation and the sigma value is the same cheap approx applied again
     pub fn add_sample(&mut self, sample: f64) -> () {
-        let scale: f64 = (self.window as f64 - 1.0) / self.window as f64;
-        self.mean = scale * (self.mean + sample / self.window as f64);
-        self.sigma = scale * (self.sigma + (self.mean - sample).abs() / self.window as f64);
+        self.avg.add_sample(sample);
+        let delta = sample - self.get_mean();
+        self.dev.add_sample(delta * delta);
     }
 }
 
@@ -56,7 +57,7 @@ impl fmt::Display for StreamTimeStat {
         write!(
             f,
             "{{ mean: {}, sigma: {} window: {} }}",
-            self.mean, self.sigma, self.window
+            self.get_mean(), self.get_sigma(), self.get_window()
         )
     }
 }
@@ -74,10 +75,12 @@ mod test_stream_time_stat {
     fn add_sample() {
         let mut stat = StreamTimeStat::new(2);
         stat.add_sample(1.0);
-        assert_eq!(stat.get_mean(), 0.25);
+        assert_eq!(stat.get_mean(), 0.5);
         stat.add_sample(1.0);
         stat.add_sample(1.0);
-        assert!(stat.get_mean() > 0.25);
+        println!("v: {}", stat);
+        assert!(stat.get_mean() > 0.999);
+        assert!(stat.get_sigma() < 0.01);
     }
 }
 

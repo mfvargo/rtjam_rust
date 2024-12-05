@@ -42,7 +42,7 @@ impl Fader {
 impl fmt::Display for Fader {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[ left: {}, right: {} ]", self.left, self.right)
+        write!(f, "[ left: {:.2}, right: {:.2} ]", self.left, self.right)
     }
 }
 #[cfg(test)]

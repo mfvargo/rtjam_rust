@@ -15,17 +15,14 @@
 //! of the buffer (oldest data gets thrown out) and then return data.  This prevents the
 //! buffer depth from driving to the largest inter packet delay.  Net effect is this
 //! allows for some gaps in playback in order to drive buffer latency down.
-use rand::random;
 
 use crate::{
     common::stream_time_stat::StreamTimeStat,
-    dsp::{attack_hold_release::AttackHoldRelease, smoothing_filter::SmoothingFilter},
-    utils::to_lin,
+    dsp::attack_hold_release::AttackHoldRelease,
 };
 use std::fmt;
 
-const MIN_DEPTH: usize = 128 * 3;
-const MIN_HIGH_WATER: usize = MIN_DEPTH * 2;
+const MIN_DEPTH: usize = 128 * 4;
 const MAX_DEPTH: usize = 8192;
 // const MIN_SIGMA: f64 = 5.0;
 
@@ -41,7 +38,6 @@ pub struct JitterBuffer {
     underruns: usize,
     overruns: usize,
     depth_filter: AttackHoldRelease<f64>,
-    high_water_filter: SmoothingFilter,
     puts: usize,
     gets: usize,
 }
@@ -51,7 +47,7 @@ impl fmt::Display for JitterBuffer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ low: {}, high: {}, underruns: {}, overruns: {}, depth: {:.2}, sigma: {:.2}, filt: {:.2} }}",
+            "{{ low: {}, high: {}, underruns: {}, overruns: {}, mean: {:.2}, sigma: {:.2}, filt: {:.2} }}",
             self.low_water,
             self.high_water,
             self.underruns,
@@ -75,7 +71,6 @@ impl JitterBuffer {
             underruns: 0,
             overruns: 0,
             depth_filter: AttackHoldRelease::new(0.4, 1.0, 2.0, 48000.0 / 128.0),
-            high_water_filter: SmoothingFilter::build(2.0, 48_000.0 / 128.0),
             puts: 0,
             gets: 0,
         }
@@ -107,21 +102,17 @@ impl JitterBuffer {
     }
     /// get will retrieve data from the jitter buffer.  It will always give you a full vector but
     /// it might have zeros if there is no data or the buffer is still filling
-    pub fn get(&mut self, count: usize, power: f64) -> Vec<f32> {
+    pub fn get(&mut self, count: usize, _power: f64) -> Vec<f32> {
         // It should get some data off the buffer
         self.gets += 1;
 
-        // Update the depth stats
+        // Update the depth stats  (calculates moving avg and sigma)
         self.depth_stats.add_sample(self.buffer.len() as f64); // Gather depth stats
 
-        // Adjust low water depth based on near or current starve
-        self.low_water =
-            MIN_DEPTH + (self.depth_filter.get(self.buffer.len() < 256) * 1024.0) as usize;
+        // Adjust low water depth based on near or current starve (attach hold release filter)
+        self.low_water = MIN_DEPTH + (self.depth_filter.get(self.buffer.len() < self.low_water / 4) * MIN_DEPTH as f64) as usize;
         // Adjust high-water based on jitter sigma
-        self.high_water = self
-            .high_water_filter
-            .get(MIN_HIGH_WATER as f64 + (self.depth_stats.get_sigma() * 8.0))
-            as usize;
+        self.high_water = MIN_DEPTH + self.low_water + (self.depth_stats.get_sigma() * 8.0) as usize;
 
         // check if we are done filling
         if self.filling {
@@ -132,19 +123,14 @@ impl JitterBuffer {
 
         // First case, we are filling so don't give them anything
         if self.filling {
-            // just give comfort noise
-            let mut noise = vec![0.0; count];
-            let gain = to_lin(power) as f32;
-            for i in 0..count {
-                noise[i] = (random::<f32>() - 0.5) * 2.0 * gain;
-            }
-            return noise;
+            // just give silence
+            return vec![0.0; count];
         }
 
         // Second case see if we have too much data and need to throw some out
         if self.buffer.len() > self.high_water {
             self.overruns += 1;
-            self.buffer.drain(..self.buffer.len() - 64);
+            self.buffer.drain(..self.high_water);
         }
 
         // Third case, we have enough data to satisfy

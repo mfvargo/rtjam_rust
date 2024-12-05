@@ -22,6 +22,9 @@ use super::{
     param_message::{JamParam, ParamMessage},
 };
 
+use log::debug;
+
+
 // Set a timer for how long a connect will hold up without a keepalive from the web client
 pub const IDLE_DISCONNECT: u128 = 90 * 60 * 1000 * 1000; // 90 minutes
 pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
@@ -173,7 +176,6 @@ impl JamEngine {
     ) -> Result<(), BoxError> {
         self.process_inputs(in_a, in_b);
         self.get_playback_data(out_a, out_b);
-        self.debug_output();
         Ok(())
     }
     pub fn process_inputs(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
@@ -185,6 +187,7 @@ impl JamEngine {
         self.check_pedal_board();
         self.read_network();
         self.send_my_audio(in_a, in_b);
+        self.debug_output();
     }
     pub fn get_playback_data(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
         self.mixer.get_mix(out_a, out_b);
@@ -198,7 +201,7 @@ impl JamEngine {
             //     self.jack_jitter.get_mean(),
             //     self.jack_jitter.get_sigma()
             // );
-            // println!("mixer: {}", self.mixer);
+            debug!("mixer: {}", self.mixer);
             // println!("map: {}", self.chan_map);
         }
     }

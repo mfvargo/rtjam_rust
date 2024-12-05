@@ -5,7 +5,8 @@
 use log::debug;
 use num::FromPrimitive;
 use serde_json::json;
-use crate::dsp::allpass_delay::AllpassDelay;
+use crate::dsp::biquad::{BiQuadFilter, FilterType};
+use crate::dsp::delay_line::DelayLine;
 
 use super::controls::{PedalSetting, SettingType, SettingUnit};
 use super::pedal::Pedal;
@@ -20,10 +21,10 @@ use super::pedal::Pedal;
 
 #[derive(ToPrimitive, FromPrimitive)]
 enum SurfaceType {
-    Stone,
-    SheetRock,
-    Carpet,
-    Tapestry,
+    Hard,
+    Firm,
+    Soft,
+    Mush,
 }
 
 impl SurfaceType {
@@ -42,26 +43,61 @@ impl SurfaceType {
             name,
             SurfaceType::labels(),
             0,
-            num::ToPrimitive::to_i64(&SurfaceType::Stone).unwrap(),
-            num::ToPrimitive::to_i64(&SurfaceType::Tapestry).unwrap(),
+            num::ToPrimitive::to_i64(&SurfaceType::Hard).unwrap(),
+            num::ToPrimitive::to_i64(&SurfaceType::Mush).unwrap(),
             1,
         )
     }
-    pub fn gain_from_type(v: i64) -> f32 {
+    pub fn gain_from_type(v: i64, filt: &mut BiQuadFilter) -> f32 {
         match FromPrimitive::from_i64(v) {
-            Some(SurfaceType::Stone) => {
+            Some(SurfaceType::Hard) => {
+                filt.init(
+                    FilterType::LowPass,
+                    1000.0,
+                    1.0,
+                    1.0,
+                    48000.0,
+                );
                 0.9
             }
-            Some(SurfaceType::SheetRock) => {
+            Some(SurfaceType::Firm) => {
+                filt.init(
+                    FilterType::LowPass,
+                    700.0,
+                    1.0,
+                    1.0,
+                    48000.0,
+                );
                 0.7
             }
-            Some(SurfaceType::Carpet) => {
+            Some(SurfaceType::Soft) => {
+                filt.init(
+                    FilterType::LowPass,
+                    300.0,
+                    1.0,
+                    1.0,
+                    48000.0,
+                );
                 0.4
             }
-            Some(SurfaceType::Tapestry) => {
+            Some(SurfaceType::Mush) => {
+                filt.init(
+                    FilterType::LowPass,
+                    100.0,
+                    1.0,
+                    1.0,
+                    48000.0,
+                );
                 0.1
             }
             None => {
+                filt.init(
+                    FilterType::LowPass,
+                    4000.0,
+                    1.0,
+                    1.0,
+                    48000.0,
+                );
                 0.0
             }
         }
@@ -73,9 +109,12 @@ pub struct RoomSimulator {
     surface_settings: Vec<PedalSetting<i64>>,
     // Here is where you would add th things you need to make it work
     // BiQuad filter, delays, attack_hold_release, see things in the dsp folder.
-    side: AllpassDelay<f32>,
-    floor: AllpassDelay<f32>,
-    top: AllpassDelay<f32>,
+    side: DelayLine<f32>,
+    side_filter: BiQuadFilter,
+    floor: DelayLine<f32>,
+    floor_filter: BiQuadFilter,
+    top: DelayLine<f32>,
+    top_filter: BiQuadFilter
 }
 
 impl RoomSimulator {
@@ -85,16 +124,19 @@ impl RoomSimulator {
             bypass: false,
             delay_settings: Vec::new(),
             surface_settings: Vec::new(),
-            side: AllpassDelay::new(),
-            floor: AllpassDelay::new(),
-            top: AllpassDelay::new(),
+            side: DelayLine::new(),
+            side_filter: BiQuadFilter::new(),
+            floor: DelayLine::new(),
+            floor_filter: BiQuadFilter::new(),
+            top: DelayLine::new(),
+            top_filter: BiQuadFilter::new(),
         };
         pedal.delay_settings.push(PedalSetting::new(
             SettingUnit::Continuous,
             SettingType::Linear,
             "side",
             vec![],
-            6.0,
+            10.0,
             1.0,
             20.0,
             0.25,
@@ -105,7 +147,7 @@ impl RoomSimulator {
             SettingType::Linear,
             "floor",
             vec![],
-            3.0,
+            10.0,
             1.0,
             20.0,
             0.25,
@@ -123,9 +165,10 @@ impl RoomSimulator {
         ));
         pedal.surface_settings.push(SurfaceType::setting("topSurface"));
         // Initialize the the things you might use.
-        pedal.side.init(3 * 48, 0.9);
-        pedal.floor.init(6 * 48, 0.9);
-        pedal.top.init(10 * 48, 0.9);
+        pedal.load_from_settings();
+        // pedal.side.init(10 * 48, 0.9);
+        // pedal.floor.init(10 * 48, 0.9);
+        // pedal.top.init(10 * 48, 0.9);
         pedal
     }
 }
@@ -173,7 +216,17 @@ impl Pedal for RoomSimulator {
         // change my member variables based on the settings
         for setting in &mut self.delay_settings {
             if setting.dirty {
+                let new_length = (setting.get_value() * 48.0) as usize;
                 match setting.get_name() {
+                    "side" => {
+                        self.side.set_length(new_length);
+                    }
+                    "floor" => {
+                        self.floor.set_length(new_length);
+                    }
+                    "top" => {
+                        self.top.set_length(new_length);
+                    }
                     _ => (),
                 }
                 setting.dirty = false;
@@ -181,17 +234,15 @@ impl Pedal for RoomSimulator {
         }
         for setting in &mut self.surface_settings {
             if setting.dirty {
-                let gain = SurfaceType::gain_from_type(setting.get_value());
-                debug!("changing surface: {} as {}", setting.get_value(), gain);
                 match setting.get_name() {
                     "sideSurface" => {
-                        self.side.set_gain(gain);
+                        self.side.set_gain(SurfaceType::gain_from_type(setting.get_value(), &mut self.side_filter));
                     }
                     "floorSurface" => {
-                        self.floor.set_gain(gain);
+                        self.side.set_gain(SurfaceType::gain_from_type(setting.get_value(), &mut self.floor_filter));
                     }
                     "topSurface" => {
-                        self.top.set_gain(gain);
+                        self.side.set_gain(SurfaceType::gain_from_type(setting.get_value(), &mut self.top_filter));
                     }
                     _ => (),
                 }
@@ -202,14 +253,18 @@ impl Pedal for RoomSimulator {
 
     /// This function gets called on a frame of audio.  This is where you filter does what it does.
     fn do_algorithm(&mut self, input: &[f32], output: &mut [f32]) -> () {
-        let mut i: usize = 0;
-        for samp in input {
+        for (i, samp) in input.iter().enumerate() {
             // For this template, I am just going to copy input to output
-            let mut value = *samp;
-            value = self.side.get_sample(value);
-            value = self.floor.get_sample(value);
-            output[i] = self.top.get_sample(value);
-            i += 1;
+            let mut agg = *samp;  // direct pass through
+            agg += self.side_filter.get_sample(&self.side.get_sample(*samp)); // side delay filtered
+            agg += self.floor_filter.get_sample(&self.floor.get_sample(*samp)); // floor delay filtered
+            agg += self.top_filter.get_sample(&self.top.get_sample(*samp)); // top delay filtered
+        
+            // agg += self.side.get_sample(*samp); // side delay filtered
+            // agg += self.floor.get_sample(*samp); // floor delay filtered
+            // agg += self.top.get_sample(*samp); // top delay filtered
+
+            output[i] = agg;
         }
     }
     /// returns the bypass setting on the pedal

@@ -8,6 +8,8 @@ use crate::common::get_micro_time;
 use crate::common::stream_time_stat::{MicroTimer, StreamTimeStat};
 use crate::JamEngine;
 
+use log::{debug, info, warn, error};
+
 type SF = i16;
 const FRAME_SIZE: usize = 128;
 const SAMPLE_RATE: u32 = 48_000;
@@ -66,7 +68,7 @@ fn open_record_dev(device: &str) -> Result<PCM, BoxError> {
         hwp.set_period_size(FRAME_SIZE as i64, alsa::ValueOr::Nearest)?;
         pcm.hw_params(&hwp)?;
     }
-    println!("Opened audio input with parameters: {:?}, {:?}", pcm.hw_params_current(), pcm.sw_params_current());
+    debug!("Opened audio input with parameters: {:?}, {:?}", pcm.hw_params_current(), pcm.sw_params_current());
     Ok(pcm)
 }
 
@@ -96,7 +98,7 @@ fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
         swp.set_start_threshold(bufsize - periodsize)?;
         swp.set_avail_min(periodsize)?;
         p.sw_params(&swp)?;
-        println!("Opened audio output {:?} with parameters: {:?}, {:?}", device, hwp, swp);
+        debug!("Opened audio output {:?} with parameters: {:?}, {:?}", device, hwp, swp);
         hwp.get_rate()?
     };
 
@@ -166,8 +168,16 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
     let mut timer = MicroTimer::new(get_micro_time(), 10_000);
     let mut frame_count: usize = 0;
 
-    let indev = open_record_dev(in_device)?;
-    indev.start()?;
+    let indev = match open_record_dev(in_device) {
+        Ok(dev) => {
+            dev.start()?;
+            dev
+        }
+        Err(e) => {
+            error!("Failed to open input device: {}", e);
+            return Err(e);
+        }
+    };
     let io_in = indev.io_i16()?;
     let mut in_buf = [0; FRAME_SIZE * CHANNELS as usize];
 

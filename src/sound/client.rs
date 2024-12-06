@@ -52,7 +52,7 @@ use thread_priority::{ThreadBuilder, ThreadPriority};
 use std::{
     io::{ErrorKind, Write},
     process::Command,
-    sync::mpsc,
+    sync::mpsc::{self, RecvError},
     thread::{self, sleep},
     time::Duration,
 };
@@ -115,8 +115,15 @@ pub fn run(
     // Start appropriate hardware level sound thread
     if use_alsa {
         info!("client - using ALSA");
-        let _sound_handle = start_alsa_thread(engine, &in_dev, &out_dev)?;
-        debug!("client::run - ALSA thread started");
+        let _sound_handle = match start_alsa_thread(engine, in_dev, out_dev) {
+            Ok(_) => {
+                debug!("client::run - ALSA thread started");
+            }
+            Err(e) => {
+                error!("ALSA failure: {}. Terminating", e);
+                return Err(e)
+            }
+        };
     } else {
         info!("client - using Jack");
         let _sound_handle = start_jack_thread(engine)?;
@@ -261,26 +268,29 @@ fn init_hardware_control() -> Result<(Option<mpsc::Sender<LightMessage>>, Option
     Ok((light_option, hw_handle))
 }
 
-fn start_alsa_thread(engine: JamEngine, in_dev: &str, out_dev: &str) -> Result<thread::JoinHandle<()>, BoxError> {
-    let in_dev = in_dev.to_string();
-    let out_dev = out_dev.to_string();
+fn start_alsa_thread(engine: JamEngine, in_dev: String, out_dev: String) -> Result<thread::JoinHandle<()>, BoxError> {
+    // Uses channels to send a message through the thread to force a block until thread is complete strategy. This gives time for
+    // alsa_thread::run to detect and throw any errors with the ALSA components specified.
+    let (tx, rx) = mpsc::channel();
     
     let builder = ThreadBuilder::default()
-        .name("Real-Time Thread".to_string())
+        .name("Real-Time ALSA Thread".to_string())
         .priority(ThreadPriority::Max);
 
-    let handle = builder.spawn(move |_result| {
-        match alsa_thread::run(engine, &in_dev, &out_dev) {
-            Ok(()) => {
-                debug!("ALSA ended with OK");
-            }
-            Err(e) => {
-                error!("ALSA exited with error {}", e);
-            }
-        }
-    })?;
+    let handle = builder.spawn(move |_| {
+        let result = alsa_thread::run(engine, &in_dev, &out_dev);
+        debug!("alsa_thread::run result: {:?}", result);
+        // This won't get pushed into the pipe until after the run function returns, at which point the loops should be running
+        tx.send(result).unwrap();
+    });
 
-    Ok(handle)
+    // This call will block until the tx.send completes
+    let result = rx.recv().unwrap();
+    debug!("alsa_thread::rx.recv: {:?}", result);    // if let Err(e) = result {
+        // error!("start_alsa_thread Error: {}. Don't continue from here!", e);
+    result?;
+
+    Ok(handle?)
 }
 
 fn start_jack_thread(engine: JamEngine) -> Result<thread::JoinHandle<()>, BoxError> {

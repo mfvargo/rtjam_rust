@@ -8,7 +8,7 @@ use crate::common::get_micro_time;
 use crate::common::stream_time_stat::{MicroTimer, StreamTimeStat};
 use crate::JamEngine;
 
-use log::{debug, info, warn, error};
+use log::{trace, debug, /*info,*/ warn, error};
 
 type SF = i16;
 const FRAME_SIZE: usize = 128;
@@ -16,7 +16,6 @@ const SAMPLE_RATE: u32 = 48_000;
 const CHANNELS: u32 = 2;
 const MAX_SAMPLE: f32 = 32766.0;
 const SMP_FORMAT: Format = Format::s16();
-
 
 // Iterable output buffer that converts from floats to ints for alsa device
 struct OutputBuffer {
@@ -68,7 +67,7 @@ fn open_record_dev(device: &str) -> Result<PCM, BoxError> {
         hwp.set_period_size(FRAME_SIZE as i64, alsa::ValueOr::Nearest)?;
         pcm.hw_params(&hwp)?;
     }
-    debug!("Opened audio input with parameters: {:?}, {:?}", pcm.hw_params_current(), pcm.sw_params_current());
+    debug!("::open_record_dev - Opened audio input with parameters: {:?}, {:?}", pcm.hw_params_current(), pcm.sw_params_current());
     Ok(pcm)
 }
 
@@ -98,7 +97,7 @@ fn open_playback_dev(device: &str) -> Result<PCM, BoxError> {
         swp.set_start_threshold(bufsize - periodsize)?;
         swp.set_avail_min(periodsize)?;
         p.sw_params(&swp)?;
-        debug!("Opened audio output {:?} with parameters: {:?}, {:?}", device, hwp, swp);
+        debug!("::open_playback_dev - Opened audio output {:?} with parameters: {:?}, {:?}", device, hwp, swp);
         hwp.get_rate()?
     };
 
@@ -128,14 +127,16 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
     let avail = match p.avail_update() {
         Ok(n) => n,
         Err(e) => {
-            println!("Recovering from {}", e);
+            debug!("::write_samples_io - avail_update error {}. Attempting recover.", e);
             p.recover(e.errno() as std::os::raw::c_int, true)?;
             p.avail_update()?
         }
     } as usize;
 
     // write the data to the alsa device when there is room
+    trace!("::write_samples_io - available frames: {}", avail);
     if avail >= FRAME_SIZE {
+        trace!("::write_samples_io - begin mapping ...");
         io.mmap(FRAME_SIZE, |b| {
             let mut count = 0;
             for sample in b.iter_mut() {
@@ -149,15 +150,17 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
                     }
                 }
             };
+            trace!("::write_samples_io - frames mapped: {}", count);
             count / CHANNELS as usize
         })?;
     }
     use alsa::pcm::State;
+    trace!("::write_samples_io - pcm state {:?}", p.state());
     match p.state() {
         State::Running => Ok(false), // All fine
-        State::Prepared => { println!("Starting audio output stream"); p.start()?; Ok(true) },
+        State::Prepared => { trace!("::write_samples_io - Starting audio output stream"); p.start()?; Ok(true) },
         State::Suspended | State::XRun => Ok(true), // Recover from this in next round
-        n @ _ => Err(format!("Unexpected pcm state {:?}", n))?,
+        n @ _ => { debug!("::write_samples_io - Unexpected pcm state"); Err(format!("Unexpected pcm state {:?}", n))? },
     }
 }
 
@@ -174,7 +177,7 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
             dev
         }
         Err(e) => {
-            error!("Failed to open input device: {}", e);
+            error!("::run - Failed to open input device: {}", e);
             return Err(e);
         }
     };
@@ -199,12 +202,12 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
         match io_in.readi(&mut in_buf) {
             Ok(samps) => {
                 if samps < FRAME_SIZE {
-                    println!("Not enough samples: {}", samps);
+                    warn!("::run - IO read samples: {}, below {} FRAME_SIZE", samps, FRAME_SIZE);
                     continue;
                 }
             }
             Err(e) => {
-                dbg!(e);
+                error!("::run - IO read failure: {}", e);
                 indev.recover(e.errno() as std::os::raw::c_int, true)?;
             }
         }
@@ -213,7 +216,7 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
         stats.add_sample(timer.since(now) as f64);
         timer.reset(now);
         if frame_count%1000 == 0 {
-            // println!("stats: {}", stats);
+            debug!("::run - stats: {}", stats);
         }
 
         //  Convert the input date from interleaved i16 into f32 for the engine:
@@ -236,7 +239,7 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
             avail = match outdev.avail_update() {
                 Ok(n) => n,
                 Err(e) => {
-                    println!("Recovering from {}", e);
+                    warn!("::run - Error from avail_update: {}. Recovering.", e);
                     outdev.recover(e.errno() as std::os::raw::c_int, true)?;
                     outdev.avail_update()?
                 }
@@ -258,7 +261,7 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
                         }
                         Err(e) => {
                             pumping = false;
-                            dbg!(e);
+                            debug!("::run - Error collecting samples: {e}");
                         }
                     }
                 }

@@ -52,7 +52,7 @@ use thread_priority::{ThreadBuilder, ThreadPriority};
 use std::{
     io::{ErrorKind, Write},
     process::Command,
-    sync::mpsc::{self, RecvError},
+    sync::mpsc::{self, TryRecvError},
     thread::{self, sleep},
     time::Duration,
 };
@@ -76,24 +76,24 @@ pub fn run(
     in_dev: String, 
     out_dev: String
 ) -> Result<(), BoxError> {
-    info!("client - starting run function");
+    info!("starting run function");
     // Initialize config and API connection
     // TODO: pass in the config file name as an optional parameter
     let (api_url, ws_url, mac_address, no_loopback) = init_config(None)?;
-    debug!("client::run - config file init complete");
+    debug!("::run - config file init complete");
 
     let mut api = JamNationApi::new(&api_url, &mac_address, &git_hash);
     let _connected_api = init_api_connection(&mut api)?;
     let token = String::from(api.get_token());
-    debug!("client::run - API connection established. Token: {}", token);
+    debug!("::run - API connection established. Token: {}", token);
 
     // Initialize websocket channels and thread
     let (to_ws_tx, from_ws_rx, _ws_handle) = init_websocket_thread(&token, &ws_url, None)?;
-    debug!("client::run - websocket connection established");
+    debug!("::run - websocket connection established");
 
     // Initialize hardware control channels and thread if needed
     let (light_option, _hw_handle) = init_hardware_control()?;
-    debug!("client::run - hardware control established");
+    debug!("::run - hardware control established");
 
     // Initialize audio engine channels
     let (status_data_tx, status_data_rx) = mpsc::channel();
@@ -110,14 +110,14 @@ pub fn run(
         git_hash.as_str(),
         no_loopback,
     )?;
-    debug!("client::run - audio engine started");
+    debug!("::run - audio engine started");
 
     // Start appropriate hardware level sound thread
     if use_alsa {
-        info!("client - using ALSA");
+        info!("using ALSA");
         let _sound_handle = match start_alsa_thread(engine, in_dev, out_dev) {
             Ok(_) => {
-                debug!("client::run - ALSA thread started");
+                debug!("::run - ALSA thread started");
             }
             Err(e) => {
                 error!("ALSA failure: {}. Terminating", e);
@@ -125,18 +125,18 @@ pub fn run(
             }
         };
     } else {
-        info!("client - using Jack");
+        info!("using Jack");
         let _sound_handle = start_jack_thread(engine)?;
-        debug!("client::run - Jack thread started");        
+        debug!("::run - Jack thread started");        
     }
 
     // Start ping thread
     let _ping_handle = thread::spawn(move || {
         let _res = jam_unit_ping_thread(&mut api);
     });
-    debug!("client::run - ping handle started");
+    debug!("::run - ping handle started");
 
-    debug!("client::run - setup complete, beginning main event loop");
+    debug!("::run - setup complete, beginning main event loop");
     run_main_loop(from_ws_rx, to_ws_tx, command_tx, pedal_tx, status_data_rx)?;
 
     Ok(())
@@ -276,19 +276,27 @@ fn start_alsa_thread(engine: JamEngine, in_dev: String, out_dev: String) -> Resu
     let builder = ThreadBuilder::default()
         .name("Real-Time ALSA Thread".to_string())
         .priority(ThreadPriority::Max);
-
+    
+    debug!("::start_alsa_thread - spawning alsa_thread::run . . .");
     let handle = builder.spawn(move |_| {
         let result = alsa_thread::run(engine, &in_dev, &out_dev);
-        debug!("alsa_thread::run result: {:?}", result);
+        debug!("::start_alsa_thread - alsa_thread::run result: {:?}", result);
         // This won't get pushed into the pipe until after the run function returns, at which point the loops should be running
         tx.send(result).unwrap();
     });
 
     // This call will block until the tx.send completes
-    let result = rx.recv().unwrap();
-    debug!("alsa_thread::rx.recv: {:?}", result);    // if let Err(e) = result {
-        // error!("start_alsa_thread Error: {}. Don't continue from here!", e);
-    result?;
+    let result = rx.recv();
+    match result {
+        Ok(r) => {
+            debug!("::start_alsa_thread - thead start confirmation (via rx.recv): {:?}", r); 
+        }
+        Err(e) => {        
+            warn!("::start_alsa_thread - Error in check for thead start via rx.recv");
+            // Err type is RecvError, needs to be recast
+            return Err(Box::new(e));
+        }
+    };
 
     Ok(handle?)
 }
@@ -297,7 +305,7 @@ fn start_jack_thread(engine: JamEngine) -> Result<thread::JoinHandle<()>, BoxErr
     let handle = thread::spawn(move || {
         match jack_thread::run(engine) {
             Ok(()) => {
-                debug!("jack_thread::run OK");
+                debug!("::start_jack_thread - jack_thread::run OK");
             }
             Err(e) => {
                 error!("Jack thread exited with error {}", e);
@@ -334,7 +342,7 @@ fn handle_websocket_messages(
 ) -> Result<(), BoxError> {
     match from_ws_rx.try_recv() {
         Ok(m) => {
-            debug!("websocket message: {}", m);
+            debug!("::handle_websocket_messages - websocket message: {}", m);
             if let Ok(msg) = ParamMessage::from_json(&m) {
                 match msg.param {
                     JamParam::SetAudioInput => {
@@ -377,8 +385,8 @@ fn handle_websocket_messages(
                 warn!("JSON parse Error");
             }
         }
-        Err(mpsc::TryRecvError::Empty) => {}
-        Err(mpsc::TryRecvError::Disconnected) => warn!("websocket: disconnected channel"),
+        Err(TryRecvError::Empty) => {}
+        Err(TryRecvError::Disconnected) => warn!("websocket: disconnected channel"),
     }
     Ok(())
 }
@@ -389,11 +397,11 @@ fn handle_status_messages(
 ) -> Result<(), BoxError> {
     match status_data_rx.try_recv() {
         Ok(m) => {
-            trace!("audio thread message: {}", m.to_string());
+            trace!("::handle_status_messages - audio thread message: {}", m.to_string());
             to_ws_tx.send(WebsockMessage::Chat(m))?;
         }
-        Err(mpsc::TryRecvError::Empty) => {}
-        Err(mpsc::TryRecvError::Disconnected) => warn!("audio thread: disconnected channel"),
+        Err(TryRecvError::Empty) => {}
+        Err(TryRecvError::Disconnected) => warn!("audio thread: disconnected channel"),
     }
     Ok(())
 }
@@ -418,7 +426,7 @@ fn jam_unit_ping_thread(api: &mut dyn JamNationApiTrait) -> Result<(), BoxError>
             // While in this loop, we are going to ping every 10 seconds
             match api.jam_unit_ping() {
                 Ok(ping) => {
-                    debug!("jam_unit_ping: {}", ping);
+                    debug!("::jam_unit_ping_thread - jam_unit_ping: {}", ping);
                     if ping["jamUnit"].is_null() {
                         // Error in the ping.  better re-register
                         api.forget_token();

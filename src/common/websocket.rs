@@ -6,6 +6,7 @@ use crate::common::room::Room;
 
 use crate::common::websock_message::WebsockMessage;
 use std::{sync::mpsc, thread::sleep, time::Duration};
+use::log::{debug, info, warn, /* error */};
 
 /// Used for dependency injection to test init_web_socket and any other theoretical consumers
 pub type WebSocketThreadFn = 
@@ -22,7 +23,7 @@ pub fn websocket_thread(
     ws_tx: mpsc::Sender<Value>,            // channel to main thread
     ws_rx: mpsc::Receiver<WebsockMessage>, // channel from main thread
 ) -> Result<(), BoxError> {
-    println!("websocket::websocket_thread - Running websocket_thread with token: {}, ws_url: {}", token, ws_url);
+    info!("websocket::websocket_thread - Running websocket_thread with token: {}, ws_url: {}", token, ws_url);
     loop {
         match Room::new(token, ws_url) {
             Ok(mut room) => {
@@ -33,6 +34,7 @@ pub fn websocket_thread(
                     // The get_message will block for a few msec before returning.
                     match room.get_message() {
                         Ok(result) => {
+                            debug!("websocket::websocket_thread - Received message: {:?}", result);
                             match result {
                                 Some(msg) => {
                                     match msg {
@@ -46,8 +48,7 @@ pub fn websocket_thread(
                                                                 let _res = ws_tx.send(umsg);
                                                             }
                                                             Err(e) => {
-                                                                dbg!(data);
-                                                                dbg!(e);
+                                                                warn!("websocket::websocket_thread - Error parsing message: {}. data: {}", e, data);
                                                             }
                                                         }
                                                     }
@@ -78,13 +79,14 @@ pub fn websocket_thread(
                         }
                         Err(e) => {
                             room.reset();
-                            dbg!(e);
+                            warn!("websocket::websocket_thread - Error receiving message: {}", e);
+                            return Err(e)
                         }
                     }
                 }
             }
             Err(e) => {
-                dbg!(e);
+                warn!("websocket::websocket_thread - Failed to connect to room, retrying: {}", e);
                 // Failed to connect to room.  Wait before trying again
                 sleep(Duration::new(2, 0));
             }

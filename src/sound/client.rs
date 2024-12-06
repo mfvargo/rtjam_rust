@@ -82,11 +82,6 @@ pub fn run(
     let (api_url, ws_url, mac_address, no_loopback) = init_config(None)?;
     debug!("client::run - config file init complete");
 
-    info!(
-        "Config values: api_url: {}, ws_url: {}, mac_address: {}, no_loopback: {}",
-        api_url, ws_url, mac_address, no_loopback
-    );
-
     let mut api = JamNationApi::new(&api_url, &mac_address, &git_hash);
     let _connected_api = init_api_connection(&mut api)?;
     let token = String::from(api.get_token());
@@ -105,9 +100,6 @@ pub fn run(
     let (command_tx, command_rx) = mpsc::channel();
     let (pedal_tx, pedal_rx) = mpsc::channel();
 
-    if no_loopback {
-        info!("client - local loopback disabled");        
-    }
     // Create and start audio engine
     let engine = JamEngine::new(
         light_option,
@@ -280,10 +272,10 @@ fn start_alsa_thread(engine: JamEngine, in_dev: &str, out_dev: &str) -> Result<t
     let handle = builder.spawn(move |_result| {
         match alsa_thread::run(engine, &in_dev, &out_dev) {
             Ok(()) => {
-                debug!("alsa ended with OK");
+                debug!("ALSA ended with OK");
             }
             Err(e) => {
-                error!("alsa exited with error {}", e);
+                error!("ALSA exited with error {}", e);
             }
         }
     })?;

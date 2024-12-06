@@ -26,6 +26,9 @@ impl<T: Float + FromPrimitive> AllpassDelay<T> {
         self.delay_length = delay_length;
         self.delay_line = vec![Zero::zero(); self.delay_length];
     }
+    pub fn set_gain(&mut self, gain: T) -> () {
+        self.gain = gain;
+    }
     pub fn get_sample(&mut self, input: T) -> T {
         let mut output = self.delay_line[self.index];
         let delay_in = input + output * self.gain;

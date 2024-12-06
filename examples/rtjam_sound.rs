@@ -27,11 +27,15 @@ fn main() -> Result<(), BoxError> {
 
     // TODO: Move this to common and share as a simple fn for all executables
     // Initialize the logger, configuring it to write to stdout
-    Builder::new()
-        .filter_level(LevelFilter::Debug)
-        .target(env_logger::Target::Stdout)
-        .init();
-   
+    println!("RUST_LOG: {}", std::env::var("RUST_LOG").unwrap_or_default());
+    // Builder::new()
+    //     .filter_level(LevelFilter::Debug)
+    //     .target(env_logger::Target::Stdout)
+    //     .init();
+    let mut builder = Builder::from_default_env();
+    builder.target(env_logger::Target::Stdout);
+    builder.init();
+    
     // note: add error checking yourself.
     let git_hash = get_git_hash().to_string();
     let args = Args::parse();

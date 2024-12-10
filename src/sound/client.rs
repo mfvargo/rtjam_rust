@@ -269,36 +269,23 @@ fn init_hardware_control() -> Result<(Option<mpsc::Sender<LightMessage>>, Option
 }
 
 fn start_alsa_thread(engine: JamEngine, in_dev: String, out_dev: String) -> Result<thread::JoinHandle<()>, BoxError> {
-    // Uses channels to send a message through the thread to force a block until thread is complete strategy. This gives time for
-    // alsa_thread::run to detect and throw any errors with the ALSA components specified.
-    let (tx, rx) = mpsc::channel();
-    
     let builder = ThreadBuilder::default()
         .name("Real-Time ALSA Thread".to_string())
         .priority(ThreadPriority::Max);
     
     debug!("::start_alsa_thread - spawning alsa_thread::run . . .");
     let handle = builder.spawn(move |_| {
-        let result = alsa_thread::run(engine, &in_dev, &out_dev);
-        debug!("::start_alsa_thread - alsa_thread::run result: {:?}", result);
-        // This won't get pushed into the pipe until after the run function returns, at which point the loops should be running
-        tx.send(result).unwrap();
-    });
-
-    // This call will block until the tx.send completes
-    let result = rx.recv();
-    match result {
-        Ok(r) => {
-            debug!("::start_alsa_thread - thead start confirmation (via rx.recv): {:?}", r); 
+        match alsa_thread::run(engine, &in_dev, &out_dev) {
+            Ok(result) => {
+                debug!("::start_alsa_thread - alsa_thread::run result: {:?}", result);
+            }
+            Err(e) => {
+                error!("ALSA thread exited with error {}", e);
+            }
         }
-        Err(e) => {        
-            warn!("::start_alsa_thread - Error in check for thead start via rx.recv");
-            // Err type is RecvError, needs to be recast
-            return Err(Box::new(e));
-        }
-    };
+    })?;
 
-    Ok(handle?)
+    Ok(handle)
 }
 
 fn start_jack_thread(engine: JamEngine) -> Result<thread::JoinHandle<()>, BoxError> {

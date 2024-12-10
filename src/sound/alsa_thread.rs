@@ -198,23 +198,31 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
     while engine.is_running() {
         frame_count += 1;
         let now = get_micro_time();
+        trace!("::run - while loop start. frame_count={}", frame_count);
 
         match io_in.readi(&mut in_buf) {
             Ok(samps) => {
                 if samps < FRAME_SIZE {
-                    warn!("::run - IO read samples: {}, below {} FRAME_SIZE", samps, FRAME_SIZE);
+                    debug!("::run - IO read samples: {}, below {} FRAME_SIZE", samps, FRAME_SIZE);
                     continue;
                 }
             }
             Err(e) => {
-                error!("::run - IO read failure: {}", e);
-                indev.recover(e.errno() as std::os::raw::c_int, true)?;
+                warn!("::run - In device: {} read failure: {}", in_device, e);
+                match indev.recover(e.errno() as std::os::raw::c_int, true) {
+                    Ok(()) => { debug!("::run - recovered from IO read failure"); }
+                    Err(e) => {
+                        warn!("::run - failed IO recovery: {}", e);
+                    }
+                }
             }
         }
 
         // stats on read i/o jitter
-        stats.add_sample(timer.since(now) as f64);
+        let period = timer.since(now) as f64;
+        stats.add_sample(period);
         timer.reset(now);
+        trace!("::run - stats timer reset. Period={}", period);
         if frame_count%1000 == 0 {
             debug!("::run - stats: {}", stats);
         }
@@ -231,43 +239,53 @@ pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(
         }
         engine.process_inputs(&in_a, &in_b);
 
-
         // Here we write until the outdev does not have space for a frame
         let mut avail = FRAME_SIZE;  // set avail on the first time so it will at least try
+        let mut frames_written = 0;
         while avail >= FRAME_SIZE {
             // Now figure out how much we need to feed the output
             avail = match outdev.avail_update() {
-                Ok(n) => n,
+                Ok(n) => {
+                    trace!("::run - feed outdev - available frames: {}", n);
+                    n
+                }
                 Err(e) => {
-                    warn!("::run - Error from avail_update: {}. Recovering.", e);
+                    warn!("::run - Error from outdev.avail_update: {}. Recovering.", e);
                     outdev.recover(e.errno() as std::os::raw::c_int, true)?;
-                    outdev.avail_update()?
+                    let n = outdev.avail_update()?;
+                    trace!("::run - feed outdev - available frames after recovery: {}", n);
+                    n
                 }
             } as usize;
+            // Check for the pass case where there was less than FRAME_SIZE and loop if needed
+            if avail < FRAME_SIZE {
+                trace!("::run - feed outdev - not enough for a frame. No soup for you!");
+                break;
+            }
 
-            if avail >= FRAME_SIZE {
-                // We need to feed the meter
-                engine.get_playback_data(&mut out_a, &mut out_b);
-                out_buf.load_data(&out_a, &out_b);
-                // out_buf.load(&in_buf);
-                // out_buf.load(&in_buf);
-                // lets try to write a frame to the io device
-                // Might have to recurse in there based on state, hence the pumping
-                let mut pumping = true;
-                while pumping {
-                    match write_samples_io(&outdev, &mut io_out, &mut out_buf) {
-                        Ok(more) => {
-                            pumping = more;
-                        }
-                        Err(e) => {
-                            pumping = false;
-                            debug!("::run - Error collecting samples: {e}");
-                        }
+            // We need to feed the meter
+            engine.get_playback_data(&mut out_a, &mut out_b);
+            out_buf.load_data(&out_a, &out_b);
+            // out_buf.load(&in_buf);
+            // out_buf.load(&in_buf);
+            // lets try to write a frame to the io device
+            // Might have to recurse in there based on state, hence the pumping
+            let mut pumping = true;
+            while pumping {
+                match write_samples_io(&outdev, &mut io_out, &mut out_buf) {
+                    Ok(more) => {
+                        pumping = more;
+                    }
+                    Err(e) => {
+                        pumping = false;
+                        debug!("::run - Error writing samples to outdev: {e}");
                     }
                 }
-                avail -= FRAME_SIZE;
             }
+            avail -= FRAME_SIZE;
+            frames_written += 1;
         }
+        trace!("::run - feed outdev - wrote {} frames", frames_written);
     }
 
     Ok(())

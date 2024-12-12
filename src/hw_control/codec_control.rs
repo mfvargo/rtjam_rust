@@ -32,10 +32,10 @@ impl CodecControl {
 
         // reset the code
         let mut pin = Gpio::new()?.get(17)?.into_output();
-        pin.set_low();
+        pin.set_high();
         // Sleep for 200msec
         sleep(Duration::new(0, 200_000_000));
-        pin.set_high();
+        pin.set_low();
 
         // Let the thing come up
         sleep(Duration::new(0, 200_000_000));
@@ -170,12 +170,12 @@ impl CodecControl {
 
         // read all 4 channels of ADC - ADC will increment the channel after each read.
         // the 4th value is noise - not connected to anything on the board.
-        for _i in [0, 1, 2, 4] {
+        for _i in [0, 1, 2, 3] {
             self.i2c_int.read(&mut buf)?;   // Read data
             let adc_chan = ((buf[0] & 0x30) >> 4) as usize;  // Get channel ID as usize for indexing
             // Extract the full 12-bit ADC value by including all 8 bits from buf[0] and buf[1]
-            let value = (((buf[0] & 0xFF) as u64) << 8) | (buf[1] as u64);  // Combine full byte of buf[0] and buf[1]
-            self.adc_values[adc_chan] = value / 16;  // Scale down for knobs
+            let value = (((buf[0] & 0x0F) as u16) << 8) | ((buf[1] & 0xFF) as u16);  // Combine full byte of buf[0] and buf[1]            
+            self.adc_values[adc_chan] = (value/16) as u64;  // scale and copy ADC value to array of ADC values
         
         }
 

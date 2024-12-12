@@ -9,7 +9,7 @@
         target = <&sound>;
         __overlay__ {
             compatible = "simple-audio-card";
-            simple-audio-card,name = "sigma-i2s-codec";
+            simple-audio-card,name = "Sigma-I2S-Codec";
             status="okay";
 
             capture_link: simple-audio-card,dai-link@0 {
@@ -20,7 +20,7 @@
                 frame-master = <&r_codec_dai>;
 
                 r_cpu_dai: cpu {
-                    sound-dai = <&i2s_clock_consumer>;
+                    sound-dai = <&i2s_clk_consumer>;
                 // TDM slot configuration for stereo
                     dai-tdm-slot-num = <2>;
                     dai-tdm-slot-width = <32>;
@@ -83,19 +83,19 @@
     };
 
     fragment@2 {
-        target = <&i2s_clock_consumer>; // has to point to RPi5 device-tree
+        target = <&i2s_clk_consumer>; // has to point to RPi5 device-tree
         __overlay__ {
             #sound-dai-cells = <0>;
             status = "okay";
         };
     };
 
-    fragment@3 {  // New fragment for secondary I2S controller on RPi5
-        target = <&brcm,bcm2835-i2s>;
-        __overlay__ {
-            status = "okay";
-        };
-    };
+    // fragment@3 {  // New fragment for secondary I2S controller on RPi5
+    //     target = <&brcm,bcm2835-i2s>;
+    //     __overlay__ {
+    //         status = "okay";
+    //     };
+    // };
 
 };
 

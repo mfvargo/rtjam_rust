@@ -9,7 +9,7 @@
         target = <&sound>;
         __overlay__ {
             compatible = "simple-audio-card";
-            simple-audio-card,name = "sigma-i2s-codec";
+            simple-audio-card,name = "Sigma-I2S-Codec";
             status="okay";
 
             capture_link: simple-audio-card,dai-link@0 {

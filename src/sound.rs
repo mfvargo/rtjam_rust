@@ -4,6 +4,7 @@ pub mod channel_strip;
 pub mod client;
 pub mod fader;
 pub mod alsa_thread;
+pub mod alsa_thread_2;
 pub mod jack_thread;
 pub mod jam_engine;
 pub mod jam_socket;

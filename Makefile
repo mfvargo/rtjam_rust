@@ -2,11 +2,13 @@ NATION=http://rtjam-nation.com/pi/rust-2
 RTJAM_HOME=/home/pi/rtjam
 
 all:
-	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --example rt_2_wave --example rt_2_csv --release
+	cargo build --package rtjam_rust --examples --release
+	cargo build --examples --release
+	cargo doc --release --no-deps
 	git rev-parse HEAD > target/release/examples/version.txt
 
 clean:
-	rm -rf target/release/examples/*
+	cargo clean
 
 debug:
 	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --example r2_2_wave --example rt_2_csv

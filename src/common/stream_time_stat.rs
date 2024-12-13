@@ -56,7 +56,7 @@ impl fmt::Display for StreamTimeStat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ mean: {}, sigma: {} window: {} }}",
+            "{{ mean: {:.2}, sigma: {:.2} window: {} }}",
             self.get_mean(), self.get_sigma(), self.get_window()
         )
     }

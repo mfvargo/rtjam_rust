@@ -31,9 +31,11 @@ impl MovingAverage {
     }
 
     pub fn add_sample(&mut self, v: f64) -> () {
-        self.total += v;
-        self.samples.push(v);
-        self.total -= self.samples.remove(0);
+        if !v.is_nan() {
+            self.total += v;
+            self.samples.push(v);
+            self.total -= self.samples.remove(0);
+        }
     }
 }
 

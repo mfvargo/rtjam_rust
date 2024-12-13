@@ -2,8 +2,14 @@ use std::{sync::mpsc, thread::sleep, time::Duration};
 
 use rtjam_rust::{common::box_error::BoxError, pedals::pedal_board::PedalBoard, sound::alsa_thread, JamEngine, ParamMessage};
 use thread_priority::*;
+use log::{trace, error};
+
 
 fn main() -> Result<(), BoxError> {
+
+    // Turn on the logger
+    env_logger::init();
+
 
     // This is the channel the audio engine will use to send us status data
     let (status_data_tx, status_data_rx): (
@@ -19,7 +25,7 @@ fn main() -> Result<(), BoxError> {
         mpsc::channel();
 
 
-    let engine = JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "my_token_here", "gitty_hash", true)?;
+    let engine = JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "my_token_here", "gitty_hash", false)?;
     
     // note: add error checking yourself.
 
@@ -34,10 +40,10 @@ fn main() -> Result<(), BoxError> {
     let alsa_handle = builder.spawn(move |_result| {
         match alsa_thread::run(engine, "hw:CODEC", "hw:CODEC") {
             Ok(()) => {
-                println!("alsa ended with OK");
+                error!("alsa ended with OK");
             }
             Err(e) => {
-                println!("alsa exited with error {}", e);
+                error!("alsa exited with error {}", e);
             }
             
         }
@@ -47,7 +53,7 @@ fn main() -> Result<(), BoxError> {
     while !alsa_handle.is_finished() {
         match status_data_rx.try_recv() {
             Ok(m) => {
-                println!("status message: {}", m.to_string());
+                trace!("status message: {}", m.to_string());
             }
             Err(_e) => {
                 // dbg!(_e);

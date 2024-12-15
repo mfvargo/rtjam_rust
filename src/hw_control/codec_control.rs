@@ -1,3 +1,4 @@
+use std::fmt;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -18,10 +19,26 @@ pub fn dec2bcd(dec: u8) -> u8 {
 
 pub struct CodecControl {
     i2c_int: I2c,
-    adc_values: [u64; 4],
+    adc_values: [u16; 4],
     pot_values: [f64; 3],
     prev_pot_values: [f64; 3],
     filters: [SmoothingFilter; 3],
+}
+
+impl fmt::Display for CodecControl {
+    // This trait requires `fmt` with this exact signature.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "adc: {}, {}, {} pot: {:.2}, {:.2}, {:.2}",
+            self.adc_values[0],
+            self.adc_values[1],
+            self.adc_values[2],
+            self.pot_values[0],
+            self.pot_values[1],
+            self.pot_values[2],
+        )
+    }
 }
 
 impl CodecControl {
@@ -162,7 +179,7 @@ impl CodecControl {
         self.i2c_int.set_slave_address(0x29)?;
 
         let start_conv: [u8; 1] = [0xf0];
-        self.i2c_int.write(&start_conv)?;
+        assert!(self.i2c_int.write(&start_conv)? == 1);
 
         sleep(Duration::new(0, 10_000));
 
@@ -175,7 +192,7 @@ impl CodecControl {
             let adc_chan = ((buf[0] & 0x30) >> 4) as usize;  // Get channel ID as usize for indexing
             // Extract the full 12-bit ADC value by including all 8 bits from buf[0] and buf[1]
             let value = (((buf[0] & 0x0F) as u16) << 8) | ((buf[1] & 0xFF) as u16);  // Combine full byte of buf[0] and buf[1]            
-            self.adc_values[adc_chan] = (value/16) as u64;  // scale and copy ADC value to array of ADC values
+            self.adc_values[adc_chan] = value/16;  // scale and copy ADC value to array of ADC values
         
         }
 

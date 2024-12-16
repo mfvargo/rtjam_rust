@@ -6,6 +6,7 @@ use rtjam_rust::{common::box_error::BoxError, hw_control::{hw_control_thread::hw
 fn main() -> Result<(), BoxError> {
 
     // Turn on the logger
+    std::env::set_var("RUST_LOG", "debug"); // set RUST_LOG environment variable to debug
     env_logger::init();
 
     info!("starting hardware test");

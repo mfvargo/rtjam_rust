@@ -1,3 +1,5 @@
+use log::{debug, error};
+
 use std::fmt;
 use std::thread::sleep;
 use std::time::Duration;
@@ -193,7 +195,7 @@ impl CodecControl {
             // Extract the full 12-bit ADC value by including all 8 bits from buf[0] and buf[1]
             let value = (((buf[0] & 0x0F) as u16) << 8) | ((buf[1] & 0xFF) as u16);  // Combine full byte of buf[0] and buf[1]            
             self.adc_values[adc_chan] = value/16;  // scale and copy ADC value to array of ADC values
-        
+            debug!("ch: {}, buf[0]: {:#02x}, buf[1]: {:#02x}, value {:#04x}, adc_val: {:#04x}",adc_chan, buf[0], buf[1], value, self.adc_values[adc_chan]);
         }
 
         Ok(())

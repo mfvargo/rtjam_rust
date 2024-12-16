@@ -11,7 +11,7 @@ use std::fmt;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::dsp::moving_avg::MovingAverage;
+use pedal_board::dsp::moving_avg::MovingAverage;
 
 /// moving average filter that collect peak, mean, and sigma values for sequences
 #[derive(Debug, Deserialize, Serialize)]

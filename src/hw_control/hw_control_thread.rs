@@ -51,7 +51,7 @@ pub fn hw_control_thread(
         match codec_option {
             Some(ref mut codec) => {
                 codec.read_pots();
-                debug!("codec: {}", &codec);
+        //        debug!("codec: {}", &codec);
             }
             None => {
                 // No codec could be constructed.  Just ignore it

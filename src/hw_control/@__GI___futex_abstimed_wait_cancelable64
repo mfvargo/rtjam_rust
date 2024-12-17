@@ -1,0 +1,73 @@
+; Symbol: __GI___futex_abstimed_wait_cancelable64
+; Source: nptl/futex-internal.c:138
+7FFFF772B630: FD 7B BC A9                stp    x29, x30, [sp, #-0x40]!
+7FFFF772B634: FD 03 00 91                mov    x29, sp
+7FFFF772B638: F5 13 00 F9                str    x21, [sp, #0x20]
+7FFFF772B63C: F5 03 00 AA                mov    x21, x0
+7FFFF772B640: E3 07 00 B5                cbnz   x3, 0x7ffff772b73c  ; <+268> [inlined] __futex_abstimed_wait_common at futex-internal.c:77:6
+7FFFF772B644: 5F 04 00 71                cmp    w2, #0x1
+7FFFF772B648: 28 07 00 54                b.hi   0x7ffff772b72c  ; <+252> at futex-internal.c:141:1
+7FFFF772B64C: 60 09 00 90                adrp   x0, 300
+7FFFF772B650: F3 53 01 A9                stp    x19, x20, [sp, #0x10]
+7FFFF772B654: 53 5C 18 53                lsl    w19, w2, #8
+7FFFF772B658: 73 02 18 52                eor    w19, w19, #0x100
+7FFFF772B65C: 00 A0 66 39                ldrb   w0, [x0, #0x9a8]
+7FFFF772B660: 22 11 80 52                mov    w2, #0x89  ; =137 
+7FFFF772B664: 73 02 02 2A                orr    w19, w19, w2
+7FFFF772B668: 73 02 04 4A                eor    w19, w19, w4
+7FFFF772B66C: F4 03 01 2A                mov    w20, w1
+7FFFF772B670: 73 7E 40 93                sxtw   x19, w19
+7FFFF772B674: C0 02 00 34                cbz    w0, 0x7ffff772b6cc  ; <+156> [inlined] futex_fatal_error + 12 at futex-internal.h:87:3
+7FFFF772B678: E0 03 15 AA                mov    x0, x21
+7FFFF772B67C: E1 03 13 AA                mov    x1, x19
+7FFFF772B680: E2 03 14 AA                mov    x2, x20
+7FFFF772B684: 04 00 80 D2                mov    x4, #0x0  ; =0 
+7FFFF772B688: E5 7F 40 B2                mov    x5, #0xffffffff  ; =4294967295 
+7FFFF772B68C: 48 0C 80 D2                mov    x8, #0x62  ; =98 
+7FFFF772B690: 01 00 00 D4                svc    #0
+7FFFF772B694: F3 03 00 AA                mov    x19, x0
+7FFFF772B698: E0 03 13 2A                mov    w0, w19
+7FFFF772B69C: 7F 02 00 71                cmp    w19, #0x0
+7FFFF772B6A0: 0C 01 00 54                b.gt   0x7ffff772b6c0  ; <+144> [inlined] futex_fatal_error at futex-internal.h:87:3
+7FFFF772B6A4: 7F 5A 00 31                cmn    w19, #0x16
+7FFFF772B6A8: 0B 03 00 54                b.lt   0x7ffff772b708  ; <+216> [inlined] __futex_abstimed_wait_common + 200 at futex-internal.c:103:3
+7FFFF772B6AC: 73 5A 00 11                add    w19, w19, #0x16
+7FFFF772B6B0: 21 00 81 D2                mov    x1, #0x801  ; =2049 
+7FFFF772B6B4: 81 08 A0 F2                movk   x1, #0x44, lsl #16
+7FFFF772B6B8: 21 24 D3 9A                lsr    x1, x1, x19
+7FFFF772B6BC: E1 02 00 37                tbnz   w1, #0x0, 0x7ffff772b718  ; <+232> [inlined] __futex_abstimed_wait_common + 216 at futex-internal.c:113:14
+7FFFF772B6C0: A0 06 00 D0                adrp   x0, 214
+7FFFF772B6C4: 00 40 02 91                add    x0, x0, #0x90
+7FFFF772B6C8: 26 E5 FF 97                bl     0x7ffff7724b60  ; __GI___libc_fatal at libc_fatal.c:161:1
+7FFFF772B6CC: E3 1F 00 F9                str    x3, [sp, #0x38]
+7FFFF772B6D0: DC FE FF 97                bl     0x7ffff772b240  ; __GI___pthread_enable_asynccancel at cancellation.c:31:1
+7FFFF772B6D4: E3 1F 40 F9                ldr    x3, [sp, #0x38]
+7FFFF772B6D8: E6 03 00 2A                mov    w6, w0
+7FFFF772B6DC: E1 03 13 AA                mov    x1, x19
+7FFFF772B6E0: E0 03 15 AA                mov    x0, x21
+7FFFF772B6E4: E2 03 14 AA                mov    x2, x20
+7FFFF772B6E8: 04 00 80 D2                mov    x4, #0x0  ; =0 
+7FFFF772B6EC: E5 7F 40 B2                mov    x5, #0xffffffff  ; =4294967295 
+7FFFF772B6F0: 48 0C 80 D2                mov    x8, #0x62  ; =98 
+7FFFF772B6F4: 01 00 00 D4                svc    #0
+7FFFF772B6F8: F3 03 00 AA                mov    x19, x0
+7FFFF772B6FC: E0 03 06 2A                mov    w0, w6
+7FFFF772B700: F9 FE FF 97                bl     0x7ffff772b2e4  ; __GI___pthread_disable_asynccancel at cancellation.c:66:6
+7FFFF772B704: E5 FF FF 17                b      0x7ffff772b698  ; <+104> [inlined] __futex_abstimed_wait_common64 + 44 at futex-internal.c:57:12
+7FFFF772B708: 7F BA 01 31                cmn    w19, #0x6e
+7FFFF772B70C: 60 00 00 54                b.eq   0x7ffff772b718  ; <+232> [inlined] __futex_abstimed_wait_common + 216 at futex-internal.c:113:14
+7FFFF772B710: 7F 2E 01 31                cmn    w19, #0x4b
+7FFFF772B714: 61 FD FF 54                b.ne   0x7ffff772b6c0  ; <+144> [inlined] futex_fatal_error at futex-internal.h:87:3
+7FFFF772B718: F3 53 41 A9                ldp    x19, x20, [sp, #0x10]
+7FFFF772B71C: E0 03 00 4B                neg    w0, w0
+7FFFF772B720: F5 13 40 F9                ldr    x21, [sp, #0x20]
+7FFFF772B724: FD 7B C4 A8                ldp    x29, x30, [sp], #0x40
+7FFFF772B728: C0 03 5F D6                ret    
+7FFFF772B72C: F5 13 40 F9                ldr    x21, [sp, #0x20]
+7FFFF772B730: C0 02 80 52                mov    w0, #0x16  ; =22 
+7FFFF772B734: FD 7B C4 A8                ldp    x29, x30, [sp], #0x40
+7FFFF772B738: C0 03 5F D6                ret    
+7FFFF772B73C: 60 00 40 F9                ldr    x0, [x3]
+7FFFF772B740: 20 F8 FF B6                tbz    x0, #0x3f, 0x7ffff772b644  ; <+20> [inlined] __futex_abstimed_wait_common + 4 at futex-internal.c:80:6
+7FFFF772B744: C0 0D 80 52                mov    w0, #0x6e  ; =110 
+7FFFF772B748: F6 FF FF 17                b      0x7ffff772b720  ; <+240> at futex-internal.c:141:1

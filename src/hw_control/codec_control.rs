@@ -210,10 +210,13 @@ impl CodecControl {
         // Code Register 47 (0x2F) - DAC_L1 to HPLOUT Volume Control Register
         // Range of attenuation from full-scale = -0.5dB per step
         // max attenuation of headphone out = 127/2*(-0.5) = -63.5db - not off but very quiet...
+        // write to both registers 47 (DAC_L1->headphone vol) and 64 (right DAC_R1 headphone vol)
         if pot_has_changed(self.prev_pot_values[2], self.pot_values[2]) {
-            buf[0] = 47;
+            buf[0] = 47;   
             buf[1] = 255 - ((self.pot_values[2]/2).clamp(0, 255)) as u8;
             buf[1] |= 0x80; // set bit 7 before right - routes DAC output to HP out
+            self.i2c_int.write(&buf)?;
+            buf[0] = 64;    
             self.i2c_int.write(&buf)?;
             self.prev_pot_values[2] = self.pot_values[2];
             debug!("Pot 3 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);

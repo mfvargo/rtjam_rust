@@ -38,7 +38,6 @@ use crate::{
         hw_control_thread::hw_control_thread, 
         status_light::{has_lights, LightMessage},
     }, 
-    pedals::pedal_board::PedalBoard, 
     sound::{
         jack_thread,
         alsa_thread,
@@ -47,6 +46,7 @@ use crate::{
     }, 
     utils,
 };
+use pedal_board::PedalBoard;
 use serde_json::json;
 use thread_priority::{ThreadBuilder, ThreadPriority};
 use std::{

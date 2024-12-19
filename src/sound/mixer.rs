@@ -6,7 +6,7 @@
 //!
 //! the [`crate::sound::jam_engine::JamEngine`] has a mixer that it uses to mix audio from
 //! room members into a stereo feed for the audio output device.
-use crate::{dsp::power_meter::PowerMeter, utils::{to_lin, to_db}};
+use pedal_board::{dsp::power_meter::PowerMeter, utils::{to_lin, to_db}};
 
 use super::channel_strip::ChannelStrip;
 use std::fmt;

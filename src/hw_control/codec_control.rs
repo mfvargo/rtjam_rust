@@ -7,7 +7,7 @@ use std::time::Duration;
 use rppal::i2c::I2c;
 use rppal::gpio::Gpio;
 use crate::common::box_error::BoxError;
-use crate::dsp::smoothing_filter::SmoothingFilter;
+use pedal_board::dsp::smoothing_filter::SmoothingFilter;
 
 // Helper functions to encode and decode binary-coded decimal (BCD) values.
 pub fn bcd2dec(bcd: u8) -> u8 {

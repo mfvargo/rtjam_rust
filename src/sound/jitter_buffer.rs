@@ -16,11 +16,9 @@
 //! buffer depth from driving to the largest inter packet delay.  Net effect is this
 //! allows for some gaps in playback in order to drive buffer latency down.
 
-use crate::{
-    common::stream_time_stat::StreamTimeStat,
-    dsp::attack_hold_release::AttackHoldRelease,
-};
+use crate::common::stream_time_stat::StreamTimeStat;
 use std::fmt;
+use pedal_board::dsp::attack_hold_release::AttackHoldRelease;
 
 const MIN_DEPTH: usize = 128 * 4;
 const MAX_DEPTH: usize = 8192;

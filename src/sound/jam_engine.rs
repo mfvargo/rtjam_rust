@@ -5,14 +5,15 @@ use std::{str::FromStr, sync::mpsc};
 
 use jack::RawMidi;
 use serde_json::json;
-
+use pedal_board::dsp::{power_meter::PowerMeter, tuner::Tuner};
+use pedal_board::pedals::pedal_board::PedalBoard;
 use crate::{
     common::{
         box_error::BoxError,
         get_micro_time,
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
-    }, dsp::{power_meter::PowerMeter, tuner::Tuner}, hw_control::status_light::LightMessage, pedals::{midi_event::MidiEvent, pedal_board::PedalBoard}
+    },  hw_control::status_light::LightMessage, 
 };
 
 use super::{
@@ -422,13 +423,14 @@ impl JamEngine {
 
         data
     }
-    pub fn send_midi_event (&mut self, e: RawMidi) -> () {
-        let mevent = MidiEvent::new(e);
-        let data = json!({
-            "speaker": "UnitChatRobot",
-            "midiEvent": mevent,
-        });
-        let _res = self.status_data_tx.send(data);
+    pub fn send_midi_event (&mut self, _e: RawMidi) -> () {
+        // TODO: Port back the midi
+        // let mevent = MidiEvent::new(e);
+        // let data = json!({
+        //     "speaker": "UnitChatRobot",
+        //     "midiEvent": mevent,
+        // });
+        // let _res = self.status_data_tx.send(data);
     }
     fn process_param_command(&mut self, msg: ParamMessage) -> () {
         match msg.param {

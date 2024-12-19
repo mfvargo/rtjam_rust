@@ -1,6 +1,7 @@
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use rtjam_rust::{common::box_error::BoxError, pedals::pedal_board::PedalBoard, sound::alsa_thread, JamEngine, ParamMessage};
+use rtjam_rust::{common::box_error::BoxError, sound::alsa_thread, JamEngine, ParamMessage};
+use pedal_board::pedals::pedal_board::PedalBoard;
 use thread_priority::*;
 use log::{trace, error};
 

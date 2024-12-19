@@ -36,6 +36,7 @@ thread-priority = "1.1.0"
 regex = "1.10.2"
 dasp_signal = "0.11.0"
 dasp_sample = "0.11.0"
+pedal-board = { git = "https://github.com/mfvargo/pedal-board.git", branch = "master" }
 
 [build-dependencies]
 vergen = "7.5.0"

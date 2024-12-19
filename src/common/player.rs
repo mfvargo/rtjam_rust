@@ -1,7 +1,7 @@
 //! Struct use to track a players packet stream
 //!
 //! used by both sound and broadcast components.  
-use crate::dsp::smoothing_filter::SmoothingFilter;
+use pedal_board::dsp::smoothing_filter::SmoothingFilter;
 use serde::Serialize;
 use std::fmt;
 use std::net::SocketAddr;

@@ -23,12 +23,13 @@ use super::{
     param_message::{JamParam, ParamMessage},
 };
 
-use log::debug;
+use log::{debug, trace};
 
 
 // Set a timer for how long a connect will hold up without a keepalive from the web client
 pub const IDLE_DISCONNECT: u128 = 90 * 60 * 1000 * 1000; // 90 minutes
 pub const IDLE_REFRESH: u128 = 2 * 1000 * 1000; // 2 seconds
+pub const  LIGHT_REFRESH: u128 = 50 * 1000; // 50 msec
 
 /// Aggregates all the sound components into a single structure
 ///
@@ -90,6 +91,7 @@ pub struct JamEngine {
     command_rx: mpsc::Receiver<ParamMessage>,
     pedal_rx: mpsc::Receiver<PedalBoard>,
     update_timer: MicroTimer,
+    light_timer: MicroTimer,
     update_fallback_timer: MicroTimer,
     disconnect_timer: MicroTimer,
     debug_timer: MicroTimer,
@@ -139,6 +141,7 @@ impl JamEngine {
             command_rx: rx,
             pedal_rx: prx,
             update_timer: MicroTimer::new(now, IDLE_REFRESH),
+            light_timer: MicroTimer::new(now, LIGHT_REFRESH),
             update_fallback_timer: MicroTimer::new(now, IDLE_REFRESH * 5),
             disconnect_timer: MicroTimer::new(now, IDLE_DISCONNECT), // 15 minutes in uSeconds
             debug_timer: MicroTimer::new(now, 500_000),
@@ -237,14 +240,19 @@ impl JamEngine {
             // send level updates
             let event = self.build_level_event();
             let _res = self.status_data_tx.send(event);
+        }
+        if self.light_timer.expired(self.now) {
+            self.light_timer.reset(self.now);
             // send level update for lights
             match &self.lights_option {
                 Some(tx) => {
+                    trace!("Updating lights");
                     let _res = tx.send(
                         LightMessage{
                             input_one: self.room_meters[0].get_avg(),
                             input_two: self.room_meters[1].get_avg(),
-                            status: crate::hw_control::status_light::Color::Green
+                            status: crate::hw_control::status_light::Color::Green,
+                            blink: self.sock.is_connected(),
                         });
         
                 }
@@ -252,8 +260,6 @@ impl JamEngine {
                     // Not on a system that has lights
                 }
             }
-            // println!("disconnect: {}", self.disconnect_timer.since(self.now));
-            // println!("mixer: {}", self.mixer);
         }
     }
     // This is where we check for a new pedalboard

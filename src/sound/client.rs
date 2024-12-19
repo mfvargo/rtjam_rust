@@ -376,7 +376,7 @@ fn handle_websocket_messages(
             }
         }
         Err(mpsc::TryRecvError::Empty) => {}
-        Err(mpsc::TryRecvError::Disconnected) => warn!("websocket: disconnected channel"),
+        Err(mpsc::TryRecvError::Disconnected) => warn!("websocket: disconnected channel")
     }
     Ok(())
 }
@@ -391,7 +391,7 @@ fn handle_status_messages(
             to_ws_tx.send(WebsockMessage::Chat(m))?;
         }
         Err(mpsc::TryRecvError::Empty) => {}
-        Err(mpsc::TryRecvError::Disconnected) => warn!("audio thread: disconnected channel"),
+        Err(mpsc::TryRecvError::Disconnected) => warn!("audio thread: disconnected channel")
     }
     Ok(())
 }

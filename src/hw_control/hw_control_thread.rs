@@ -2,7 +2,7 @@
 //!
 //! This thread will initialize the status lights, configure codec hardware
 //! and read control knobs from the hardware
-use log::error;
+use log::{debug, error};
 
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
@@ -37,10 +37,10 @@ pub fn hw_control_thread(
         match res {
             Ok(m) => {
                 // Got a light update
-                // println!("Got light message 1:{:.2}, 2:{:.2}", m.input_one, m.input_two);
+                debug!("setting lights: {:?}", &m);
                 input_one.power(m.input_one);
                 input_two.power(m.input_two);
-                status.set(m.status);
+                status.set(m.status, m.blink);
             }
             Err(_e) => {
                 // nothing to read right now

@@ -2,6 +2,8 @@
 //!
 //! This thread will initialize the status lights, configure codec hardware
 //! and read control knobs from the hardware
+use log::error;
+
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
@@ -24,7 +26,7 @@ pub fn hw_control_thread(
             println!("codec initiated");
         }
         Err(e) => {
-            dbg!(e);
+            error!("{}", e);
         }
     }
 
@@ -49,6 +51,7 @@ pub fn hw_control_thread(
         match codec_option {
             Some(ref mut codec) => {
                 codec.read_pots();
+        //        debug!("codec: {}", &codec);
             }
             None => {
                 // No codec could be constructed.  Just ignore it

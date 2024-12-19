@@ -192,13 +192,13 @@ fn init_config(config_file: Option<&str>) -> Result<(String, String, String, boo
 /// Returns the number of attempts made to establish the connection.
 fn init_api_connection(api: &mut dyn JamNationApiTrait) -> Result<usize, BoxError> {
     let mut checks = 1;
-    api.jam_unit_register()?;
+    let _ = api.jam_unit_register();
     debug!("Registered API token");
     while !api.has_token() {
         info!("Can't connect to rtjam-nation. Sleeping 2 seconds then retrying");
         sleep(Duration::new(2, 0));
         checks += 1;
-        api.jam_unit_register()?;
+        let _ = api.jam_unit_register();
     }
     debug!("API connected in {} tries", checks);
     Ok(checks)

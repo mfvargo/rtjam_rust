@@ -2,7 +2,7 @@
 //!
 //! This thread will initialize the status lights, configure codec hardware
 //! and read control knobs from the hardware
-use log::{debug, error};
+use log::error;
 
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};

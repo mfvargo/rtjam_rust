@@ -1,4 +1,4 @@
-use log::{debug, error};
+use log::debug;
 
 use std::fmt;
 use std::thread::sleep;

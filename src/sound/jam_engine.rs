@@ -240,25 +240,9 @@ impl JamEngine {
             // send level updates
             let event = self.build_level_event();
             let _res = self.status_data_tx.send(event);
-            // send level update for lights
-            match &self.lights_option {
-                Some(tx) => {
-                    let _res = tx.send(
-                        LightMessage{
-                            input_one: self.room_meters[0].get_avg(),
-                            input_two: self.room_meters[1].get_avg(),
-                            status: crate::hw_control::status_light::Color::Green
-                        });
-        
-                }
-                None => {
-                    // Not on a system that has lights
-                }
-            }
-            // println!("disconnect: {}", self.disconnect_timer.since(self.now));
-            // println!("mixer: {}", self.mixer);
         }
         if self.light_timer.expired(self.now) {
+            self.light_timer.reset(self.now);
             // send level update for lights
             match &self.lights_option {
                 Some(tx) => {
@@ -267,7 +251,8 @@ impl JamEngine {
                         LightMessage{
                             input_one: self.room_meters[0].get_avg(),
                             input_two: self.room_meters[1].get_avg(),
-                            status: crate::hw_control::status_light::Color::Green
+                            status: crate::hw_control::status_light::Color::Green,
+                            blink: self.sock.is_connected(),
                         });
         
                 }

@@ -200,16 +200,4 @@ mod test_jitter_buffer {
         // assert_eq!(res, vec![0.0; 4]);
         assert!(buf.is_filling());
     }
-    // #[test]
-    // fn overrun_measure() {
-    //     let mut buf = JitterBuffer::new();
-    //     let samps = vec![0.1; MIN_DEPTH + 10];
-    //     buf.append(&samps);
-    //     let samps = vec![0.1; MIN_DEPTH + 10];
-    //     buf.append(&samps);
-    //     buf.get(2);
-    //     println!("jitterbuf: {}", buf);
-    //     assert!(!buf.is_filling());
-    //     assert!(buf.get_overruns() > 0);
-    // }
 }

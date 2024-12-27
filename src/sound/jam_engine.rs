@@ -16,6 +16,7 @@ use crate::{
     },  hw_control::status_light::LightMessage, 
 };
 
+use super::SoundCallback;
 use super::{
     channel_map::ChannelMap,
     jam_socket::JamSocket,
@@ -23,7 +24,7 @@ use super::{
     param_message::{JamParam, ParamMessage},
 };
 
-use log::{debug, trace};
+use log::{debug, info, trace};
 
 
 // Set a timer for how long a connect will hold up without a keepalive from the web client
@@ -109,6 +110,25 @@ pub struct JamEngine {
     room_mutes: [bool; 2],
 }
 
+impl SoundCallback for JamEngine {
+        /// This is the function that the audio engine will call with frames of data.  The four arguments are the
+    /// two input channels for the component, and the stereo output.
+    ///
+    /// All control messages should be sent via the mpsc::Receiver passed into new above.
+    fn process(
+        &mut self,
+        in_a: &[f32],
+        in_b: &[f32],
+        out_a: &mut [f32],
+        out_b: &mut [f32],
+    ) -> Result<(), BoxError> {
+        self.process_inputs(in_a, in_b);
+        self.get_playback_data(out_a, out_b);
+        Ok(())
+    }
+
+}
+
 impl JamEngine {
     /// create a JamEngine with this call.  The engine requires a mpsc Sender that it will
     /// use to send json formatted status messages that will get routed to the websocket
@@ -167,21 +187,6 @@ impl JamEngine {
     pub fn is_running(&self) -> bool {
         self.is_running
     }
-    /// This is the function that the audio engine will call with frames of data.  The four arguments are the
-    /// two input channels for the component, and the stereo output.
-    ///
-    /// All control messages should be sent via the mpsc::Receiver passed into new above.
-    pub fn process(
-        &mut self,
-        in_a: &[f32],
-        in_b: &[f32],
-        out_a: &mut [f32],
-        out_b: &mut [f32],
-    ) -> Result<(), BoxError> {
-        self.process_inputs(in_a, in_b);
-        self.get_playback_data(out_a, out_b);
-        Ok(())
-    }
     pub fn process_inputs(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
         // Push a frame of data into the system
         self.set_now();
@@ -199,14 +204,7 @@ impl JamEngine {
     fn debug_output(&mut self) {
         if self.debug_timer.expired(self.now) {
             self.debug_timer.reset(self.now);
-            // println!("disconnect: {}", self.disconnect_timer.since(self.now));
-            // println!(
-            //     "jack_jitter: {:.2}, {:.2}",
-            //     self.jack_jitter.get_mean(),
-            //     self.jack_jitter.get_sigma()
-            // );
             debug!("mixer: {}", self.mixer);
-            // println!("map: {}", self.chan_map);
         }
     }
     fn set_now(&mut self) -> () {
@@ -588,7 +586,7 @@ impl JamEngine {
                 self.is_running = false;
             }
             _ => {
-                println!("unknown command: {}", msg);
+                info!("unknown command: {}", msg);
             }
         }
     }

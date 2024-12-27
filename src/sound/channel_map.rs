@@ -111,6 +111,5 @@ mod test_channel_map {
         let val_2 = map.get_loc_channel(4444, now, 1).unwrap();
         assert_eq!(val_2, 4);
         map.prune(now + EXPIRATION_IN_MICROSECONDS + 1);
-        println!("after prune: {}", map);
     }
 }

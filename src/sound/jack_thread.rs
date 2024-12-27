@@ -9,11 +9,13 @@
 use crate::common::box_error::BoxError;
 
 use jack;
+use log::{info, error};
 // use serde_json::json;
 use std::thread::sleep;
 use std::time::Duration;
 
 use super::jam_engine::JamEngine;
+use super::SoundCallback;
 
 /// call this to start up jack and feed the engine
 ///
@@ -76,7 +78,7 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
                 }
             }
             Err(e) => {
-                println!("jack start error: {}", e);
+                error!("jack start error: {}", e);
             }
         }
         sleep(Duration::new(2, 0));
@@ -90,30 +92,30 @@ struct Notifications;
 
 impl jack::NotificationHandler for Notifications {
     fn thread_init(&self, _: &jack::Client) {
-        println!("JACK: thread init");
+        info!("JACK: thread init");
     }
 
     fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
-        println!(
+        info!(
             "JACK: shutdown with status {:?} because \"{}\"",
             status, reason
         );
     }
 
     fn freewheel(&mut self, _: &jack::Client, is_enabled: bool) {
-        println!(
+        info!(
             "JACK: freewheel mode is {}",
             if is_enabled { "on" } else { "off" }
         );
     }
 
     fn sample_rate(&mut self, _: &jack::Client, srate: jack::Frames) -> jack::Control {
-        println!("JACK: sample rate changed to {}", srate);
+        info!("JACK: sample rate changed to {}", srate);
         jack::Control::Continue
     }
 
     fn client_registration(&mut self, _: &jack::Client, name: &str, is_reg: bool) {
-        println!(
+        info!(
             "JACK: {} client with name \"{}\"",
             if is_reg { "registered" } else { "unregistered" },
             name
@@ -121,7 +123,7 @@ impl jack::NotificationHandler for Notifications {
     }
 
     fn port_registration(&mut self, _: &jack::Client, port_id: jack::PortId, is_reg: bool) {
-        println!(
+        info!(
             "JACK: {} port with id {}",
             if is_reg { "registered" } else { "unregistered" },
             port_id
@@ -135,7 +137,7 @@ impl jack::NotificationHandler for Notifications {
         old_name: &str,
         new_name: &str,
     ) -> jack::Control {
-        println!(
+        info!(
             "JACK: port with id {} renamed from {} to {}",
             port_id, old_name, new_name
         );
@@ -149,7 +151,7 @@ impl jack::NotificationHandler for Notifications {
         port_id_b: jack::PortId,
         are_connected: bool,
     ) {
-        println!(
+        info!(
             "JACK: ports with id {} and {} are {}",
             port_id_a,
             port_id_b,
@@ -162,12 +164,12 @@ impl jack::NotificationHandler for Notifications {
     }
 
     fn graph_reorder(&mut self, _: &jack::Client) -> jack::Control {
-        println!("JACK: graph reordered");
+        info!("JACK: graph reordered");
         jack::Control::Continue
     }
 
     fn xrun(&mut self, _: &jack::Client) -> jack::Control {
-        println!("JACK: xrun occurred");
+        info!("JACK: xrun occurred");
         jack::Control::Continue
     }
 }

@@ -389,11 +389,14 @@ fn handle_status_messages(
         Ok(m) => {
             trace!("audio thread message: {}", m.to_string());
             to_ws_tx.send(WebsockMessage::Chat(m))?;
+            Ok(())
         }
-        Err(mpsc::TryRecvError::Empty) => {}
-        Err(mpsc::TryRecvError::Disconnected) => warn!("audio thread: disconnected channel")
+        Err(mpsc::TryRecvError::Empty) => { Ok(()) }
+        Err(mpsc::TryRecvError::Disconnected) => {
+            warn!("audio thread: disconnected channel");
+            Err("audio thread is dead!".into())
+        }
     }
-    Ok(())
 }
 
 fn handle_room_ping(

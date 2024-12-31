@@ -32,7 +32,9 @@ pub struct Player {
     seq: u32,                         // packet sequence number
     drops: usize,                     // dropped packet counter
     hist: [usize; HISTOGRAM_BUCKETS], // histogram of packet arrivals
+    #[serde(skip)]
     loop_stat: SmoothingFilter,       // statistics about packet loop time
+    #[serde(skip)]
     pack_stats: StreamTimeStat,       // interarrival stats
     packet_count: usize,              // count number of packets
 }
@@ -69,7 +71,7 @@ impl Player {
         self.packet_count += 1;
         if self.keep_alive <= now {
             self.pack_stats.add_sample((now - self.keep_alive) as f64);
-            let idx: usize = ((now - self.keep_alive) / 2667) as usize; // 2667 microsec per 128 sample frame
+            let idx: usize = ((1333 + now - self.keep_alive) / 2667) as usize; // 2667 microsec per 128 sample frame
             self.hist[idx.clamp(0, HISTOGRAM_BUCKETS - 1)] += 1;
         }
         if loop_time < MAX_LOOP_TIME {

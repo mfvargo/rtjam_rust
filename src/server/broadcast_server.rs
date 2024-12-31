@@ -188,6 +188,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         }
         // forward any messages from the audio thead to the websocket (latency updates)
         for m in audio_rx.try_iter() {
+            debug!("room update message: {}", m);
             to_ws_tx.send(m)?;
         }
         // drain out any recording audio
@@ -209,7 +210,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 "transportStatus": dmpfile.get_status(),
             })))?;
             if catalog.is_dirty() {
-                println!("updating catalog");
+                debug!("updating recording catalog");
                 to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
                     "speaker": "RoomChatRobot",
                     "listRecordings": catalog.as_json(),

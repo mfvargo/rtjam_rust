@@ -269,7 +269,7 @@ fn init_hardware_control() -> Result<(Option<mpsc::Sender<LightMessage>>, Option
     Ok((light_option, hw_handle))
 }
 
-fn start_alsa_thread(engine: JamEngine, in_dev: &str, out_dev: &str) -> Result<thread::JoinHandle<()>, BoxError> {
+fn start_alsa_thread(mut engine: JamEngine, in_dev: &str, out_dev: &str) -> Result<thread::JoinHandle<()>, BoxError> {
     let in_dev = in_dev.to_string();
     let out_dev = out_dev.to_string();
     
@@ -278,7 +278,7 @@ fn start_alsa_thread(engine: JamEngine, in_dev: &str, out_dev: &str) -> Result<t
         .priority(ThreadPriority::Max);
 
     let handle = builder.spawn(move |_result| {
-        match alsa_thread::run(engine, &in_dev, &out_dev) {
+        match alsa_thread::run(&mut engine, &in_dev, &out_dev) {
             Ok(()) => {
                 debug!("alsa ended with OK");
             }

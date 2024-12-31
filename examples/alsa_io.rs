@@ -26,7 +26,7 @@ fn main() -> Result<(), BoxError> {
         mpsc::channel();
 
 
-    let engine = JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "my_token_here", "gitty_hash", false)?;
+    let mut engine = JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "my_token_here", "gitty_hash", false)?;
     
     // note: add error checking yourself.
 
@@ -39,7 +39,7 @@ fn main() -> Result<(), BoxError> {
                     //     .priority(std::thread::Priority::Realtime); 
 
     let alsa_handle = builder.spawn(move |_result| {
-        match alsa_thread::run(engine, "hw:CODEC", "hw:CODEC") {
+        match alsa_thread::run(&mut engine, "hw:CODEC", "hw:CODEC") {
             Ok(()) => {
                 error!("alsa ended with OK");
             }

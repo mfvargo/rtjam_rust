@@ -6,7 +6,8 @@ use alsa::{Direction, ValueOr};
 use crate::common::box_error::BoxError;
 use crate::common::get_micro_time;
 use crate::common::stream_time_stat::{MicroTimer, StreamTimeStat};
-use crate::JamEngine;
+
+use super::SoundCallback;
 
 type SF = i16;
 const FRAME_SIZE: usize = 128;
@@ -160,7 +161,7 @@ fn write_samples_io(p: &alsa::PCM, io: &mut alsa::pcm::IO<SF>, buf: &mut OutputB
 }
 
 // Run the loop to read/write alsa
-pub fn run(mut engine: JamEngine, in_device: &str, out_device: &str) -> Result<(), BoxError> {
+pub fn run(engine: &mut dyn SoundCallback, in_device: &str, out_device: &str) -> Result<(), BoxError> {
     // stats for callback
     let mut stats = StreamTimeStat::new(100);
     let mut timer = MicroTimer::new(get_micro_time(), 10_000);

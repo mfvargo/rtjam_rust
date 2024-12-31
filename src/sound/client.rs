@@ -41,7 +41,7 @@ use crate::{
     pedals::pedal_board::PedalBoard, 
     sound::{
         jack_thread,
-        alsa_thread,
+        alsa_thread::AlsaThread,
         jam_engine::JamEngine,
         param_message::{JamParam, ParamMessage},
     }, 
@@ -268,24 +268,12 @@ fn init_hardware_control() -> Result<(Option<mpsc::Sender<LightMessage>>, Option
     Ok((light_option, hw_handle))
 }
 
-fn start_alsa_thread(engine: JamEngine, in_dev: String, out_dev: String) -> Result<thread::JoinHandle<()>, BoxError> {
-    let builder = ThreadBuilder::default()
-        .name("Real-Time ALSA Thread".to_string())
-        .priority(ThreadPriority::Max);
-    
-    debug!("::start_alsa_thread - spawning alsa_thread::run . . .");
-    let handle = builder.spawn(move |_| {
-        match alsa_thread::run(engine, &in_dev, &out_dev) {
-            Ok(result) => {
-                debug!("::start_alsa_thread - alsa_thread::run result: {:?}", result);
-            }
-            Err(e) => {
-                error!("ALSA thread exited with error {}", e);
-            }
-        }
-    })?;
+fn start_alsa_thread(engine: JamEngine, in_dev: String, out_dev: String) -> Result<AlsaThread, BoxError> {
+    debug!("::start_alsa_thread - Initializing ALSA thread with token for in: {}, out: {}", in_dev, out_dev);
+    let alsa = AlsaThread::build(&in_dev, &out_dev, engine)?;
 
-    Ok(handle)
+    debug!("start_alsa_thread - Success");
+    Ok(alsa)
 }
 
 fn start_jack_thread(engine: JamEngine) -> Result<thread::JoinHandle<()>, BoxError> {

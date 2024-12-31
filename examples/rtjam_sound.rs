@@ -2,7 +2,7 @@ use clap::{Parser, command};
 use rtjam_rust::{common::box_error::BoxError, sound::client, utils::get_git_hash};
 use std::process::exit;
 use env_logger::Builder;
-use log::{info, LevelFilter};
+use log::{info, error};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None, disable_version_flag = true)]
@@ -46,6 +46,9 @@ fn main() -> Result<(), BoxError> {
     }
     let driver = if args.alsa { "ALSA" } else { "Jack" };
     info!("Starting rtjam_sound with in: {}, out: {}, using {}", args.in_dev, args.out_dev, driver);
-    client::run(git_hash, args.alsa, args.in_dev, args.out_dev)?;
+    match client::run(git_hash, args.alsa, args.in_dev, args.out_dev) {
+        Ok(_) => info!("rtjam_sound successfully started"),
+        Err(e) => error!("Failed to start rtjam_sound: {}", e),
+    }
     Ok(())
 }

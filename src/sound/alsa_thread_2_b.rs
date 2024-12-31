@@ -1,13 +1,11 @@
-//use std::f64::consts::E;
-use std::thread::JoinHandle;
+//use std::thread::JoinHandle;
 use std::sync::{Arc, Mutex};
 use alsa::pcm::*;
-use alsa::{Direction, ValueOr};
+use alsa::{Direction, /*Error,*/ ValueOr};
 
 #[cfg(test)]
 use mockall::automock;
 
-// use crate::JamEngine;
 use crate::common::box_error::BoxError;
 use crate::common::stream_time_stat::{/*MicroTimer,*/ StreamTimeStat};
 //use crate::JamEngine;
@@ -24,44 +22,79 @@ const SMP_FORMAT: Format = Format::s16();
 
 #[cfg_attr(test, automock)]
 pub trait InputDevice: Send + Sync {
-    fn read(&mut self, buffer: &mut [i16]) -> Result<usize, BoxError>;
-    fn start(&mut self) -> Result<(), BoxError>;
-    fn recover(&mut self, errno: i32) -> Result<(), BoxError>;
+    fn read(&self, buffer: &mut [i16]) -> Result<usize, BoxError>;
+    fn recover(&self, err: alsa::Error) -> Result<(), BoxError>;
+    fn start(&self) -> Result<(), BoxError>;
 }
 
 #[cfg_attr(test, automock)]
 pub trait OutputDevice: Send + Sync {
-    fn write(&mut self, buffer: &[i16]) -> Result<usize, BoxError>;
     fn avail_update(&self) -> Result<i64, BoxError>;
-    fn recover(&mut self, errno: i32) -> Result<(), BoxError>;
+    fn recover(&self, err: alsa::Error) -> Result<(), BoxError>;
+    fn write(&self, buffer: &[i16]) -> Result<usize, BoxError>;
 }
 
-// Add wrapper struct
+// Thread-safe PCM wrapper, so that consumers ain't be needin' that mutex
 struct ThreadSafePCM(Arc<Mutex<PCM>>);
 unsafe impl Send for ThreadSafePCM {}
 unsafe impl Sync for ThreadSafePCM {}
+impl ThreadSafePCM {
+    fn avail_update(&self) -> Result<i64, BoxError> {
+        let pcm_guard = self.pcm.0.lock().unwrap();
+        Ok(pcm_guard.avail_update().map_err(|e| Box::new(e))? as i64)
+    }
+    
+    fn read(&self, buffer: &mut [i16]) -> Result<usize, BoxError> {
+        let pcm_guard = self.0.lock().unwrap();
+        let io_in = pcm_guard.io_i16()?; // Lock the Mutex to access the PCM
+        io_in.readi(buffer).map_err(|e| e.into())
+    }
+
+    fn recover(&self, err: alsa::Error) -> Result<(), BoxError> {
+        let errno = err.errno() as std::os::raw::c_int;
+        let pcm_guard = self.0.lock().unwrap();
+        match pcm_guard.recover(errno, true) {
+            Ok(()) => { 
+                debug!("::run - recovered from IO read failure");
+                return Ok(())
+            }
+            Err(e) => {
+                warn!("::run - failed IO recovery: {}", e);
+                return Err(BoxError::from(e))
+            }
+        };
+    }
+    
+    fn start(&self) -> Result<(), BoxError> {
+        let pcm_guard = self.0.lock().unwrap();
+        let _status = pcm_guard.start()?;
+        Ok(())
+    }    
+
+    fn write(&self, buffer: &[i16]) -> Result<usize, BoxError> {
+        let pcm_guard = self.pcm.0.lock().unwrap();
+        // TODO: Write real write
+        let status = pcm_guard.status();
+        Err(format!("Not implemented, but here's the status {} and the buffer {:?}", status.is_ok(), buffer).into())
+    }    //... other methods
+    // fn write ...
+}
 
 struct AlsaInputDevice {
     pcm: ThreadSafePCM,
 }
 
 impl InputDevice for AlsaInputDevice {
-    fn read(&mut self, buffer: &mut [i16]) -> Result<usize, BoxError> {
-        let pcm_guard = self.pcm.0.lock().unwrap();
-        let status = pcm_guard.status();
-        Err(format!("Not implemented, but here's the status: {} and the buffer {:?}", status.is_ok(), buffer).into())
+    fn read(&self, buffer: &mut [i16]) -> Result<usize, BoxError> {
+        self.pcm.read(buffer)
+    }
+    
+    fn recover(&self, err: alsa::Error) -> Result<(), BoxError> {
+        self.pcm.recover(err)
     }
 
-    fn start(&mut self) -> Result<(), BoxError> {
-        let pcm_guard = self.pcm.0.lock().unwrap();
-        let _status = pcm_guard.start()?;
-        Ok(())
-    }
-
-    fn recover(&mut self, errno: i32) -> Result<(), BoxError> {
-        let pcm_guard = self.pcm.0.lock().unwrap();
-        let _status = pcm_guard.recover(errno, true)?;
-        Ok(())
+    fn start(&self) -> Result<(), BoxError> {
+        self.pcm.start()
     }
 }
 
@@ -70,23 +103,16 @@ struct AlsaOutputDevice {
 }
 
 impl OutputDevice for AlsaOutputDevice {
-    fn write(&mut self, buffer: &[i16]) -> Result<usize, BoxError> {
-        // Implement writing to ALSA device
-        // ...
-        let pcm_guard = self.pcm.0.lock().unwrap();
-        let status = pcm_guard.status();
-        Err(format!("Not implemented, but here's the status {} and the buffer {:?}", status.is_ok(), buffer).into())
-    }
-
     fn avail_update(&self) -> Result<i64, BoxError> {
-        let pcm_guard = self.pcm.0.lock().unwrap();
-        Ok(pcm_guard.avail_update().map_err(|e| Box::new(e))? as i64)
+        self.pcm.avail_update()
     }
 
-    fn recover(&mut self, errno: i32) -> Result<(), BoxError> {
-        let pcm_guard = self.pcm.0.lock().unwrap();
-        let _status = pcm_guard.recover(errno, true)?;
-        Ok(())
+    fn recover(&self, err: alsa::Error) -> Result<(), BoxError> {
+        self.pcm.recover(err)
+    }
+    
+    fn write(&self, buffer: &[i16]) -> Result<usize, BoxError> {
+        self.pcm.write(buffer)
     }
 }
 
@@ -110,40 +136,42 @@ trait AlsaEngineTrait: Send + Sync {
 /// This method will spawn a new thread that will handle the audio processing tasks.
 /// 
 /// Note: The `run` method should be called only once for each instance of AlsaThread.
-struct AlsaThread<I: InputDevice, O: OutputDevice, E: AlsaEngineTrait> {
+struct AlsaThread<E: AlsaEngineTrait> {
     indev_name: String,
     outdev_name: String,
-    indev: Arc<Mutex<Box<I>>>,
-    outdev: Arc<Mutex<Box<O>>>,
+    indev: Arc<dyn InputDevice>,
+    outdev: Arc<dyn OutputDevice>,
     engine: Arc<E>,
     thread_handle: Option<std::thread::JoinHandle<()>>,
     stats: StreamTimeStat,
 }
 
-impl <I: InputDevice + 'static, O: OutputDevice + 'static, E: AlsaEngineTrait + 'static> AlsaThread<I, O, E> {
+impl <E: AlsaEngineTrait + 'static> AlsaThread<E> {
 
-    pub fn build(indev_name: String, outdev_name: String, engine: E) -> Result<AlsaThread<I, O, E>, BoxError> {
+    pub fn build(indev_name: String, outdev_name: String, engine: E) -> Result<AlsaThread<E>, BoxError> {
         debug!("::build - contructing AlsaThread in: {}, out: {}", indev_name, outdev_name);
         info!("Starting ALSA thread");
         let input: AlsaInputDevice = Self::create_input_device(&indev_name)?;
         let output: AlsaOutputDevice = Self::create_output_device(&outdev_name)?;
-        let mut alsa: AlsaThread<I, O, E> = Self::new(indev_name, outdev_name, input, output, engine)?;
+        let mut alsa: AlsaThread<E> = Self::new(indev_name, outdev_name, input, output, engine)?;
         let _run_result = alsa.run()?;
         Ok(alsa)
     }
 
     pub fn new(
-        indev_name: String, outdev_name: String, 
-        input: I, output: O, 
+        indev_name: String,
+        outdev_name: String, 
+        input: impl InputDevice + 'static,
+        output: impl OutputDevice + 'static,
         engine: E,
     ) -> Result<Self, BoxError> {
         debug!("::new - ALSA devices acquired, testing comms ...");
         // TODO: Find a better way to validate the PCMs are alive than a blank read and write
         //Self::read_in_write_out(1, input.clone(), output.clone())?;
 
-        debug!("::new - ALSA devices acquired, starting thread ...");
-        let indev = Arc::new(Mutex::new(Box::new(input)));
-        let outdev = Arc::new(Mutex::new(Box::new(output)));
+        debug!("::new - ALSA devices verified, starting thread ...");
+        let indev = Arc::new(input);
+        let outdev = Arc::new(output);
         let engine_arc = Arc::new(engine);
 
         let alsa_thread = AlsaThread {
@@ -179,10 +207,7 @@ impl <I: InputDevice + 'static, O: OutputDevice + 'static, E: AlsaEngineTrait + 
 
     fn create_output_device(device_name: &str) -> Result<AlsaOutputDevice, BoxError> {
         let req_bufsize: i64 = (FRAME_SIZE * 4) as i64;  // A few ms latency by default, that should be nice
-    
-        // Open the device
-        let pcm = alsa::PCM::new(device_name, alsa::Direction::Playback, false)?;
-    
+        let pcm = alsa::PCM::new(device_name, alsa::Direction::Playback, false)?;   
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(CHANNELS)?;
@@ -194,14 +219,13 @@ impl <I: InputDevice + 'static, O: OutputDevice + 'static, E: AlsaEngineTrait + 
             pcm.hw_params(&hwp)?;
             
             // Set software parameters
-            //let hwp = pcm.hw_params_current()?;
             let swp = pcm.sw_params_current()?;
             let (bufsize, periodsize) = (hwp.get_buffer_size()?, hwp.get_period_size()?);
             swp.set_start_threshold(bufsize - periodsize)?;
             swp.set_avail_min(periodsize)?;
             pcm.sw_params(&swp)?;
             // let _rate = hwp.get_rate()?; // not sure why this would be needed
-        }  // hwp is dropped here, releasing the bottow on &pcm, else it cannot be part of the return value
+        }  // hwp is dropped here, releasing the borrow on &pcm, else it cannot be part of the return value
         
         debug!("::create_output_device - Opened audio output {:} with parameters: {:?}, {:?}",
             device_name, pcm.hw_params_current(), pcm.sw_params_current());   
@@ -217,9 +241,24 @@ impl <I: InputDevice + 'static, O: OutputDevice + 'static, E: AlsaEngineTrait + 
 
         let handle = std::thread::spawn( move || {
             debug!("::process_loop - starting. Engine is running: {}", engine_arc.is_running());
+            // buffer should be reusable, so only allocate once
+            let mut buffer = vec![0i16; FRAME_SIZE];
             while engine_arc.is_running() {
-                trace!("::process_loop - calling read_in_write_out");
-                let _result = Self::read_in_write_out(&in_clone, &out_clone, FRAME_SIZE);
+                trace!("::run - executing read / write ...");
+                let result = in_clone.read(&mut buffer);
+                if result.is_err() {
+                    warn!("alsa_thread read error: {}", result.err().unwrap());
+                    continue;
+                }
+                let bytes_read = result.unwrap();
+                trace!("::run - loop - read {} bytes. Writing to output ...", bytes_read);       
+                let result = out_clone.write(&buffer[..bytes_read]);
+                if result.is_err() {
+                    warn!("alsa_thread write error: {}", result.err().unwrap());
+                    continue;
+                }
+                let bytes_written = result.unwrap();
+                trace!("::::run - loop - wrote {} bytes.", bytes_written);               
             };
         });
 
@@ -227,53 +266,13 @@ impl <I: InputDevice + 'static, O: OutputDevice + 'static, E: AlsaEngineTrait + 
         self.thread_handle = Some(handle);
         Ok(())
     }
-    
-    fn read_in_write_out(indev: &Arc<Mutex<Box<I>>>, outdev: &Arc<Mutex<Box<O>>>, size: usize) -> Result<usize, BoxError> {
-        debug!("::read_in_write_out - frame size: {}", size);
-        let mut buffer = vec![0i16; size];
 
-        let mut in_guard = indev.lock().unwrap();
-        let bytes_read = in_guard.read(&mut buffer)?;
-        trace!("::read_in_write_out - read {} bytes. Writing to output ...", bytes_read);
-
-        let mut out_guard = outdev.lock().unwrap();
-        let bytes_written = out_guard.write(&buffer[..bytes_read])?;
-
-        Ok(bytes_written)
+    pub fn get_stats(&self) -> &StreamTimeStat {
+        &self.stats
     }
-
-    fn self_read_in_write_out(&mut self, size: usize) -> Result<usize, BoxError> {
-        debug!("::read_in_write_out - frame size: {}", size);
-        let mut buffer = vec![0i16; size];
-        //let mut bytes_read = 0;
-        //let mut bytes_written = 0;
-
-        let mut in_guard = self.indev.lock().unwrap();
-        let bytes_read = in_guard.read(&mut buffer)?;
-        trace!("::read_in_write_out - read {} bytes. Writing to output ...", bytes_read);
-        //     Ok(b) => {
-        //         //bytes_read = b;
-        //         trace!("::read_in_write_out - read {} bytes. Writing to output ...", b);
-        //         b
-        //     },
-        //     Err(_e) => {
-        //         warn!("Error reading ALSA input");
-        //         Err(BoxError::from("Error reading ALSA input"))
-        //     }
-        // }?;
     
-        let mut out_guard = self.outdev.lock().unwrap();
-        let bytes_written = out_guard.write(&buffer[..bytes_read])?;
-        //     Ok(b) => {  
-        //         bytes_written = b;          
-        //         trace!("::read_in_write_out - wrote {} bytes", bytes_written);
-        //     },
-        //     Err(e) => {
-        //         warn!("Error writing ALSA output");
-        //         return Err(BoxError::from("Error writing ALSA output"));
-        //     }
-        // };
-        Ok(bytes_written)
+    pub fn is_running(&self) -> bool {
+        self.thread_handle.is_some()
     }
 
     pub fn stop(&mut self) {
@@ -281,28 +280,16 @@ impl <I: InputDevice + 'static, O: OutputDevice + 'static, E: AlsaEngineTrait + 
             handle.join().unwrap();
         }
     }
-
-    pub fn is_running(&self) -> bool {
-        self.thread_handle.is_some()
-    }
-
-    pub fn get_stats(&self) -> &StreamTimeStat {
-        &self.stats
-    }
-
 }
 
 #[cfg(test)]
 mod tests {
-    //use alsa::Error;
+    use super::*;
+    
     use log::{info, LevelFilter};
     use env_logger::Builder;
-    // use std::sync::mpsc::channel;
-    // use std::thread;
-
-    use super::*;
-    //use mockall::predicate::*;
-
+    
+    // TODO: redo this using a mocking framework and get some free code
     struct MockInputDevice {
         read_result: Result<usize, BoxError>,
         start_result: Result<(), BoxError>,
@@ -310,7 +297,7 @@ mod tests {
     }
 
     impl InputDevice for MockInputDevice {
-        fn read(&mut self, buffer: &mut [i16]) -> Result<usize, BoxError> {
+        fn read(&self, _buffer: &mut [i16]) -> Result<usize, BoxError> {
             match &self.read_result {
                 Ok(sz) => Ok(*sz),
                 Err(_) => Err(BoxError::from("Mock error")),
@@ -318,22 +305,23 @@ mod tests {
             // buffer.fill(0); // Fill buffer with zeros for testing
             // Ok(buffer.len()) // Return the number of samples read
         }
-
-        fn start(&mut self) -> Result<(), BoxError> {
-            match &self.start_result {
+        
+        fn recover(&self, _errno: alsa::Error) -> Result<(), BoxError> {
+            match &self.recover_result {
                 Ok(_) => Ok(()),
                 Err(_) => Err(BoxError::from("Mock error")),
             }
         }
 
-        fn recover(&mut self, _errno: i32) -> Result<(), BoxError> {
-            match &self.recover_result {
+        fn start(&self) -> Result<(), BoxError> {
+            match &self.start_result {
                 Ok(_) => Ok(()),
                 Err(_) => Err(BoxError::from("Mock error")),
             }
         }
     }
 
+    // TODO: redo this using a mocking framework and get some free code
     struct MockOutputDevice {
         write_result: Result<usize, BoxError>,
         avail_update_result: Result<i64, BoxError>,
@@ -341,22 +329,23 @@ mod tests {
     }
 
     impl OutputDevice for MockOutputDevice {
-        fn write(&mut self, _buffer: &[i16]) -> Result<usize, BoxError> {
-            match &self.write_result {
-                Ok(b) => Ok(*b),
-                Err(_) => Err(BoxError::from("Mock error")),
-            }
-        }
-
         fn avail_update(&self) -> Result<i64, BoxError> {
             match &self.avail_update_result {
                 Ok(r) => Ok(*r),
                 Err(_) => Err(BoxError::from("Mock error")),
-            }        }
-
-        fn recover(&mut self, _errno: i32) -> Result<(), BoxError> {
+            }
+        }
+            
+        fn recover(&self, _errno: alsa::Error) -> Result<(), BoxError> {
             match &self.recover_result {
                 Ok(_) => Ok(()),
+                Err(_) => Err(BoxError::from("Mock error")),
+            }
+        }
+        
+        fn write(&self, _buffer: &[i16]) -> Result<usize, BoxError> {
+            match &self.write_result {
+                Ok(b) => Ok(*b),
                 Err(_) => Err(BoxError::from("Mock error")),
             }
         }
@@ -378,6 +367,7 @@ mod tests {
         }
     }
 
+    // TODO: Move this to a standard test lib, cuz we all want nice logs in our tests!
     fn log_init(level: LevelFilter) {
         let _ = Builder::new()
             .filter_level(level)
@@ -390,18 +380,18 @@ mod tests {
     fn test_alsa_thread_creation() {
         log_init(LevelFilter::Debug);
         let engine = TestEngine::new();
-        let input_device = Arc::new(MockInputDevice {
+        let input_device = MockInputDevice {
             read_result: Ok(127),
             start_result: Ok(()),
             recover_result: Ok(()),
-        });
-        let output_device = Arc::new(MockOutputDevice {
+        };
+        let output_device = MockOutputDevice {
             write_result: Ok(0),
             avail_update_result: Ok(0),
             recover_result: Ok(()),
-        });
+        };
 
-        let result = AlsaThread::new_with_devices(
+        let result = AlsaThread::new(
             "mock input".to_string(),
             "mock output".to_string(),
             input_device,
@@ -423,18 +413,19 @@ mod tests {
         log_init(LevelFilter::Trace);
         let engine = TestEngine::new();
         // If bypassing the device creation and passed in bad devices, the first likely error will be on an attempt to read indev
-        let input_device = Arc::new(MockInputDevice {
+        let input_device = MockInputDevice {
             read_result: Err(Box::from("dummy value")),
             start_result: Ok(()),
             recover_result: Ok(()),
-        });
-        let output_device = Arc::new(MockOutputDevice {
+        };
+
+        let output_device = MockOutputDevice {
             write_result: Ok(0),
             avail_update_result: Ok(0),
             recover_result: Ok(()),
-        });
+        };
 
-        let result = AlsaThread::new_with_devices(
+        let result = AlsaThread::new(
             "mock input".to_string(),
             "mock output".to_string(),
             input_device,

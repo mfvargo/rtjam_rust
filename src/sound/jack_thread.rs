@@ -40,7 +40,8 @@ pub fn run(mut engine: JamEngine) -> Result<(), BoxError> {
                         let out_b_p = out_b.as_mut_slice(ps);
 
                         // Let the engine process it
-                        let _res = engine.process(in_a_p, in_b_p, out_a_p, out_b_p);
+                        engine.process_inputs(in_a_p, in_b_p);
+                        engine.get_playback_data(out_a_p, out_b_p);
                         let show_p = midi_in.iter(ps);
                         for e in show_p {
                             engine.send_midi_event(e);

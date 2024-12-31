@@ -126,7 +126,25 @@ impl SoundCallback for JamEngine {
         self.get_playback_data(out_a, out_b);
         Ok(())
     }
+    fn process_inputs(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
+        // Push a frame of data into the system
+        self.set_now();
+        self.send_status();
+        self.check_disconnect();
+        self.check_command();
+        self.check_pedal_board();
+        self.read_network();
+        self.send_my_audio(in_a, in_b);
+        self.debug_output();
+    }
+    fn get_playback_data(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
+        self.mixer.get_mix(out_a, out_b);
+    }
 
+    /// This will let you know if the engine is still running
+    fn is_running(&self) -> bool {
+        self.is_running
+    }
 }
 
 impl JamEngine {
@@ -182,24 +200,6 @@ impl JamEngine {
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
         Ok(engine)
-    }
-    /// This will let you know if the engine is still running
-    pub fn is_running(&self) -> bool {
-        self.is_running
-    }
-    pub fn process_inputs(&mut self, in_a: &[f32], in_b: &[f32]) -> () {
-        // Push a frame of data into the system
-        self.set_now();
-        self.send_status();
-        self.check_disconnect();
-        self.check_command();
-        self.check_pedal_board();
-        self.read_network();
-        self.send_my_audio(in_a, in_b);
-        self.debug_output();
-    }
-    pub fn get_playback_data(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
-        self.mixer.get_mix(out_a, out_b);
     }
     fn debug_output(&mut self) {
         if self.debug_timer.expired(self.now) {

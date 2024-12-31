@@ -10,7 +10,6 @@ use alsa::{Direction, ValueOr};
 use log::{error, info};
 
 use crate::common::box_error::BoxError;
-
 use super::SoundCallback;
 
 
@@ -87,49 +86,47 @@ impl AlsaDevice{
         device.in_dev.start()?;
         Ok(device)
     }
-    // process a frame of input and write it to the output
-    pub fn process_a_frame(&mut self, cb: &mut dyn SoundCallback) -> Result<usize, BoxError> {
+    // function to loop reading data etc
+    pub fn run(&mut self, engine: &mut dyn SoundCallback) -> Result<(), BoxError> {
         let mut io_out = self.out_dev.io_i16()?;
         let io_in = self.in_dev.io_i16()?;
         let mut in_buf = [0; FRAME_SIZE * CHANNELS];
-    
-        // Read in a frame
-        match io_in.readi(&mut in_buf) {
-            Ok(samps) => {
-                if samps < FRAME_SIZE {
-                    error!("Not enough samples: {}", samps);
-                    return Ok(samps);
-                }
-            }
-            Err(e) => {
-                error!("read error: {}", dbg!(e));
-                self.in_dev.recover(e.errno() as std::os::raw::c_int, true)?;
-            }
-        }
+        let mut out_buf = OutputBuffer::new();
+
 
         // Buffers for processing in f32
         let mut in_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
         let mut in_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
         let mut out_a: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
         let mut out_b: [f32; FRAME_SIZE] = [0.0; FRAME_SIZE];
-
-        //  Convert the input date from interleaved i16 into f32 for the pedalboard:
-        for (i, v) in in_buf.iter().enumerate() {
-            if i%2 == 0 {
-                in_a[i/2] = *v as f32 / MAX_SAMPLE;
-            } else {
-                in_b[i/2] = *v as f32 / MAX_SAMPLE;
+        
+        while engine.is_running() {
+            // Read in a frame
+            match io_in.readi(&mut in_buf) {
+                Ok(samps) => {
+                    if samps < FRAME_SIZE {
+                        error!("Not enough samples: {}", samps);
+                        continue;
+                    }
+                }
+                Err(e) => {
+                    error!("read error: {}", dbg!(e));
+                    self.in_dev.recover(e.errno() as std::os::raw::c_int, true)?;
+                }
             }
-        }
+            //  Convert the input date from interleaved i16 into f32 for the pedalboard:
+            for (i, v) in in_buf.iter().enumerate() {
+                if i%2 == 0 {
+                    in_a[i/2] = *v as f32 / MAX_SAMPLE;
+                } else {
+                    in_b[i/2] = *v as f32 / MAX_SAMPLE;
+                }
+            }
+            // Process the inputs
+            engine.process_inputs(&in_a, &in_b);
 
-        // Callback function that implements Callback trait.  
-        cb.process(&in_a, &in_b, &mut out_a, &mut out_b)?;
-
-        // Here we write until the outdev does not have space for a frame
-        let mut avail = FRAME_SIZE;  // set avail on the first time so it will at least try
-        while avail >= FRAME_SIZE {
-            // Now figure out how much we need to feed the output
-            avail = match self.out_dev.avail_update() {
+            // Here we write until the outdev does not have space for a frame
+            let mut avail = match self.out_dev.avail_update() {
                 Ok(n) => n,
                 Err(e) => {
                     error!("Recovering from {}", e);
@@ -137,29 +134,31 @@ impl AlsaDevice{
                     self.out_dev.avail_update()?
                 }
             } as usize;
-
-            if avail >= FRAME_SIZE {
-                // We need to feed the meter
-                self.out_buf.load_data(&out_a, &out_b);
-                // lets try to write a frame to the io device
-                // Might have to recurse in there based on state, hence the pumping
-                let mut pumping = true;
-                while pumping {
-                    match write_samples_io(&self.out_dev, &mut io_out, &mut self.out_buf) {
-                        Ok(more) => {
-                            pumping = more;
-                        }
-                        Err(e) => {
-                            pumping = false;
-                            error!("Error writing to device: {}", e);
+            while avail >= FRAME_SIZE {
+                if avail >= FRAME_SIZE {
+                    // We need to feed the meter
+                    engine.get_playback_data(&mut out_a, &mut out_b);
+                    out_buf.load_data(&out_a, &out_b);
+                    // lets try to write a frame to the io device
+                    // Might have to recurse in there based on state, hence the pumping
+                    let mut pumping = true;
+                    while pumping {
+                        match write_samples_io(&self.out_dev, &mut io_out, &mut self.out_buf) {
+                            Ok(more) => {
+                                // debug!("pumping: {}", more);
+                                pumping = more;
+                            }
+                            Err(e) => {
+                                pumping = false;
+                                error!("Error writing to device: {}", e);
+                            }
                         }
                     }
+                    avail -= FRAME_SIZE;
                 }
-                avail -= FRAME_SIZE;
-            }
-        }        
-
-        Ok(0)
+            }        
+        }
+        Ok(())
     }
 }
 

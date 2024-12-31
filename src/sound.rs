@@ -3,7 +3,10 @@
 use crate::common::box_error::BoxError;
 
 pub trait SoundCallback {
+    fn is_running(&self) -> bool;
     fn process(&mut self, in_a: &[f32], in_b: &[f32], out_a: &mut [f32], out_b: &mut [f32]) -> Result<(), BoxError>;
+    fn process_inputs(&mut self, in_a: &[f32], in_b: &[f32]);
+    fn get_playback_data(&mut self, out_a: &mut [f32], out_b: &mut [f32]);
 }
 
 

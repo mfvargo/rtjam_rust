@@ -94,7 +94,7 @@ mod test_jam_socket {
 
     #[test]
     fn build_socket() {
-        let sock = JamSocket::new(19990).unwrap();
+        let _sock = JamSocket::new(19990).unwrap();
         assert!(true);
     }
     #[test]

@@ -1,6 +1,13 @@
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use crate::{common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer}, server::cmd_message::RoomParam, sound::{channel_map::ChannelMap, mixer::Mixer}, utils::to_lin};
+use log::info;
+
+use crate::{
+    common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer},
+    server::cmd_message::RoomParam,
+    sound::{channel_map::ChannelMap, mixer::Mixer},
+    utils::to_lin
+};
 
 use super::cmd_message::RoomCommandMessage;
 
@@ -12,7 +19,7 @@ pub fn run(
     cmd_rx: mpsc::Receiver<RoomCommandMessage>,
     packet_tx: mpsc::Sender<JamMessage>
 ) -> Result<(), BoxError> {
-    println!("playback thread");
+    info!("playback thread");
     let mut mixer = PlaybackMixer::new();
     let mut now = get_micro_time();
     let mut pback_timer = MicroTimer::new(now, FRAME_TIME);
@@ -98,7 +105,6 @@ impl PlaybackMixer {
             self.seq += 1;
             packet.set_server_time(now as u64);
             packet.encode_audio(&out_a, &out_b);
-            // println!("mixer: {}", self.mixer);
             return Some(packet);
         }
         None
@@ -113,7 +119,6 @@ impl PlaybackMixer {
             let mut out_a: [f32; 128] = [0.0; 128];
             let mut out_b: [f32; 128] = [0.0; 128];
             self.mixer.get_mix(&mut out_a, &mut out_b);
-            // println!("mixer: {}", self.mixer);
             return Some([out_a, out_b]);
         }
         None

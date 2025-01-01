@@ -1,4 +1,5 @@
 //! Thread used to read/write messages to/from the room abstract in rtjam-nation
+use log::{error, trace};
 use serde_json::Value;
 
 use crate::common::box_error::BoxError;
@@ -68,11 +69,12 @@ pub fn websocket_thread(
                             match res {
                                 Ok(m) => {
                                     // Got a message to send
-                                    // println!("sending to room: {}", m);
+                                    trace!("sending to room: {}", m);
                                     room.send_message(&m);
                                 }
-                                Err(_e) => {
-                                    // dbg!(_e);
+                                Err(mpsc::TryRecvError::Empty) => {}
+                                Err(mpsc::TryRecvError::Disconnected) => {
+                                    error!("websocket command channel broken");
                                 }
                             }
                         }

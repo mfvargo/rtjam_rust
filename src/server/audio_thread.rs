@@ -55,7 +55,6 @@ pub fn run(
                     ))?;
                 }
             }
-            // audio_tx.send(WebsockMessage::API("status".to_string(), json!({})))?;
         }
         match res {
             Ok((amt, src)) => {
@@ -65,7 +64,6 @@ pub fn run(
                 }
                 let _res = msg.set_nbytes(amt);
                 // Do this here in case client encode audio did not
-                // println!("rcv: {}", msg);
                 // Update this player with the current time
                 let mut time_diff: u128 = MAX_LOOP_TIME;
                 let packet_time = msg.get_server_time() as u128;

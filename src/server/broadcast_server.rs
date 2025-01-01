@@ -9,7 +9,7 @@ use crate::{
         box_error::BoxError, 
         config::Config, 
         get_micro_time, 
-        jam_nation_api::{JamNationApi, JamNationApiTrait}, 
+        jam_nation_api::JamNationApi, 
         jam_packet::JamMessage, 
         packet_stream::PacketWriter, 
         recording::RecordingCatalog,
@@ -19,7 +19,9 @@ use crate::{
     },
     server::{
         audio_thread,
-        cmd_message::{RoomCommandMessage, RoomParam}, playback_thread,
+        cmd_message::{RoomCommandMessage, RoomParam},
+        ping_thread::broadcast_ping_thread, 
+        playback_thread
     },
     utils,
 };
@@ -28,7 +30,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, warn};
 
 /// To start a broadcast component, call this function
 ///
@@ -119,9 +121,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = websocket::websocket_thread(&room_token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
-    // Create a thread to host the room
-    let (audio_tx, audio_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
-        mpsc::channel();
+    // Clone the websocket channel tx so the audio thread can send to it too.
+    let audio_tx = to_ws_tx.clone();
     let _room_handle = thread::spawn(move || {
         let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx, playback_rx, room_mode);
     });
@@ -186,15 +187,9 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 // dbg!(e);
             }
         }
-        // forward any messages from the audio thead to the websocket (latency updates)
-        for m in audio_rx.try_iter() {
-            trace!("room update message: {}", m);
-            to_ws_tx.send(m)?;
-        }
         // drain out any recording audio
         for msg in record_rx.try_iter() {
             // got a Jam Message
-            // println!("record: {}", msg);
             match dmpfile.write_message(&msg) {
                 Ok(_) => (),
                 Err(e) => {
@@ -226,41 +221,4 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // let _res = room_handle.join();
     // let _res = websocket_handle.join();
     // Ok(())
-}
-
-fn broadcast_ping_thread(mut api: JamNationApi, port: u32) -> Result<(), BoxError> {
-    loop {
-        while api.has_token() == true {
-            // While in this loop, we are going to ping every 10 seconds
-            match api.broadcast_unit_ping() {
-                Ok(ping) => {
-                    if ping["broadcastUnit"].is_null() {
-                        // Error in the ping.  better re-register
-                        api.forget_token();
-                    } else {
-                        // Successful ping.. Sleep for 10
-                        sleep(Duration::new(10, 0));
-                    }
-                }
-                Err(e) => {
-                    api.forget_token();
-                    dbg!(e);
-                }
-            }
-        }
-        if !api.has_token() {
-            // We need to register the server
-            match api.broadcast_unit_register() {
-                Ok(_res) => {
-                    // Activate the room
-                    let _room_activate = api.activate_room(port);
-                }
-                Err(e) => {
-                    dbg!(e);
-                }
-            }
-        }
-        // This is the timer between registration attempts
-        sleep(Duration::new(2, 0));
-    }
 }

@@ -28,7 +28,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 
 /// To start a broadcast component, call this function
 ///
@@ -188,6 +188,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         }
         // forward any messages from the audio thead to the websocket (latency updates)
         for m in audio_rx.try_iter() {
+            trace!("room update message: {}", m);
             to_ws_tx.send(m)?;
         }
         // drain out any recording audio
@@ -204,12 +205,13 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         if transport_update_timer.expired(now_time) {
             transport_update_timer.reset(now_time);
             // send transport update
+            debug!("transport status {}", dmpfile.get_status());
             to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
                 "speaker": "RoomChatRobot",
                 "transportStatus": dmpfile.get_status(),
             })))?;
             if catalog.is_dirty() {
-                println!("updating catalog");
+                debug!("updating recording catalog {}", catalog.as_json());
                 to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
                     "speaker": "RoomChatRobot",
                     "listRecordings": catalog.as_json(),

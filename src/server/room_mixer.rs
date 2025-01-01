@@ -1,5 +1,5 @@
 use crate::{common::
-    jam_packet::{JamMessage}, 
+    jam_packet::JamMessage, 
     sound::{mixer::Mixer, channel_map::ChannelMap}
 };
 

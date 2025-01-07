@@ -30,7 +30,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 
 /// To start a broadcast component, call this function
 ///
@@ -121,10 +121,21 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         let _res = websocket::websocket_thread(&room_token, &ws_url, from_ws_tx, to_ws_rx);
     });
 
+    // create a command channel to the audio thread 
+    let (audio_cmd_tx, audio_cmd_rx): (mpsc::Sender<RoomCommandMessage>, mpsc::Receiver<RoomCommandMessage>) =
+    mpsc::channel();
+
     // Clone the websocket channel tx so the audio thread can send to it too.
     let audio_tx = to_ws_tx.clone();
     let _room_handle = thread::spawn(move || {
-        let _res = audio_thread::run(room_port, audio_tx, &at_room_token, record_tx, playback_rx, room_mode);
+        let _res = audio_thread::run(
+            room_port, 
+            audio_cmd_rx,
+            audio_tx, 
+            &at_room_token, 
+            record_tx, 
+            playback_rx, 
+            room_mode);
     });
 
     let _ping_handle = thread::spawn(move || {
@@ -174,6 +185,9 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                             playback_cmd_tx.send(cmd)?;
                         }
+                        RoomParam::SwitchRoomMode => {
+                            audio_cmd_tx.send(cmd)?;
+                        }
                         _ => {
                             dbg!(&m);
                         }
@@ -200,7 +214,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         if transport_update_timer.expired(now_time) {
             transport_update_timer.reset(now_time);
             // send transport update
-            debug!("transport status {}", dmpfile.get_status());
+            trace!("transport status {}", dmpfile.get_status());
             to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
                 "speaker": "RoomChatRobot",
                 "transportStatus": dmpfile.get_status(),

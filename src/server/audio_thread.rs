@@ -148,8 +148,14 @@ pub fn run(
                 }
             }
             Err(e) => match e.kind() {
-                ErrorKind::WouldBlock => {}
-                ErrorKind::TimedOut => {}
+                ErrorKind::WouldBlock => {
+                    // Socket timed out. advance room playback timer
+                    pback_timer.reset(now_time);
+                }
+                ErrorKind::TimedOut => {
+                    // Socket timed out. advance room playback timer
+                    pback_timer.reset(now_time);
+                }
                 other_error => {
                     panic!("my socket went nuts! {}", other_error);
                 }

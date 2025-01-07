@@ -72,7 +72,7 @@ impl PlayerList {
     /// Get a json representation of the players in the room and their current latency
     ///
     /// used to update other players in the room about the status of everybody's connection
-    pub fn get_latency(&mut self) -> serde_json::Value {
+    pub fn get_latency(&mut self, mode: bool) -> serde_json::Value {
         self.update_cnt += 1;
         let mut list: Vec<(u32, f64)> = vec![];
         for p in &self.players {
@@ -81,6 +81,7 @@ impl PlayerList {
         }
         serde_json::json!({
             "speaker": "RoomChatRobot",
+            "mode": mode,
             "latency": list,
             "update_count": self.update_cnt,
         })
@@ -169,6 +170,6 @@ mod test_playerlist {
             .expect("Unable to parse socket address");
         // Add a new player to an empty list
         plist.update_player(now_time, now_time, id, addr, 0);
-        println!("latency: {}", plist.get_latency());
+        println!("latency: {}", plist.get_latency(true));
     }
 }

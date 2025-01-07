@@ -50,7 +50,6 @@ impl RoomMixer {
         self.seq += 1;
         packet.set_server_time(now as u64);
         packet.encode_audio(&out_a, &out_b);
-        // println!("mixer: {}", self.mixer);
         packet
     }
 }

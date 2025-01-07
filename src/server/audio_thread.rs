@@ -13,20 +13,22 @@ use crate::{
     },
     server::player_list::PlayerList,
 };
+use log::{debug, error};
 use serde_json::json;
 use std::{io::ErrorKind, sync::mpsc, time::Duration};
 
-use super::room_mixer::RoomMixer;
+use super::{cmd_message::{RoomCommandMessage, RoomParam}, room_mixer::RoomMixer};
 
 const FRAME_TIME: u128 = 2_667;
 
 pub fn run(
     port: u32,
+    cmd_rx: mpsc::Receiver<RoomCommandMessage>,
     audio_tx: mpsc::Sender<WebsockMessage>,
     token: &str,
     record_tx: mpsc::Sender<JamMessage>,
     playback_rx: mpsc::Receiver<JamMessage>,
-    room_mode: bool
+    mode: bool
 ) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = sock_with_tos::new(port);
@@ -36,8 +38,28 @@ pub fn run(
     let mut latency_update_timer = MicroTimer::new(get_micro_time(), 2_000_000);
     let mut room_mixer = RoomMixer::new();
     let mut pback_timer = MicroTimer::new(get_micro_time(), FRAME_TIME);
+    let mut room_mode = mode;
 
     loop {
+        // Check for any commands
+        match cmd_rx.try_recv() {
+            Ok(m) => {
+                debug!("Audio Command message: {}", m);
+                match m.param {
+                    RoomParam::SwitchRoomMode => {
+                        room_mode = !room_mode;
+                    }
+                    _ => {
+                        error!("Unknown audio command: {}", m);
+                        // No commands to process
+                    }
+                }
+            }
+            Err(_e) => {
+                // No commands to process
+            }
+        }
+        // Read the network
         let res = sock.recv_from(msg.get_buffer());
         // get a timestamp to use
         let now_time = get_micro_time();
@@ -45,7 +67,7 @@ pub fn run(
         players.prune(now_time);
         if latency_update_timer.expired(now_time) {
             latency_update_timer.reset(now_time);
-            audio_tx.send(WebsockMessage::Chat(players.get_latency()))?;
+            audio_tx.send(WebsockMessage::Chat(players.get_latency(room_mode)))?;
             // This code flushes any stats from sessions that terminated
             while players.stat_queue.len() > 0 {
                 if let Some(stats) = players.stat_queue.pop() {
@@ -55,7 +77,6 @@ pub fn run(
                     ))?;
                 }
             }
-            // audio_tx.send(WebsockMessage::API("status".to_string(), json!({})))?;
         }
         match res {
             Ok((amt, src)) => {
@@ -65,7 +86,6 @@ pub fn run(
                 }
                 let _res = msg.set_nbytes(amt);
                 // Do this here in case client encode audio did not
-                // println!("rcv: {}", msg);
                 // Update this player with the current time
                 let mut time_diff: u128 = MAX_LOOP_TIME;
                 let packet_time = msg.get_server_time() as u128;
@@ -128,8 +148,14 @@ pub fn run(
                 }
             }
             Err(e) => match e.kind() {
-                ErrorKind::WouldBlock => {}
-                ErrorKind::TimedOut => {}
+                ErrorKind::WouldBlock => {
+                    // Socket timed out. advance room playback timer
+                    pback_timer.reset(now_time);
+                }
+                ErrorKind::TimedOut => {
+                    // Socket timed out. advance room playback timer
+                    pback_timer.reset(now_time);
+                }
                 other_error => {
                     panic!("my socket went nuts! {}", other_error);
                 }

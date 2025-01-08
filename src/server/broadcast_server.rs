@@ -30,6 +30,7 @@ use std::{
     thread::{self, sleep},
     time::Duration,
 };
+use chrono::{Local, NaiveTime, SubsecRound};
 use log::{debug, error, info, trace, warn};
 
 /// To start a broadcast component, call this function
@@ -228,11 +229,23 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
             }
         }
         // This is the timer between channel polling
-        sleep(Duration::new(0, 1_000));
+        if restart_time() {
+            std::process::exit(-1);
+        }
+        sleep(Duration::new(0, 500_000));
     }
 
     // Code won't ever get here
     // let _res = room_handle.join();
     // let _res = websocket_handle.join();
     // Ok(())
+}
+
+fn restart_time() -> bool {
+    let now = Local::now();
+    let current_time = now.time().round_subsecs(0);
+    if let Some(wee_hours) = NaiveTime::from_hms_opt(2, 07, 08) {
+        return current_time == wee_hours;
+    }
+    false
 }

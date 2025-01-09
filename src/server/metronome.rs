@@ -4,17 +4,23 @@ use crate::common::{get_micro_time, stream_time_stat::MicroTimer};
 pub struct Metronome {
     beat: u8,
     duration: MicroTimer,
+    tempo: u128,
 }
 
 impl Metronome {
     pub fn new() -> Metronome {
         Metronome {
             beat: 0,
+            tempo: 120,
             duration: MicroTimer::new(get_micro_time(), 1_000_000 * 60 / 120), // 120BPM in microseconds
         }
     }
     pub fn set_tempo(&mut self, now_time: u128,  tempo: u128) -> () {
+        self.tempo = tempo;
         self.duration = MicroTimer::new(now_time, 1_000_000 * 60 / tempo);
+    }
+    pub fn get_tempo(&self) -> u128 {
+        self.tempo
     }
     pub fn get_beat_interval(&self) -> u128 {
         self.duration.get_interval()

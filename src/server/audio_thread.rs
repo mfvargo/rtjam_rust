@@ -32,7 +32,7 @@ pub fn run(
 ) -> Result<(), BoxError> {
     // So let's create a UDP socket and listen for shit
     let sock = sock_with_tos::new(port);
-    sock.set_read_timeout(Some(Duration::new(0, 2_666_666)))?;
+    sock.set_read_timeout(Some(Duration::new(0, 6_000_000)))?;
     let mut players = PlayerList::new();
     let mut msg = JamMessage::new();
     let mut latency_update_timer = MicroTimer::new(get_micro_time(), 2_000_000);
@@ -71,7 +71,15 @@ pub fn run(
         players.prune(now_time);
         if latency_update_timer.expired(now_time) {
             latency_update_timer.reset(now_time);
-            audio_tx.send(WebsockMessage::Chat(players.get_latency(room_mode)))?;
+            audio_tx.send(WebsockMessage::Chat(
+                serde_json::json!({
+                    "speaker": "RoomChatRobot",
+                    "mode": room_mode,
+                    "latency": players.get_latency(),
+                    "update_count": players.get_update_cnt(),
+                    "tempo": met.get_tempo(),
+                })
+            ))?;
             // This code flushes any stats from sessions that terminated
             while players.stat_queue.len() > 0 {
                 if let Some(stats) = players.stat_queue.pop() {

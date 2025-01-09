@@ -119,6 +119,10 @@ impl MicroTimer {
     pub fn since(&mut self, now: u128) -> u128 {
         now - self.last_time
     }
+    /// get the current timer interval
+    pub fn get_interval(&self) -> u128 {
+        self.interval
+    }
 }
 
 #[cfg(test)]

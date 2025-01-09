@@ -21,3 +21,4 @@ pub mod jam_socket;
 pub mod jitter_buffer;
 pub mod mixer;
 pub mod param_message;
+pub mod click_track;

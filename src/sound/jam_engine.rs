@@ -108,6 +108,7 @@ pub struct JamEngine {
     room_meters: [PowerMeter; 2],
     no_loopback: bool,
     room_mutes: [bool; 2],
+    beat: u8,
 }
 
 impl SoundCallback for JamEngine {
@@ -138,7 +139,7 @@ impl SoundCallback for JamEngine {
         self.debug_output();
     }
     fn get_playback_data(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
-        self.mixer.get_mix(out_a, out_b);
+        self.mixer.get_mix(self.beat, out_a, out_b);
     }
 
     /// This will let you know if the engine is still running
@@ -196,6 +197,7 @@ impl JamEngine {
             // no_loopback = true will disable the local monitoring
             no_loopback: no_loopback,
             room_mutes: [false, false],
+            beat: 0,
         };
         // Set out client id to some rando number when not connected
         engine.xmit_message.set_client_id(4321);
@@ -291,6 +293,8 @@ impl JamEngine {
             match _res {
                 Ok(_v) => {
                     // got a network packet
+                    // we got the beat
+                    self.beat = self.recv_message.get_beat();
                     // Set the server timestamp on xmit packets to loop it back to broadcast server
                     self.xmit_message
                         .set_server_time(self.recv_message.get_server_time());
@@ -418,7 +422,9 @@ impl JamEngine {
                   "inputRightFreq": self.tuners[1].get_note(),
                   "leftTunerOn": self.tuners[0].enable,
                   "rightTunerOn": self.tuners[1].enable,
-                  "beat": 0,
+                  "beat": self.beat,
+                  "metronomeMute": self.mixer.get_metronome_mute(),
+                  "metronomeGain": self.mixer.get_metronome_gain(),
                   "jsonTimeStamp": 0,
                   "midiDevice": "not supported",
                   "players": players,
@@ -512,6 +518,14 @@ impl JamEngine {
             }
             JamParam::Disconnect => {
                 self.disconnect();
+            }
+            JamParam::MetronomeGain => {
+                // set the volume on the metronome
+                self.mixer.set_metronome_gain(msg.fvalue);
+            }
+            JamParam::MetronomeMute => {
+                // Set the mute on the metronome
+                self.mixer.set_metronome_mute(msg.ivalue_1 == 1);
             }
             JamParam::InsertPedal => {
                 let idx = msg.ivalue_1 as usize;

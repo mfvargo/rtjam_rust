@@ -8,7 +8,7 @@
 //! room members into a stereo feed for the audio output device.
 use pedal_board::{dsp::power_meter::PowerMeter, utils::{to_lin, to_db}};
 
-use super::channel_strip::ChannelStrip;
+use super::{channel_strip::ChannelStrip, click_track::ClickTrack};
 use std::fmt;
 
 pub const MIXER_CHANNELS: usize = 24;
@@ -17,6 +17,7 @@ pub struct Mixer {
     master_vol: f64,
     master_level: PowerMeter,
     strips: Vec<ChannelStrip>,
+    click: ClickTrack,
 }
 
 impl Mixer {
@@ -26,6 +27,7 @@ impl Mixer {
             master_vol: 1.0,
             strips: vec![],
             master_level: PowerMeter::new(),
+            click: ClickTrack::new(),
         };
         for _ in 0..MIXER_CHANNELS {
             mixer.strips.push(ChannelStrip::new());
@@ -92,11 +94,23 @@ impl Mixer {
     pub fn get_channel_fade(&self, idx: usize) -> f32 {
         self.strips[idx].get_fade()
     }
+    pub fn get_metronome_gain(&self) -> f64 {
+        to_db(self.click.get_gain())
+    }
+    pub fn get_metronome_mute(&self) -> bool {
+        self.click.get_mute()
+    }
+    pub fn set_metronome_gain(&mut self, gain: f64) -> () {
+        self.click.set_gain(to_lin(gain));
+    }
+    pub fn set_metronome_mute(&mut self, mute: bool) -> () {
+        self.click.set_mute(mute);
+    }
     /// get a frame of audio from the mixer.  this will
     /// - pull audio from all jitter buffers for all channels
     /// - apply channel strip fade and gain
     /// - apply master gain to final mix
-    pub fn get_mix(&mut self, out_a: &mut [f32], out_b: &mut [f32]) -> () {
+    pub fn get_mix(&mut self, beat: u8, out_a: &mut [f32], out_b: &mut [f32]) -> () {
         // Zero out the out buffer
         for i in 0..out_a.len() {
             out_a[i] = 0.0;
@@ -106,6 +120,7 @@ impl Mixer {
         for chan in &mut self.strips {
             chan.mix_into(out_a, out_b);
         }
+        self.click.mix_into(beat, out_a, out_b);
         // Apply Master Volume
         for i in 0..out_a.len() {
             out_a[i] = out_a[i] * self.master_vol as f32;

@@ -17,7 +17,7 @@ use log::{debug, error};
 use serde_json::json;
 use std::{io::ErrorKind, sync::mpsc, time::Duration};
 
-use super::{cmd_message::{RoomCommandMessage, RoomParam}, room_mixer::RoomMixer};
+use super::{cmd_message::{RoomCommandMessage, RoomParam}, metronome::Metronome, room_mixer::RoomMixer};
 
 const FRAME_TIME: u128 = 2_667;
 
@@ -39,8 +39,11 @@ pub fn run(
     let mut room_mixer = RoomMixer::new();
     let mut pback_timer = MicroTimer::new(get_micro_time(), FRAME_TIME);
     let mut room_mode = mode;
-
+    let mut met = Metronome::new();
     loop {
+        // get a timestamp to use
+        let now_time = get_micro_time();
+
         // Check for any commands
         match cmd_rx.try_recv() {
             Ok(m) => {
@@ -48,6 +51,9 @@ pub fn run(
                 match m.param {
                     RoomParam::SwitchRoomMode => {
                         room_mode = !room_mode;
+                    }
+                    RoomParam::SetTempo => {
+                        met.set_tempo(now_time, m.ivalue_1 as u128);
                     }
                     _ => {
                         error!("Unknown audio command: {}", m);
@@ -61,8 +67,6 @@ pub fn run(
         }
         // Read the network
         let res = sock.recv_from(msg.get_buffer());
-        // get a timestamp to use
-        let now_time = get_micro_time();
         // update the player list
         players.prune(now_time);
         if latency_update_timer.expired(now_time) {
@@ -102,6 +106,8 @@ pub fn run(
 
                 // set the server timestamp
                 msg.set_server_time(now_time as u64);
+                let beat = met.get_beat(now_time);
+                msg.set_beat(beat);
 
                 if room_mode {
                     room_mixer.add_a_packet(now_time, &msg);
@@ -109,7 +115,8 @@ pub fn run(
                     // Clock out the room mix
                     while pback_timer.expired(now_time) {
                         pback_timer.advance(FRAME_TIME);
-                        let p = room_mixer.get_a_packet(now_time);
+                        let mut p = room_mixer.get_a_packet(now_time);
+                        p.set_beat(beat);
                         for player in players.get_players() {
                             sock.send_to(p.get_send_buffer(), player.address)?;
                         }
@@ -151,10 +158,12 @@ pub fn run(
                 ErrorKind::WouldBlock => {
                     // Socket timed out. advance room playback timer
                     pback_timer.reset(now_time);
+                    met.reset_time(now_time);
                 }
                 ErrorKind::TimedOut => {
                     // Socket timed out. advance room playback timer
                     pback_timer.reset(now_time);
+                    met.reset_time(now_time);
                 }
                 other_error => {
                     panic!("my socket went nuts! {}", other_error);

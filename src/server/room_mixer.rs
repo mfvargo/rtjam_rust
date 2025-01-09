@@ -43,7 +43,7 @@ impl RoomMixer {
         // Mix out a packet
         let mut out_a: [f32; 128] = [0.0; 128];
         let mut out_b: [f32; 128] = [0.0; 128];
-        self.mixer.get_mix(&mut out_a, &mut out_b);
+        self.mixer.get_mix(0, &mut out_a, &mut out_b);
         let mut packet = JamMessage::new();
         packet.set_client_id(40002);
         packet.set_sequence_num(self.seq);

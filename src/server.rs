@@ -6,3 +6,4 @@ pub mod player_list;
 pub mod playback_thread;
 pub mod room_mixer;
 pub mod ping_thread;
+pub mod metronome;

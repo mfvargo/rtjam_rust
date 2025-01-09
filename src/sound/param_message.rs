@@ -50,6 +50,8 @@ pub enum JamParam {
     SetBufferSize,  // Changes the framesize (experimental for Joel, did not help)
     ChannelMute,  // Set the must stus on a channel
     ChannelGain,  // Set the channel gain (replaces ChanGain1-14)
+    MetronomeGain, // Set the gain on the metronome
+    MetronomeMute, // Mute/unMute metronome
     Count,  // Count of basic apis  (not really used)
     SetAudioInput = 1000,
     SetAudioOutput,
@@ -158,7 +160,7 @@ impl fmt::Display for ParamMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{ param: {}, ival_1: {}, ival_2: {}, fval: {} sval: {} }}",
+            "{{ param: {}, ivalue_1: {}, ivalue_2: {}, fvalue: {} svalue: {} }}",
             ToPrimitive::to_i64(&self.param).unwrap(),
             self.ivalue_1,
             self.ivalue_2,

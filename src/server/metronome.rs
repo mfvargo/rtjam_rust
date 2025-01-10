@@ -16,8 +16,10 @@ impl Metronome {
         }
     }
     pub fn set_tempo(&mut self, now_time: u128,  tempo: u128) -> () {
-        self.tempo = tempo;
-        self.duration = MicroTimer::new(now_time, 1_000_000 * 60 / tempo);
+        if tempo > 0 {
+            self.tempo = tempo;
+            self.duration = MicroTimer::new(now_time, 1_000_000 * 60 / tempo);
+        }
     }
     pub fn get_tempo(&self) -> u128 {
         self.tempo

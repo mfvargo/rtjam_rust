@@ -186,11 +186,8 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                             playback_cmd_tx.send(cmd)?;
                         }
-                        RoomParam::SwitchRoomMode => {
-                            audio_cmd_tx.send(cmd)?;
-                        }
                         _ => {
-                            dbg!(&m);
+                            audio_cmd_tx.send(cmd)?;
                         }
                     },
                     Err(e) => {

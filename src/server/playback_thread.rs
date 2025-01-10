@@ -89,7 +89,7 @@ impl PlaybackMixer {
             stream: None,
             seq: 0,
         };
-        mixer.mixer.set_master(to_lin(-3.0));
+        mixer.mixer.set_master(to_lin(-9.0));
         mixer
     }
 

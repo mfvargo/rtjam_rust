@@ -150,7 +150,8 @@ pub fn run(
                 let mut playing = true;
                 while playing {
                     match playback_rx.try_recv() {
-                        Ok(m) => {
+                        Ok(mut m) => {
+                            m.set_beat(beat);
                             // need to broadcast message
                             for player in players.get_players() {
                                 sock.send_to(m.get_send_buffer(), player.address)?;

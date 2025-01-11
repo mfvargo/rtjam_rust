@@ -6,7 +6,6 @@ use crate::{
     common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer},
     server::cmd_message::RoomParam,
     sound::{channel_map::ChannelMap, mixer::Mixer},
-    utils::to_lin
 };
 
 use super::cmd_message::RoomCommandMessage;
@@ -89,7 +88,7 @@ impl PlaybackMixer {
             stream: None,
             seq: 0,
         };
-        mixer.mixer.set_master(to_lin(-9.0));
+        mixer.mixer.set_master(-9.0);
         mixer
     }
 

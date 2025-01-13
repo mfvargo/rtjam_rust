@@ -53,7 +53,7 @@ pub fn run(
                         room_mode = !room_mode;
                     }
                     RoomParam::SetTempo => {
-                        met.set_tempo(now_time, m.ivalue_1 as u128);
+                        met.set_tempo(m.ivalue_1 as u128);
                     }
                     _ => {
                         error!("Unknown audio command: {}", m);
@@ -167,12 +167,10 @@ pub fn run(
                 ErrorKind::WouldBlock => {
                     // Socket timed out. advance room playback timer
                     pback_timer.reset(now_time);
-                    met.reset_time(now_time);
                 }
                 ErrorKind::TimedOut => {
                     // Socket timed out. advance room playback timer
                     pback_timer.reset(now_time);
-                    met.reset_time(now_time);
                 }
                 other_error => {
                     panic!("my socket went nuts! {}", other_error);

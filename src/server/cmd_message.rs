@@ -18,6 +18,7 @@ pub enum RoomParam {
     DeleteRecording,
     Loop,
     SwitchRoomMode,
+    Seek,
 }
 /// The RoomCommandMessage is used to define the API to the room component from the outside
 /// world.

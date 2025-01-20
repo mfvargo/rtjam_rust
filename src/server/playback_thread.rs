@@ -1,6 +1,6 @@
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use log::info;
+use log::{info, warn};
 
 use crate::{
     common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer},
@@ -41,10 +41,11 @@ pub fn run(
         }
         match mixer.load_up_till_now(now) {
             Ok(()) => {}
-            Err(e) => {
-                dbg!(e);
+            Err(_e) => {
+                // dbg!(e);
                 // Probably was end of file.  stop playback
                 mixer.close_stream();
+                // let _err = mixer.seek_to(now, 0);
             }
         }
         // Check for a command before looping again.
@@ -54,13 +55,19 @@ pub fn run(
                 match m.param {
                     RoomParam::Play => {
                         let file = format!("recs/{}", m.svalue);
-                        match mixer.open_stream(&file, now) {
+                        match mixer.open_stream(&file, now, m.ivalue_1.clamp(0, 100) as usize) {
                             Ok(()) => {}
-                            Err(e) => {dbg!(e);}
+                            Err(e) => { warn!("open error {:?}", e); }
                         }
                     }
                     RoomParam::Stop => {
                         mixer.close_stream();
+                    }
+                    RoomParam::Seek => {
+                        match mixer.seek_to(now, m.ivalue_1 as usize) {
+                            Ok(()) => {}
+                            Err(e) => { warn!("seek error {:?}", e); }
+                        }
                     }
                     _ => {}
                 }
@@ -126,15 +133,25 @@ impl PlaybackMixer {
         // }
     }
 
-    pub fn open_stream(&mut self, file_name: &str, now: u128) -> Result<(), BoxError> {
+    pub fn open_stream(&mut self, file_name: &str, now: u128, loc: usize) -> Result<(), BoxError> {
         self.chan_map.clear();
         // TODO:  Flush out any data in the mixer  (channels to jitterbuffer) self.mixer.clear();
         self.seq = 0;
         self.stream = Some(PacketReader::new(file_name, now)?);
+        self.seek_to(now, loc)?;
         Ok(())
     }
     pub fn close_stream(&mut self) {
         self.stream = None;
+    }
+    pub fn seek_to(&mut self, now: u128, loc: usize) -> Result<(), BoxError> {
+        match self.stream {
+            Some(ref mut r) => {
+                r.seek_to(now, loc)?;
+            }
+            None => {}
+        }
+        Ok(())
     }
 
     pub fn micros_till_packet(&self, now: u128) -> u128 {

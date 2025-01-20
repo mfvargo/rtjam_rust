@@ -1,4 +1,4 @@
-use std::{fs::File, io::{Write, Read}};
+use std::{fs::File, io::{Read, Seek, SeekFrom, Write}};
 
 use chrono::{DateTime, Local};
 use serde_json::Value;
@@ -6,6 +6,7 @@ use serde_json::Value;
 use super::{box_error::BoxError, jam_packet::{JamMessage, JAM_HEADER_SIZE}};
 
 const MAX_FILE_SIZE: usize = 1 * 1024 * 1024 * 1024;  // 1 Gig max file size
+const CHUNK_SIZE: usize = JAM_HEADER_SIZE + 512;   // Size of each network chunk
 
 pub struct PacketWriter {
     file: File,
@@ -52,6 +53,7 @@ impl PacketWriter {
 
 pub struct PacketReader {
     file: File,
+    file_chunks: usize,
     offset: usize,
     packet: JamMessage,
     pub now_offset: u128,
@@ -60,8 +62,12 @@ pub struct PacketReader {
 impl PacketReader {
     // Open a packet dump file and read in the first packet
     pub fn new(filename: &str, now: u128) -> Result<PacketReader, BoxError> {
+        let file = File::open(filename)?;
+        let metadata = file.metadata()?;
+        let size = metadata.len() as usize / CHUNK_SIZE;
         let mut reader = PacketReader {
-            file: File::open(filename)?,
+            file: file,
+            file_chunks: size,
             offset: 0,
             packet: JamMessage::new(),
             now_offset: 0,
@@ -78,6 +84,13 @@ impl PacketReader {
         self.file.read_exact(self.packet.get_audio_space(size))?;
         self.packet.set_nbytes(JAM_HEADER_SIZE + size)?;
         self.offset += self.packet.get_nbytes();
+        Ok(())
+    }
+
+    pub fn seek_to(&mut self, now: u128, loc: usize) -> Result<(), BoxError> {
+        self.file.seek(SeekFrom::Start((self.file_chunks * loc / 100 * CHUNK_SIZE) as u64))?;
+        self.read_packet()?;
+        self.now_offset = now - self.packet.get_server_time() as u128;
         Ok(())
     }
 
@@ -136,7 +149,7 @@ mod stream_test {
         let mut party2 = make_a_packet(now + 1000);
         party2.set_client_id(40044);
         party2.set_sequence_num(444);
-        for _i in 0..10 {
+        for _i in 0..1000 {
             party1.set_server_time(party1.get_server_time() + 2666);
             party1.set_sequence_num(party1.get_sequence_num() + 1);
             writer.write_message(&party1).unwrap();
@@ -176,7 +189,7 @@ mod stream_test {
         let now = get_micro_time();
         // Make a file that was recorded 10 seconds ago...
         make_a_test_file("tmp/test_audio.dmp", now - 10_000_000);
-        // we have a file now with 20 packets in it from two players now spaced out at 2666 microseconds
+        // we have a file now with 2000 packets in it from two players now spaced out at 2666 microseconds
         let mut reader = PacketReader::new("tmp/test_audio.dmp", now).unwrap();
         println!("reader has offset: {}", reader.now_offset);
         // If we read it now, we should not get any data
@@ -196,5 +209,22 @@ mod stream_test {
         packet = reader.read_up_to(now + 1667).unwrap();
         print_packet(&packet);
         assert!(packet.is_none());
+    }
+
+    #[test]
+    fn seek_on_reader() {
+        let now = get_micro_time();
+        // Make a file that was recorded 100 seconds ago...
+        make_a_test_file("tmp/test_audio.dmp", now - 100_000_000);
+        // we have a file now with 2000 packets in it from two players now spaced out at 2666 microseconds
+        let mut reader = PacketReader::new("tmp/test_audio.dmp", now).unwrap();
+        // Lets go 50% through the file
+        reader.seek_to(now, 50).unwrap();
+        let mut packet = reader.read_up_to(now - 1).unwrap();
+        // Even though we are at 50%, there is no packet for now - 1
+        assert!(packet.is_none());
+        packet = reader.read_up_to(now + 1667).unwrap();
+        print_packet(&packet);
+        assert!(packet.is_some());
     }
 }

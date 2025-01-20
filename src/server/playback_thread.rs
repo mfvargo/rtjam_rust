@@ -41,7 +41,7 @@ pub fn run(
         }
         match mixer.load_up_till_now(now) {
             Ok(()) => {}
-            Err(e) => {
+            Err(_e) => {
                 // dbg!(e);
                 // Probably was end of file.  stop playback
                 mixer.close_stream();
@@ -55,7 +55,7 @@ pub fn run(
                 match m.param {
                     RoomParam::Play => {
                         let file = format!("recs/{}", m.svalue);
-                        match mixer.open_stream(&file, now) {
+                        match mixer.open_stream(&file, now, m.ivalue_1.clamp(0, 100) as usize) {
                             Ok(()) => {}
                             Err(e) => { warn!("open error {:?}", e); }
                         }
@@ -133,11 +133,12 @@ impl PlaybackMixer {
         // }
     }
 
-    pub fn open_stream(&mut self, file_name: &str, now: u128) -> Result<(), BoxError> {
+    pub fn open_stream(&mut self, file_name: &str, now: u128, loc: usize) -> Result<(), BoxError> {
         self.chan_map.clear();
         // TODO:  Flush out any data in the mixer  (channels to jitterbuffer) self.mixer.clear();
         self.seq = 0;
         self.stream = Some(PacketReader::new(file_name, now)?);
+        self.seek_to(now, loc)?;
         Ok(())
     }
     pub fn close_stream(&mut self) {

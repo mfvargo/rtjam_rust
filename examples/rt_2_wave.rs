@@ -29,7 +29,7 @@ fn main() -> Result<(), BoxError> {
     // So if we get here, we got the input and output files
     let mut mixer = PlaybackMixer::new();
     let mut now = get_micro_time();
-    match mixer.open_stream(&args.in_file, now) {
+    match mixer.open_stream(&args.in_file, now, 0) {
         Ok(()) => {}
         Err(e) => {dbg!(e);}
     }

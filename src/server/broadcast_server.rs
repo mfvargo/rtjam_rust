@@ -186,6 +186,9 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                             }
                             playback_cmd_tx.send(cmd)?;
                         }
+                        RoomParam::Seek => {
+                            playback_cmd_tx.send(cmd)?;
+                        }
                         _ => {
                             audio_cmd_tx.send(cmd)?;
                         }

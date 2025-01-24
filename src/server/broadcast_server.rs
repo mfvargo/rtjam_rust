@@ -95,6 +95,10 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     }
     let at_room_token = room_token.clone();
 
+    // Let's create a mpsc channel to send messages to the websocket
+    let (to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
+        mpsc::channel();
+        
     // Let's create a mpsc stream for capturing room output
     let (record_tx, record_rx): (mpsc::Sender<JamMessage>, mpsc::Receiver<JamMessage>) =
         mpsc::channel();
@@ -104,16 +108,17 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     // Let's create a mpsc stream for playback thread commands
     let (playback_cmd_tx, playback_cmd_rx): (mpsc::Sender<RoomCommandMessage>, mpsc::Receiver<RoomCommandMessage>) =
     mpsc::channel();
+    // Clone the ws_tx channel so the playback thread can send playback status messages
+    let pback_ws_tx = to_ws_tx.clone();
     // Create playback thread
     let _playback_handle = thread::spawn(move || {
         let _res = playback_thread::run(
+            pback_ws_tx,
             playback_cmd_rx, 
             playback_tx);
     });
 
     // Now we have the token, we can pass it to the websocket thread along with the websocket url
-    let (to_ws_tx, to_ws_rx): (mpsc::Sender<WebsockMessage>, mpsc::Receiver<WebsockMessage>) =
-        mpsc::channel();
     let (from_ws_tx, from_ws_rx): (
         mpsc::Sender<serde_json::Value>,
         mpsc::Receiver<serde_json::Value>,

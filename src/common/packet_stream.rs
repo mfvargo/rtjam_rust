@@ -76,6 +76,9 @@ impl PacketReader {
         reader.now_offset = now - reader.packet.get_server_time() as u128;
         Ok(reader)
     }
+    pub fn get_position(&self) -> usize {
+        (self.offset * 100 / (CHUNK_SIZE * self.file_chunks)).clamp(0, 100)
+    }
 
     pub fn read_packet(&mut self) -> Result<(), BoxError> {
         // read the header

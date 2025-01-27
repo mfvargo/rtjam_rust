@@ -112,15 +112,17 @@ impl PlaybackMixer {
         mixer
     }
     pub fn get_status(&self) -> Value {
-        let mut state = "idle";
-        let mut offset = 0;
         if let Some(ref stream) = self.stream {
-            state = "playing";
-            offset = stream.get_position();
+            return stream.get_status();
         }
         serde_json::json!({
-            "state": state,
-            "offset": offset,
+            "state": "idle",
+            "offset": 0,
+            "file": {
+                "name": "",
+                "date": "",
+                "size": 0,
+            },
         })
     }
 

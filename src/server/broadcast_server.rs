@@ -158,7 +158,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         match res {
             Ok(m) => {
                 // This is where we listen for commands from the room to do stuff.
-                debug!("websocket message: {}", m.to_string());
+                info!("websocket message: {}", m.to_string());
                 transport_update_timer.reset(0);
                 match RoomCommandMessage::from_json(&m) {
                     Ok(mut cmd) => match cmd.param {
@@ -223,7 +223,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
             trace!("transport status {}", dmpfile.get_status());
             to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
                 "speaker": "RoomChatRobot",
-                "transportStatus": dmpfile.get_status(),
+                "recordingStatus": dmpfile.get_status(),
             })))?;
             if catalog.is_dirty() {
                 debug!("updating recording catalog {}", catalog.as_json());

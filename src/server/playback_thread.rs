@@ -1,9 +1,10 @@
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use log::{info, warn};
+use log::{info, trace, warn};
+use serde_json::Value;
 
 use crate::{
-    common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer},
+    common::{box_error::BoxError, get_micro_time, jam_packet::JamMessage, packet_stream::PacketReader, stream_time_stat::MicroTimer, websock_message::WebsockMessage},
     server::cmd_message::RoomParam,
     sound::{channel_map::ChannelMap, mixer::Mixer},
 };
@@ -15,6 +16,7 @@ const FRAME_TIME: u128 = 2_667;
 /// It will collect recorded packets from a file, push them into a mixer (all flat settings),
 /// then pull them out of the Mixer into a new packet that gets pumped to the audio_thread.
 pub fn run(
+    to_ws_tx: mpsc::Sender<WebsockMessage>,
     cmd_rx: mpsc::Receiver<RoomCommandMessage>,
     packet_tx: mpsc::Sender<JamMessage>
 ) -> Result<(), BoxError> {
@@ -22,6 +24,8 @@ pub fn run(
     let mut mixer = PlaybackMixer::new();
     let mut now = get_micro_time();
     let mut pback_timer = MicroTimer::new(now, FRAME_TIME);
+    let mut transport_update_timer = MicroTimer::new(now, 333_000);
+
     loop {
         let mut nanos = (FRAME_TIME - pback_timer.since(now)) * 1000;
         nanos = nanos.clamp(0,100_000);
@@ -38,6 +42,15 @@ pub fn run(
                     // Nothing to send
                 }
             }
+        }
+        if transport_update_timer.expired(now) {
+            transport_update_timer.reset(now);
+            // send transport update
+            trace!("playback status {}", mixer.get_status());
+            to_ws_tx.send(WebsockMessage::Chat(serde_json::json!({
+                "speaker": "RoomChatRobot",
+                "playbackStatus": mixer.get_status(),
+            })))?;
         }
         match mixer.load_up_till_now(now) {
             Ok(()) => {}
@@ -97,6 +110,20 @@ impl PlaybackMixer {
         };
         mixer.mixer.set_master(-9.0);
         mixer
+    }
+    pub fn get_status(&self) -> Value {
+        if let Some(ref stream) = self.stream {
+            return stream.get_status();
+        }
+        serde_json::json!({
+            "state": "idle",
+            "offset": 0,
+            "file": {
+                "name": "",
+                "date": "",
+                "size": 0,
+            },
+        })
     }
 
     pub fn get_a_packet(&mut self, now: u128) -> Option<JamMessage> {

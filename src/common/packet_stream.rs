@@ -41,7 +41,7 @@ impl PacketWriter {
         let s: String = t.to_rfc2822();
         serde_json::json!({
             "state": state,
-            "current_file": {
+            "file": {
                 "name": self.filename,
                 "date": s,
                 "size": metadata.len(),
@@ -53,6 +53,7 @@ impl PacketWriter {
 
 pub struct PacketReader {
     file: File,
+    filename: String,
     file_chunks: usize,
     offset: usize,
     packet: JamMessage,
@@ -67,6 +68,7 @@ impl PacketReader {
         let size = metadata.len() as usize / CHUNK_SIZE;
         let mut reader = PacketReader {
             file: file,
+            filename: filename.to_string(),
             file_chunks: size,
             offset: 0,
             packet: JamMessage::new(),
@@ -76,7 +78,24 @@ impl PacketReader {
         reader.now_offset = now - reader.packet.get_server_time() as u128;
         Ok(reader)
     }
-
+    pub fn get_position(&self) -> usize {
+        (self.offset * 100 / (CHUNK_SIZE * self.file_chunks)).clamp(0, 100)
+    }
+    pub fn get_status(&self) -> Value {
+        let metadata = self.file.metadata().unwrap();
+        let t: DateTime<Local> = metadata.modified().unwrap().into();
+        let s: String = t.to_rfc2822();
+        serde_json::json!({
+            "state": "playing",
+            "offset": self.get_position(),
+            "file": {
+                "name": self.filename,
+                "date": s,
+                "size": metadata.len(),
+                "capacity": metadata.len() as f64 / MAX_FILE_SIZE as f64 * 100.0,
+            }
+        })
+    }
     pub fn read_packet(&mut self) -> Result<(), BoxError> {
         // read the header
         self.file.read_exact(self.packet.get_header())?;

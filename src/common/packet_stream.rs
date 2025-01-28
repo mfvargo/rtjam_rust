@@ -107,7 +107,8 @@ impl PacketReader {
     }
 
     pub fn seek_to(&mut self, now: u128, loc: usize) -> Result<(), BoxError> {
-        self.file.seek(SeekFrom::Start((self.file_chunks * loc / 100 * CHUNK_SIZE) as u64))?;
+        self.offset = self.file_chunks * loc / 100 * CHUNK_SIZE;
+        self.file.seek(SeekFrom::Start(self.offset as u64))?;
         self.read_packet()?;
         self.now_offset = now - self.packet.get_server_time() as u128;
         Ok(())

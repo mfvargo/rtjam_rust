@@ -1,6 +1,7 @@
 //! module to organized the recording of room contents to files
 use super::box_error::BoxError;
 use chrono::{DateTime, Local};
+use log::info;
 use serde_json::Value;
 use simple_error::bail;
 use std::{fs::read_dir, path::Path, time::SystemTime};
@@ -71,16 +72,29 @@ impl RecordingCatalog {
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
-    pub fn add_file(&mut self, filename: &str) -> () {
-        let t: DateTime<Local> = SystemTime::now().into();
-        let s: String = t.format("%H:%M:%S").to_string();
-        let _res = std::fs::copy(
-            filename, 
-            format!("recs/audio_{}.raw", s));
+    pub fn has_file(&self, name: &str) -> bool {
+        if let Some(_position) = self.recordings.iter().position(|x| x.file_name == name) {
+            true
+        } else {
+            false
+        }
+    }
+    pub fn add_file(&mut self, from: &str, to: &str) -> () {
+        let mut to_file: String = to.to_string();
+        let mut count = 1;
+        while self.has_file(&to_file) {
+            to_file = format!("{}_{}", to, count);
+            count += 1;
+        }
+        let res = std::fs::copy(
+            from,
+            format!("{}/{}", self.path, to_file.as_str())
+        );
+        info!("copy result: {:?}", res);
         self.dirty = true;
     }
     pub fn delete_file(&mut self, filename: &str) -> () {
-        let _res = std::fs::remove_file(format!("recs/{}", filename));
+        let _res = std::fs::remove_file(format!("{}/{}", self.path, filename));
         self.dirty = true;
     }
     pub fn len(&self) -> usize {
@@ -99,23 +113,46 @@ impl RecordingCatalog {
 #[cfg(test)]
 mod recording_test {
 
+    use std::fs::OpenOptions;
+
     use super::*;
 
+ 
+    fn touch(path: &str) -> std::io::Result<()> {
+        let _file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(path)?;
+        Ok(())
+    }
+    fn build_catalog() -> RecordingCatalog {
+        let _res = std::fs::remove_dir_all("test_catalog");
+        std::fs::create_dir("test_catalog").unwrap();
+        touch("test_catalog/test1.raw").unwrap();
+        touch("test_catalog/test2.raw").unwrap();
+        RecordingCatalog::new("test_catalog").unwrap()
+    }
     #[test]
-    fn should_build() {
-        if let Ok(cat) = RecordingCatalog::new("test_catalog") {
-            assert_eq!(cat.path, "test_catalog");
-            assert_eq!(cat.len(), 2);
-        } else {
-            assert!(true);
-        }
+    fn should_find() {
+        let cat = build_catalog();
+        let rec = cat.recordings.get(0).unwrap();
+        assert!(cat.has_file(rec.file_name.as_str()));
+        assert!(!cat.has_file("bogus_name_not_there.raw"));
+    }
+    #[test]
+    fn should_add() {
+        let mut cat = build_catalog();
+        let rec = cat.recordings.get(0).unwrap();
+        let count = cat.len();
+        let dup_file = rec.file_name.clone();
+        cat.add_file(format!("{}/{}", "test_catalog", dup_file).as_str(), &dup_file);
+        cat.load_recordings().unwrap();
+        assert_eq!(cat.len(), count + 1);
+        assert!(cat.has_file(dup_file.as_str()));
     }
     #[test]
     fn should_json() {
-        if let Ok(mut cat) = RecordingCatalog::new("test_catalog") {
-            println!("as_json: {}", cat.as_json());
-        } else {
-            assert!(true);
-        }
+        let mut cat = build_catalog();
+        println!("as_json: {}", cat.as_json());
     }
 }

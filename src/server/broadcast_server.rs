@@ -175,7 +175,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                         }
                         RoomParam::SaveRecording => {
                             // Copy audio.dmp into the catalog
-                            catalog.add_file("audio.dmp");
+                            catalog.add_file("audio.dmp", &cmd.svalue);
                             dmpfile = PacketWriter::new("audio.dmp")?;
                         }
                         RoomParam::DeleteRecording => {

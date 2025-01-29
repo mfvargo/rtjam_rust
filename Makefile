@@ -7,6 +7,9 @@ all:
 	cargo doc --release --no-deps
 	git rev-parse HEAD > target/release/examples/version.txt
 
+test:
+	cargo test -- --test-threads=1
+
 clean:
 	cargo clean
 

@@ -686,13 +686,19 @@ mod init_api_connection {
         assert!(result.unwrap() == 4, "Expected total try value of 4");
     }
 
-    #[test]
-    fn test_init_api_connection_register_fail() {
-        let mut mock = MockJamNationApi::new(1, true); // Set failure count to 1 and register failure flag to true
-        let result = init_api_connection(&mut mock);
-        assert!(result.is_err(), "Expected Err after 1 initial and 1 retry");
-        assert_eq!(result.unwrap_err().to_string(), "Mock register failure");
-    }
+    // This test is commented out because the mock does not match the behavior.  The expected behavior is that the init_call will 
+    // Keep trying until it gets a token.  The mock will return a token on the first call.  This is a test that is not possible with the current mock.
+    // The reason for this is that the broadcast server might come up when the rtjam-nation server is down.  Having the init fail will cause the app 
+    // to exit.  systemctl will restart it immediately but it will again fail.  So the app will never start.  The correct behavior is to keep trying
+    // indefinitely until the rtjam-nation server comes up.
+    
+    // #[test]
+    // fn test_init_api_connection_register_fail() {
+    //     let mut mock = MockJamNationApi::new(1, true); // Set failure count to 1 and register failure flag to true
+    //     let result = init_api_connection(&mut mock);
+    //     assert!(result.is_err(), "Expected Err after 1 initial and 1 retry");
+    //     assert_eq!(result.unwrap_err().to_string(), "Mock register failure");
+    // }
 }
 
 // mod init_hardware_control {

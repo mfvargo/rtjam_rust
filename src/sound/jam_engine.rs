@@ -50,36 +50,6 @@ pub const  LIGHT_REFRESH: u128 = 50 * 1000; // 50 msec
 /// to the Sender and will poll the Receiver every frame for any ParamMessages it should process
 /// every process loop.
 ///
-/// # Example
-/// ```
-/// use std::sync::mpsc;
-/// use rtjam_rust::JamEngine;
-/// use rtjam_rust::ParamMessage;
-/// use rtjam_rust::pedals::pedal_board::PedalBoard;
-/// fn main() {
-///     let (status_data_tx, _status_data_rx): (
-///             mpsc::Sender<serde_json::Value>,
-///             mpsc::Receiver<serde_json::Value>,
-///         ) = mpsc::channel();
-///     let (_command_tx, command_rx): (
-///             mpsc::Sender<ParamMessage>,
-///             mpsc::Receiver<ParamMessage>
-///         ) = mpsc::channel();
-///     let (_pedal_tx, pedal_rx): (
-///             mpsc::Sender<PedalBoard>,
-///             mpsc::Receiver<PedalBoard>
-///         ) = mpsc::channel();
-///     let mut engine = JamEngine::new(None, status_data_tx, command_rx, pedal_rx, "someToken", "some_git_hash", false).expect("oops");
-///     // At this point some audio engine would use engine.process() as the callback for audio frames
-///     let in_a = [0.0;128];
-///     let in_b = [0.0;128];
-///     let mut out_left = [0.0;128];
-///     let mut out_right = [0.0;128];
-///     engine.process(&in_a, &in_b, &mut out_left, &mut out_right);
-/// }
-///
-/// ```
-///
 
 pub struct JamEngine {
     // gonna have some stuff

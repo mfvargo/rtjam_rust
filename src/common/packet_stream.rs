@@ -1,6 +1,7 @@
-use std::{fs::File, io::{Read, Seek, SeekFrom, Write}};
+use std::{fs::File, io::{Read, Seek, SeekFrom, Write}, path::Path};
 
 use chrono::{DateTime, Local};
+use log::info;
 use serde_json::Value;
 
 use super::{box_error::BoxError, jam_packet::{JamMessage, JAM_HEADER_SIZE}};
@@ -64,11 +65,12 @@ impl PacketReader {
     // Open a packet dump file and read in the first packet
     pub fn new(filename: &str, now: u128) -> Result<PacketReader, BoxError> {
         let file = File::open(filename)?;
+        let name = Path::new(filename).file_name().unwrap().to_str().unwrap();
         let metadata = file.metadata()?;
         let size = metadata.len() as usize / CHUNK_SIZE;
         let mut reader = PacketReader {
             file: file,
-            filename: filename.to_string(),
+            filename: name.to_string(),
             file_chunks: size,
             offset: 0,
             packet: JamMessage::new(),
@@ -85,6 +87,7 @@ impl PacketReader {
         let metadata = self.file.metadata().unwrap();
         let t: DateTime<Local> = metadata.modified().unwrap().into();
         let s: String = t.to_rfc2822();
+        info!("offset: {}", self.offset);
         serde_json::json!({
             "state": "playing",
             "offset": self.get_position(),

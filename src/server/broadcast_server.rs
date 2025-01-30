@@ -163,6 +163,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
                 match RoomCommandMessage::from_json(&m) {
                     Ok(mut cmd) => match cmd.param {
                         RoomParam::Record => {
+                            dmpfile = PacketWriter::new("audio.dmp")?;
                             dmpfile.is_writing = true;
                         }
                         RoomParam::Stop => {

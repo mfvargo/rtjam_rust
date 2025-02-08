@@ -51,6 +51,7 @@ pub fn run(
                 match m.param {
                     RoomParam::SwitchRoomMode => {
                         room_mode = !room_mode;
+                        pback_timer.reset(now_time);
                     }
                     RoomParam::SetTempo => {
                         met.set_tempo(m.ivalue_1 as u128);

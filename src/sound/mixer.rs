@@ -129,6 +129,15 @@ impl Mixer {
         // get the output volume
         self.master_level.add_frame(out_a, self.master_vol);
     }
+
+    pub fn get_chan_mix(&mut self, chan: usize, out_a: &mut [f32], out_b: &mut [f32]) -> () {
+        if chan > MIXER_CHANNELS {
+            return;
+        }
+        // get the mix
+        self.strips[chan].mix_into(out_a, out_b);
+    }
+
     /// call this to stuff data into one of the channels jitter buffer
     pub fn add_to_channel(&mut self, chan_no: usize, audio: &[f32]) -> () {
         if chan_no > MIXER_CHANNELS {

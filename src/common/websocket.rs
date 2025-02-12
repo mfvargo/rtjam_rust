@@ -1,5 +1,5 @@
 //! Thread used to read/write messages to/from the room abstract in rtjam-nation
-use log::{error, trace};
+use log::{error, info, trace};
 use serde_json::Value;
 
 use crate::common::box_error::BoxError;
@@ -23,7 +23,7 @@ pub fn websocket_thread(
     ws_tx: mpsc::Sender<Value>,            // channel to main thread
     ws_rx: mpsc::Receiver<WebsockMessage>, // channel from main thread
 ) -> Result<(), BoxError> {
-    println!("websocket::websocket_thread - Running websocket_thread with token: {}, ws_url: {}", token, ws_url);
+    info!("websocket::websocket_thread - Running websocket_thread with token: {}, ws_url: {}", token, ws_url);
     loop {
         match Room::new(token, ws_url) {
             Ok(mut room) => {

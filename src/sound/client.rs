@@ -98,6 +98,11 @@ pub fn run(
 
     // Initialize hardware control channels and thread if needed
     let (light_option, _hw_handle) = init_hardware_control()?;
+    // TODO:  This sleep is here so that the codec initialization that happens in the hardware control
+    // thread does not blow up the alsa i/o thread.  So need to figure out a way to synchronize this thread to run 
+    // the codec is initialized.  Somehow this codec init does not blow up jackd 
+    //
+    sleep(Duration::new( 1, 0));
     debug!("client::run - hardware control established");
 
     // Initialize audio engine channels

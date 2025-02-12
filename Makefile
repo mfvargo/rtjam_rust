@@ -4,8 +4,10 @@ RTJAM_HOME=/home/pi/rtjam
 all:
 	cargo build --package rtjam_rust --examples --release
 	cargo build --examples --release
-	cargo doc --release --no-deps
 	git rev-parse HEAD > target/release/examples/version.txt
+
+doc:
+	cargo doc --release --no-deps
 
 test:
 	cargo test -- --test-threads=1

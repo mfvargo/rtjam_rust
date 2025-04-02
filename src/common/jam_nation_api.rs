@@ -120,9 +120,10 @@ impl JamNationApi {
         Ok(self.put("broadcastUnit/ping", &args)?)
     }
     /// Tell the rtjam-nation that the broadcast component has a room
-    pub fn activate_room(&self, port: u32) -> Result<JsonValue, BoxError> {
+    pub fn activate_room(&self, port: u32, wan_ip: &str) -> Result<JsonValue, BoxError> {
         let mut args = self.build_def_args();
         args.insert("port", format!("{}", port));
+        args.insert("wanIp", format!("{}", wan_ip));
         Ok(self.post("room", &args)?)
     }
     /// Tell the rtjam-nation the broadcast component exists
@@ -171,7 +172,7 @@ mod test_api {
         assert_eq!(reg["broadcastUnit"]["token"], api.get_token());
         let ping = api.broadcast_unit_ping().unwrap();
         assert!(!ping["broadcastUnit"]["id"].is_empty());
-        let activate = api.activate_room(7891).unwrap();
+        let activate = api.activate_room(7891, "").unwrap();
         println!("activate: {}", activate.pretty(2));
     }
     #[test]

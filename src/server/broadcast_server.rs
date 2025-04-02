@@ -54,6 +54,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
         "api_url": "http://rtjam-nation.com/api/1/",
         "ws_url": "ws://rtjam-nation.com/primus",
         "room_mode": "separate",
+        "wan_ip": "",
         "port": 7891,
     };
     let config = Config::build(String::from("settings.json"), defaults);
@@ -67,6 +68,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
 
     let api_url = String::from(config.get_str_value("api_url", None)?);
     let ws_url = String::from(config.get_str_value("ws_url", None)?);
+    let wan_ip = String::from(config.get_str_value("wan_ip", None)?);
     let room_mode = config.get_str_value("room_mode", None)? == "mix";
     let port: u32 = config.get_u32_value("port", None)?;
     let room_port = port.clone();
@@ -78,7 +80,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     while room_token == "" {
         let _register = api.broadcast_unit_register();
         // Activate the room
-        match api.activate_room(port) {
+        match api.activate_room(port, &wan_ip) {
             Ok(res) => {
                 if let Some(tok) = res["room"]["token"].as_str() {
                     room_token = tok.to_string();
@@ -145,7 +147,7 @@ pub fn run(git_hash: &str) -> Result<(), BoxError> {
     });
 
     let _ping_handle = thread::spawn(move || {
-        let _res = broadcast_ping_thread(api, port);
+        let _res = broadcast_ping_thread(api, port, wan_ip);
     });
 
     let mut catalog = RecordingCatalog::new("recs")?;

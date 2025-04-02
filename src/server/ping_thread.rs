@@ -13,7 +13,7 @@ use std::{
     time::Duration,
 };
 
-pub fn broadcast_ping_thread(mut api: JamNationApi, port: u32) -> Result<(), BoxError> {
+pub fn broadcast_ping_thread(mut api: JamNationApi, port: u32, wan_ip: String) -> Result<(), BoxError> {
     loop {
         while api.has_token() == true {
             // While in this loop, we are going to ping every 10 seconds
@@ -40,7 +40,7 @@ pub fn broadcast_ping_thread(mut api: JamNationApi, port: u32) -> Result<(), Box
             match api.broadcast_unit_register() {
                 Ok(_res) => {
                     // Activate the room
-                    let _room_activate = api.activate_room(port);
+                    let _room_activate = api.activate_room(port, &wan_ip);
                 }
                 Err(e) => {
                     warn!("cannot register with server: {}", e);

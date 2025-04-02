@@ -16,10 +16,11 @@ clean:
 debug:
 	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --example r2_2_wave --example rt_2_csv
 
+# note that this deploy script make sense only on the pi build machine (pi@pi-5 from /etc/hosts)
 deploy: all
-	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_sound  ubuntu@rtjam-nation.com:/home/ubuntu/rust-alsa
-	scp -i ~/.ssh/rtjam.cer target/release/examples/rtjam_broadcast  ubuntu@rtjam-nation.com:/home/ubuntu/rust-alsa
-	scp -i ~/.ssh/rtjam.cer target/release/examples/version.txt  ubuntu@rtjam-nation.com:/home/ubuntu/rust-alsa
+	scp target/release/examples/rtjam_sound  mfvargo@rtjam-nation:/home/mfvargo/pi/rust-2
+	scp target/release/examples/rtjam_broadcast  mfvargo@rtjam-nation:/home/mfvargo/pi/rust-2
+	scp target/release/examples/version.txt  mfvargo@rtjam-nation:/home/mfvargo/pi/rust-2
 
 install-base:
 	mkdir -p $(RTJAM_HOME)

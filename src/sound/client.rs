@@ -36,7 +36,7 @@ use crate::{
     }, 
     hw_control::{
         hw_control_thread::hw_control_thread, 
-        status_light::{has_lights, LightMessage},
+        status_light::{has_lights, HardwareMessage},
     }, 
     sound::{
         jack_thread,
@@ -98,6 +98,11 @@ pub fn run(
 
     // Initialize hardware control channels and thread if needed
     let (light_option, _hw_handle) = init_hardware_control()?;
+    // TODO:  This sleep is here so that the codec initialization that happens in the hardware control
+    // thread does not blow up the alsa i/o thread.  So need to figure out a way to synchronize this thread to run 
+    // the codec is initialized.  Somehow this codec init does not blow up jackd 
+    //
+    sleep(Duration::new( 1, 0));
     debug!("client::run - hardware control established");
 
     // Initialize audio engine channels
@@ -253,7 +258,7 @@ fn init_websocket_thread(
     Ok((to_ws_tx, from_ws_rx, websocket_handle))
 }
 
-fn init_hardware_control() -> Result<(Option<mpsc::Sender<LightMessage>>, Option<thread::JoinHandle<()>>), BoxError> {
+fn init_hardware_control() -> Result<(Option<mpsc::Sender<HardwareMessage>>, Option<thread::JoinHandle<()>>), BoxError> {
     let mut light_option = None;
     let mut hw_handle = None;
 
@@ -332,7 +337,7 @@ fn handle_websocket_messages(
 ) -> Result<(), BoxError> {
     match from_ws_rx.try_recv() {
         Ok(m) => {
-            debug!("websocket message: {}", m);
+            info!("websocket message: {}", m);
             if let Ok(msg) = ParamMessage::from_json(&m) {
                 match msg.param {
                     JamParam::SetAudioInput => {

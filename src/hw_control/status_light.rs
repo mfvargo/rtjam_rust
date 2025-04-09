@@ -28,12 +28,27 @@ pub enum Color {
     Red,
 }
 
+// #[derive(Serialize, Deserialize, Debug)]
+// pub struct LightMessage {
+//     pub input_one: f64,
+//     pub input_two: f64,
+//     pub status: Color,
+//     pub blink: bool,
+// }
+
 #[derive(Serialize, Deserialize, Debug)]
-pub struct LightMessage {
-    pub input_one: f64,
-    pub input_two: f64,
-    pub status: Color,
-    pub blink: bool,
+pub enum HardwareMessage {
+    LightMessage {
+        input_one: f64,
+        input_two: f64,
+        status: Color,
+        blink: bool,
+    },
+    GainMessage {
+        input_1_gain: f64,
+        input_2_gain: f64,
+        headphone_gain: f64
+    },
 }
 pub struct StatusLight {
     red_pin: OutputPin,  // Pin for the red led

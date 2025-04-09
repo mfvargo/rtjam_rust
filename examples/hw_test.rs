@@ -3,7 +3,7 @@ use std::{sync::mpsc, thread::{self, sleep}, time::Duration};
 use log::{error, info};
 use rtjam_rust::{
     common::box_error::BoxError, 
-    hw_control::{ hw_control_thread::hw_control_thread, status_light::{LightMessage, Color} }
+    hw_control::{ hw_control_thread::hw_control_thread, status_light::{HardwareMessage, Color} }
 };
 
 fn main() -> Result<(), BoxError> {
@@ -13,7 +13,7 @@ fn main() -> Result<(), BoxError> {
     env_logger::init();
 
     info!("starting hardware test");
-    let (lights_tx, lights_rx): (mpsc::Sender<LightMessage>, mpsc::Receiver<LightMessage>) =
+    let (lights_tx, lights_rx): (mpsc::Sender<HardwareMessage>, mpsc::Receiver<HardwareMessage>) =
     mpsc::channel();
 
     let _hw_handle = thread::spawn(move || {
@@ -29,7 +29,7 @@ fn main() -> Result<(), BoxError> {
             pwr = -80.0;
         }
         let _res = lights_tx.send(
-            LightMessage{
+            HardwareMessage::LightMessage {
                 input_one: pwr,
                 input_two: pwr,
                 status: Color::Red,

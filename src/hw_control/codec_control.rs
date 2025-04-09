@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug, info};
 
 use std::fmt;
 use std::thread::sleep;
@@ -51,7 +51,7 @@ pub fn pot_has_changed(old_value: u8, new_value: u8) -> bool {
     let diff = old_value.wrapping_sub(new_value).abs_diff(0);
     
     // Check if the difference is 2 or more
-    diff > 2
+    diff > 3
 }
 
 impl CodecControl {
@@ -162,36 +162,39 @@ impl CodecControl {
             }
         }
     }
-    
-    fn update_volumes(&mut self) -> Result<(), BoxError> {
-        self.adc_scan_inputs()?;
 
-        // Filter the values
-        for i in [0, 1, 2] {
-            self.pot_values[i] = self.filters[i].get(self.adc_values[i] as f64) as u8;
-          //  debug!("Pot {} Value = {:#02x}", i, self.pot_values[i] as u8);
-        }
-
+    pub fn update_input_one_gain(&mut self, gain: f64) -> Result<(), BoxError> {
         // Setup i2c bus to talk to the codec
         self.i2c_int.set_slave_address(0x18)?;
 
-        // Initialize Buffer to be used to write to i2c  devices
-        let mut buf: [u8; 2] = [0,0];
+        // Filter and set the gain for input one
+        self.pot_values[0] = self.filters[0].get(gain) as u8;
 
         // Pot 1 - channel 0 - Instrument input gain
         // Codec Register 15 (0x0F) - Left-ADC PGA Gain Control Register
         // Range 0x00-0x7f (bit 7 is mute)
         // Gain = 0.5dB per step
         // instrument input 1 limit to max gain of 255/5*(0.5) = 25.5dB max for guitar and bass 
-        if pot_has_changed(self.prev_pot_values[0], self.pot_values[0]) {    
-            buf[0] = 15;
-            buf[1] = (self.pot_values[0] / 5).clamp(0, 255) as u8;
+        if pot_has_changed(self.prev_pot_values[0], self.pot_values[0]) {
+            let buf: [u8; 2] = [
+                15,
+                (self.pot_values[0] / 5).clamp(0, 255) as u8,
+            ];    
             self.i2c_int.write(&buf)?;
             self.prev_pot_values[0] = self.pot_values[0];
-            debug!("Pot 1 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+            debug!("Input One Gain Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
         }
+        Ok(())
+    }
 
-        // Pot 2 - channel 1 - mic/headset input gain
+    pub fn update_input_two_gain(&mut self, gain: f64) -> Result<(), BoxError> {
+        // Setup i2c bus to talk to the codec
+        self.i2c_int.set_slave_address(0x18)?;
+
+        // Filter and set the gain for input one
+        self.pot_values[1] = self.filters[1].get(gain) as u8;
+
+       // Pot 2 - channel 1 - mic/headset input gain
         // Codec Register 16 (0x10) - Right-ADC PGA Gain Control Register
         // Range 0x00-0x7f (bit 7 is mute)
         // Gain = 0.5dB per step
@@ -199,28 +202,109 @@ impl CodecControl {
         // total gain of mic input = gain of external input diff-amp + internal PGA 
         // actual input gain = +20dB to + 51.5dB
         if pot_has_changed(self.prev_pot_values[1], self.pot_values[1]) {
-            buf[0] = 16;
-            buf[1] = (self.pot_values[1] / 4).clamp(0, 255) as u8;
+            let buf: [u8; 2] = [
+                16,
+                (self.pot_values[1] / 4).clamp(0, 255) as u8
+            ];    
             self.i2c_int.write(&buf)?;
             self.prev_pot_values[1] = self.pot_values[1];
-            debug!("Pot 2 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+            debug!("Input 2 Gain Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
         }
+        Ok(())
+    }
 
+    pub fn update_headphone_gain(&mut self, gain: f64) -> Result<(), BoxError> {
+        // Setup i2c bus to talk to the codec
+        self.i2c_int.set_slave_address(0x18)?;
+
+        // Filter and set the gain for input one
+        self.pot_values[2] = self.filters[2].get(gain) as u8;
         // Pot 3 - channel 2 - Headphone amp gain 
         // Code Register 47 (0x2F) - DAC_L1 to HPLOUT Volume Control Register
         // Range of attenuation from full-scale = -0.5dB per step
         // max attenuation of headphone out = 127/2*(-0.5) = -63.5db - not off but very quiet...
         // write to both registers 47 (DAC_L1->headphone vol) and 64 (right DAC_R1 headphone vol)
+
+        let mut buf: [u8; 2] = [0,0];
         if pot_has_changed(self.prev_pot_values[2], self.pot_values[2]) {
             buf[0] = 47;   
             buf[1] = 255 - ((self.pot_values[2]/2).clamp(0, 255)) as u8;
             buf[1] |= 0x80; // set bit 7 before right - routes DAC output to HP out
             self.i2c_int.write(&buf)?;
+            info!("Pot 3 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+            sleep(Duration::new(0, 1_000_000));
             buf[0] = 64;    
             self.i2c_int.write(&buf)?;
             self.prev_pot_values[2] = self.pot_values[2];
-            debug!("Pot 3 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+            info!("Pot 3 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
         }
+
+        Ok(())
+    }
+
+    fn update_volumes(&mut self) -> Result<(), BoxError> {
+        self.adc_scan_inputs()?;
+
+        self.update_input_one_gain(self.adc_values[0] as f64)?;
+        self.update_input_two_gain(self.adc_values[1] as f64)?;
+        self.update_headphone_gain(self.adc_values[2] as f64)?; 
+        // // Filter the values
+        // for i in [0, 1, 2] {
+        //     self.pot_values[i] = self.filters[i].get(self.adc_values[i] as f64) as u8;
+        //   //  debug!("Pot {} Value = {:#02x}", i, self.pot_values[i] as u8);
+        // }
+
+        // // Setup i2c bus to talk to the codec
+        // self.i2c_int.set_slave_address(0x18)?;
+
+        // // Initialize Buffer to be used to write to i2c  devices
+        // let mut buf: [u8; 2] = [0,0];
+
+        // // Pot 1 - channel 0 - Instrument input gain
+        // // Codec Register 15 (0x0F) - Left-ADC PGA Gain Control Register
+        // // Range 0x00-0x7f (bit 7 is mute)
+        // // Gain = 0.5dB per step
+        // // instrument input 1 limit to max gain of 255/5*(0.5) = 25.5dB max for guitar and bass 
+        // if pot_has_changed(self.prev_pot_values[0], self.pot_values[0]) {    
+        //     buf[0] = 15;
+        //     buf[1] = (self.pot_values[0] / 5).clamp(0, 255) as u8;
+        //     self.i2c_int.write(&buf)?;
+        //     self.prev_pot_values[0] = self.pot_values[0];
+        //     debug!("Pot 1 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+        // }
+
+        // // Pot 2 - channel 1 - mic/headset input gain
+        // // Codec Register 16 (0x10) - Right-ADC PGA Gain Control Register
+        // // Range 0x00-0x7f (bit 7 is mute)
+        // // Gain = 0.5dB per step
+        // // mic input input max gain = 255/4*(0.5) = 31.5dB max for guitar and bass 
+        // // total gain of mic input = gain of external input diff-amp + internal PGA 
+        // // actual input gain = +20dB to + 51.5dB
+        // if pot_has_changed(self.prev_pot_values[1], self.pot_values[1]) {
+        //     buf[0] = 16;
+        //     buf[1] = (self.pot_values[1] / 4).clamp(0, 255) as u8;
+        //     self.i2c_int.write(&buf)?;
+        //     self.prev_pot_values[1] = self.pot_values[1];
+        //     debug!("Pot 2 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+        // }
+
+        // // Pot 3 - channel 2 - Headphone amp gain 
+        // // Code Register 47 (0x2F) - DAC_L1 to HPLOUT Volume Control Register
+        // // Range of attenuation from full-scale = -0.5dB per step
+        // // max attenuation of headphone out = 127/2*(-0.5) = -63.5db - not off but very quiet...
+        // // write to both registers 47 (DAC_L1->headphone vol) and 64 (right DAC_R1 headphone vol)
+        // if pot_has_changed(self.prev_pot_values[2], self.pot_values[2]) {
+        //     buf[0] = 47;   
+        //     buf[1] = 255 - ((self.pot_values[2]/2).clamp(0, 255)) as u8;
+        //     buf[1] |= 0x80; // set bit 7 before right - routes DAC output to HP out
+        //     self.i2c_int.write(&buf)?;
+        //     info!("Pot 3 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+        //     sleep(Duration::new(0, 1_000_000));
+        //     buf[0] = 64;    
+        //     self.i2c_int.write(&buf)?;
+        //     self.prev_pot_values[2] = self.pot_values[2];
+        //     info!("Pot 3 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+        // }
 
         Ok(())
     }

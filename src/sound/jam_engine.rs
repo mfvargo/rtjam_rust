@@ -13,7 +13,7 @@ use crate::{
         get_micro_time,
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
-    },  hw_control::status_light::LightMessage, 
+    },  hw_control::status_light::HardwareMessage, 
 };
 
 use super::SoundCallback;
@@ -57,7 +57,7 @@ pub struct JamEngine {
     sock: JamSocket,
     recv_message: JamMessage,
     xmit_message: JamMessage,
-    lights_option: Option<mpsc::Sender<LightMessage>>,
+    lights_option: Option<mpsc::Sender<HardwareMessage>>,
     status_data_tx: mpsc::Sender<serde_json::Value>,
     command_rx: mpsc::Receiver<ParamMessage>,
     pedal_rx: mpsc::Receiver<PedalBoard>,
@@ -131,7 +131,7 @@ impl JamEngine {
     ///
     /// See [`crate::sound::client`]
     pub fn new(
-        lights_option: Option<mpsc::Sender<LightMessage>>,
+        lights_option: Option<mpsc::Sender<HardwareMessage>>,
         tx: mpsc::Sender<serde_json::Value>,
         rx: mpsc::Receiver<ParamMessage>,
         prx: mpsc::Receiver<PedalBoard>,
@@ -218,7 +218,7 @@ impl JamEngine {
                 Some(tx) => {
                     trace!("Updating lights");
                     let _res = tx.send(
-                        LightMessage{
+                        HardwareMessage::LightMessage{
                             input_one: self.room_meters[0].get_avg(),
                             input_two: self.room_meters[1].get_avg(),
                             status: crate::hw_control::status_light::Color::Green,

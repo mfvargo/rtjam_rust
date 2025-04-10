@@ -1,4 +1,4 @@
-use log::{debug, info};
+use log::info;
 
 use std::fmt;
 use std::thread::sleep;
@@ -144,9 +144,9 @@ impl CodecControl {
                 AdcValue::new(),
             ],
             pots: [
-                PotValue::new("Input One", 0.0, 100.0, 1.0),
-                PotValue::new("Input Two", 0.0, 100.0, 1.0),
-                PotValue::new("Headphone", 0.0, 100.0, 1.0),
+                PotValue::new("Input One", 0.0, 1.0, 0.01),
+                PotValue::new("Input Two", 0.0, 1.0, 0.01),
+                PotValue::new("Headphone", 0.0, 1.0, 0.01),
             ],
         })
     }
@@ -177,10 +177,10 @@ impl CodecControl {
         if self.pots[0].set_value(gain) {
             let buf: [u8; 2] = [
                 15,
-                (self.pots[0].get_value() as u16 / 5).clamp(0, 255) as u8,
+                (self.pots[0].get_norm_value() * 255.0 / 5.0).clamp(0.0, 255.0) as u8,
             ];    
             self.i2c_int.write(&buf)?;
-            debug!("Input One Gain Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+            info!("Input One Gain Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
         }
         Ok(())
     }
@@ -199,10 +199,10 @@ impl CodecControl {
         if self.pots[1].set_value(gain) {
             let buf: [u8; 2] = [
                 16,
-                (self.pots[1].get_value() as u16 / 4).clamp(0, 255) as u8
+                (self.pots[1].get_norm_value() * 255.0 / 4.0).clamp(0.0, 255.0) as u8
             ];    
             self.i2c_int.write(&buf)?;
-            debug!("Input 2 Gain Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
+            info!("Input 2 Gain Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
         }
         Ok(())
     }
@@ -220,7 +220,7 @@ impl CodecControl {
         let mut buf: [u8; 2] = [0,0];
         if self.pots[2].set_value(gain) {
             buf[0] = 47;   
-            buf[1] = 255 - ((self.pots[2].get_value() as u16/2).clamp(0, 255)) as u8;
+            buf[1] = 255 - ((self.pots[2].get_norm_value() * 255.0 / 2.0).clamp(0.0, 255.0)) as u8;
             buf[1] |= 0x80; // set bit 7 before right - routes DAC output to HP out
             self.i2c_int.write(&buf)?;
             info!("Pot 3 Changed - Wrote {:#02x} to Codec register {:#02x}", buf[1], buf[0]);
@@ -257,9 +257,8 @@ impl CodecControl {
             self.i2c_int.read(&mut buf)?;   // Read data
             let adc_chan = ((buf[0] & 0x30) >> 4) as usize;  // Get channel ID as usize for indexing
             // Extract the full 12-bit ADC value by including all 8 bits from buf[0] and buf[1]
-            let value = (((buf[0] & 0x0F) as u16) << 8) | ((buf[1] & 0xFF) as u16);  //  lower nibble of buf[0] =MSB buf[1] = LSB           
-            self.adcs[adc_chan].set_value(value/16);  // scale and copy final 8 bit ADC value to array of ADC values
-          //  debug!("ADC ch: {}, buf[0]: {:#02x}, buf[1]: {:#02x}, adc_val: {:#04x}", adc_chan, buf[0], buf[1], self.adc_values[adc_chan]);
+            let value = (((buf[0] & 0x0F) as u16) << 8) | ((buf[1] & 0xFF) as u16);  //  lower nibble of buf[0] =MSB buf[1] = LSB
+            self.adcs[adc_chan].set_value(value as f64);  // scale and copy final 8 bit ADC value to array of ADC values
         }
 
         Ok(())

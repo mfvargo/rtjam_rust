@@ -37,6 +37,9 @@ impl PotValue {
     pub fn get_value(&self) -> f64 {
         self.value
     }
+    pub fn get_norm_value(&self) -> f64 {
+        (self.value - self.min) / (self.max - self.min)
+    }
     pub fn get_name(&self) -> &str {
         &self.name
     }

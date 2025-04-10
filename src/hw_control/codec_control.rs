@@ -144,9 +144,9 @@ impl CodecControl {
                 AdcValue::new(),
             ],
             pots: [
-                PotValue::new("Input One", 0.0, 1.0, 0.01),
-                PotValue::new("Input Two", 0.0, 1.0, 0.01),
-                PotValue::new("Headphone", 0.0, 1.0, 0.01),
+                PotValue::new("Input One", 0.0, 1.0, 0.008),
+                PotValue::new("Input Two", 0.0, 1.0, 0.008),
+                PotValue::new("Headphone", 0.0, 1.0, 0.008),
             ],
         })
     }

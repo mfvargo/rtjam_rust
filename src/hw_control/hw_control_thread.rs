@@ -12,6 +12,7 @@ use super::{codec_control::CodecControl, status_light::{HardwareMessage, StatusF
 
 
 pub fn hw_control_thread(
+    scan_pots: bool,
     lights_rx: mpsc::Receiver<HardwareMessage>, // channel from main thread
 ) -> Result<(), BoxError> {
 
@@ -68,14 +69,15 @@ pub fn hw_control_thread(
             }
         }
         // Now check the pots
-        match codec_option {
-            Some(ref mut codec) => {
-                codec.read_pots();
-        //        debug!("codec: {}", &codec);
-            }
-            None => {
-                // No codec could be constructed.  Just ignore it
-            }
+        if scan_pots {
+            match codec_option {
+                Some(ref mut codec) => {
+                    codec.read_pots();
+                }
+                None => {
+                    // No codec could be constructed.  Just ignore it
+                }
+            }    
         }
         sleep(Duration::new(0, 5_000_000));
     }

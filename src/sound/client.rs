@@ -267,7 +267,7 @@ fn init_hardware_control() -> Result<(Option<mpsc::Sender<HardwareMessage>>, Opt
         light_option = Some(lights_tx);
 
         hw_handle = Some(thread::spawn(move || {
-            let _res = hw_control_thread(lights_rx);
+            let _res = hw_control_thread(true, lights_rx);
         }));
     }
 

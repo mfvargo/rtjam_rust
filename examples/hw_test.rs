@@ -17,11 +17,12 @@ fn main() -> Result<(), BoxError> {
     mpsc::channel();
 
     let _hw_handle = thread::spawn(move || {
-        let res = hw_control_thread(lights_rx);
+        let res = hw_control_thread(false, lights_rx);
         error!("hw control thread exited: {:?}", res);
     });
 
     let mut pwr = -80.0;
+    let mut gain = 0.0;
     loop {
         // Toggle the lights
         pwr += 1.0;
@@ -34,8 +35,19 @@ fn main() -> Result<(), BoxError> {
                 input_two: pwr,
                 status: Color::Red,
                 blink: true,
-        });
-        sleep(Duration::new(0, 50_000_000));
+            }
+        );
+        // Increase the gain
+        gain += 1.0;
+        if gain >= 100.0 {
+            gain = 0.0;
+        }
+        let _res = lights_tx.send(
+            HardwareMessage::GainMessage { 
+                input_1_gain: gain, input_2_gain: 0.0, headphone_gain: 0.0 
+            }
+        );
+        sleep(Duration::new(0, 500_000_000));
     }
 
     // let _res = hw_handle.join();

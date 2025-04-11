@@ -13,7 +13,7 @@ use crate::{
         get_micro_time,
         jam_packet::JamMessage,
         stream_time_stat::{MicroTimer, StreamTimeStat},
-    },  hw_control::status_light::LightMessage, 
+    },  hw_control::status_light::HardwareMessage, 
 };
 
 use super::SoundCallback;
@@ -57,7 +57,7 @@ pub struct JamEngine {
     sock: JamSocket,
     recv_message: JamMessage,
     xmit_message: JamMessage,
-    lights_option: Option<mpsc::Sender<LightMessage>>,
+    lights_option: Option<mpsc::Sender<HardwareMessage>>,
     status_data_tx: mpsc::Sender<serde_json::Value>,
     command_rx: mpsc::Receiver<ParamMessage>,
     pedal_rx: mpsc::Receiver<PedalBoard>,
@@ -131,7 +131,7 @@ impl JamEngine {
     ///
     /// See [`crate::sound::client`]
     pub fn new(
-        lights_option: Option<mpsc::Sender<LightMessage>>,
+        lights_option: Option<mpsc::Sender<HardwareMessage>>,
         tx: mpsc::Sender<serde_json::Value>,
         rx: mpsc::Receiver<ParamMessage>,
         prx: mpsc::Receiver<PedalBoard>,
@@ -218,7 +218,7 @@ impl JamEngine {
                 Some(tx) => {
                     trace!("Updating lights");
                     let _res = tx.send(
-                        LightMessage{
+                        HardwareMessage::LightMessage{
                             input_one: self.room_meters[0].get_avg(),
                             input_two: self.room_meters[1].get_avg(),
                             status: crate::hw_control::status_light::Color::Green,
@@ -496,6 +496,47 @@ impl JamEngine {
             JamParam::MetronomeMute => {
                 // Set the mute on the metronome
                 self.mixer.set_metronome_mute(msg.ivalue_1 == 1);
+            }
+            JamParam::InputGain => {
+                match &self.lights_option {
+                    Some(tx) => {
+                        // Set the input gain
+                        let _res = tx.send(HardwareMessage::GainMessage {
+                            input_1_gain: if msg.ivalue_1 == 0 {
+                                msg.fvalue
+                            } else {
+                                -1.0
+                            },
+                            input_2_gain: if msg.ivalue_1 == 1 {
+                                msg.fvalue
+                            } else {
+                                -1.0
+                            },
+                            headphone_gain: -1.0,
+                        });
+                    }
+                    None => {
+                        // Not on a system that has lights
+                    }
+                
+                }
+            }
+            JamParam::HeadphoneGain => {
+                // Set the headphone gain
+                match &self.lights_option {
+                    Some(tx) => {
+                        let _res = tx.send(
+                            HardwareMessage::GainMessage {
+                                input_1_gain: -1.0,
+                                input_2_gain: -1.0,
+                                headphone_gain: msg.fvalue,
+                            }
+                        );
+                    }
+                    None => {
+                        // Not on a system that has lights
+                    }
+                }
             }
             JamParam::InsertPedal => {
                 let idx = msg.ivalue_1 as usize;

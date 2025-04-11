@@ -497,6 +497,47 @@ impl JamEngine {
                 // Set the mute on the metronome
                 self.mixer.set_metronome_mute(msg.ivalue_1 == 1);
             }
+            JamParam::InputGain => {
+                match &self.lights_option {
+                    Some(tx) => {
+                        // Set the input gain
+                        let _res = tx.send(HardwareMessage::GainMessage {
+                            input_1_gain: if msg.ivalue_1 == 0 {
+                                msg.fvalue
+                            } else {
+                                -1.0
+                            },
+                            input_2_gain: if msg.ivalue_1 == 1 {
+                                msg.fvalue
+                            } else {
+                                -1.0
+                            },
+                            headphone_gain: -1.0,
+                        });
+                    }
+                    None => {
+                        // Not on a system that has lights
+                    }
+                
+                }
+            }
+            JamParam::HeadphoneGain => {
+                // Set the headphone gain
+                match &self.lights_option {
+                    Some(tx) => {
+                        let _res = tx.send(
+                            HardwareMessage::GainMessage {
+                                input_1_gain: -1.0,
+                                input_2_gain: -1.0,
+                                headphone_gain: msg.fvalue,
+                            }
+                        );
+                    }
+                    None => {
+                        // Not on a system that has lights
+                    }
+                }
+            }
             JamParam::InsertPedal => {
                 let idx = msg.ivalue_1 as usize;
                 if idx < self.pedal_boards.len() {

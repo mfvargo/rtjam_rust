@@ -38,8 +38,8 @@ fn main() -> Result<(), BoxError> {
             }
         );
         // Increase the gain
-        gain += 1.0;
-        if gain >= 100.0 {
+        gain += 0.01;
+        if gain > 1.0 {
             gain = 0.0;
         }
         let _res = lights_tx.send(

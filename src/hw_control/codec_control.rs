@@ -26,6 +26,18 @@ pub enum ScanMode {
     Headphone,
 }
 
+impl ScanMode {
+    pub fn new(dev: &str) -> ScanMode {
+        if dev.contains("3knob") {
+            return ScanMode::AllPots;
+        }
+        if dev.contains("1knob") {
+            return ScanMode::Headphone;
+        }
+        ScanMode::NoScan
+    }
+}
+
 pub struct CodecControl {
     i2c_int: I2c,
     pots: [PotValue; 3],

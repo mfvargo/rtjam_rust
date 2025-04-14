@@ -93,7 +93,7 @@ pub fn run(
     debug!("client::run - websocket connection established");
 
     // Initialize hardware control channels and thread if needed
-    let (light_option, _hw_handle) = init_hardware_control()?;
+    let (light_option, _hw_handle) = init_hardware_control(&in_dev)?;
     // TODO:  This sleep is here so that the codec initialization that happens in the hardware control
     // thread does not blow up the alsa i/o thread.  So need to figure out a way to synchronize this thread to run 
     // the codec is initialized.  Somehow this codec init does not blow up jackd 
@@ -254,7 +254,7 @@ fn init_websocket_thread(
     Ok((to_ws_tx, from_ws_rx, websocket_handle))
 }
 
-fn init_hardware_control() -> Result<(Option<mpsc::Sender<HardwareMessage>>, Option<thread::JoinHandle<()>>), BoxError> {
+fn init_hardware_control(in_dev: &String) -> Result<(Option<mpsc::Sender<HardwareMessage>>, Option<thread::JoinHandle<()>>), BoxError> {
     let mut light_option = None;
     let mut hw_handle = None;
 
@@ -262,8 +262,10 @@ fn init_hardware_control() -> Result<(Option<mpsc::Sender<HardwareMessage>>, Opt
         let (lights_tx, lights_rx) = mpsc::channel();
         light_option = Some(lights_tx);
 
+        let mode = ScanMode::new(&in_dev);
+
         hw_handle = Some(thread::spawn(move || {
-            let _res = hw_control_thread(ScanMode::AllPots, lights_rx);
+            let _res = hw_control_thread(mode, lights_rx);
         }));
     }
 

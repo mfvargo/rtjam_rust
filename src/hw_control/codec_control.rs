@@ -20,6 +20,11 @@ pub fn dec2bcd(dec: u8) -> u8 {
     ((dec / 10) << 4) | (dec % 10)
 }
 
+pub enum ScanMode {
+    NoScan,
+    AllPots,
+    Headphone,
+}
 
 pub struct CodecControl {
     i2c_int: I2c,
@@ -141,20 +146,6 @@ impl CodecControl {
         })
     }
 
-    // This function will catch errors so the hw_control_thread does not die if the pot reads go bad
-    pub fn read_pots(&mut self) -> () {
-        // This is where we would put code to poll the pots and set registers on the coded...
-        match self.update_volumes() {
-            Ok(()) => {
-                // No errors reading the i/o and updating stuff
-            }
-            Err(e) => {
-                // Error reading the pots
-                dbg!(e);
-            }
-        }
-    }
-
     pub fn update_input_one_gain(&mut self, gain: f64) -> Result<(), BoxError> {
         // Setup i2c bus to talk to the codec
         self.i2c_int.set_slave_address(0x18)?;
@@ -223,11 +214,25 @@ impl CodecControl {
         Ok(())
     }
 
-    fn update_volumes(&mut self) -> Result<(), BoxError> {
-        self.adc_scan_inputs()?;
-        self.update_input_one_gain(self.adcs[0].get_value() as f64)?;
-        self.update_input_two_gain(self.adcs[1].get_value() as f64)?;
-        self.update_headphone_gain(self.adcs[2].get_value() as f64)?; 
+    pub fn update_volumes(&mut self, mode: &ScanMode) -> Result<(), BoxError> {
+        match mode {
+            ScanMode::NoScan => {
+                // No scan - do nothing
+                return Ok(());
+            }
+            ScanMode::AllPots => {
+                // Scan all pots
+                self.adc_scan_inputs()?;
+                self.update_input_one_gain(self.adcs[0].get_value() as f64)?;
+                self.update_input_two_gain(self.adcs[1].get_value() as f64)?;
+                self.update_headphone_gain(self.adcs[2].get_value() as f64)?;
+            }
+            ScanMode::Headphone => {
+                // Scan only headphone pot
+                self.adc_scan_inputs()?;
+                self.update_headphone_gain(self.adcs[2].get_value() as f64)?;
+            }
+        }
         Ok(())
     }
 

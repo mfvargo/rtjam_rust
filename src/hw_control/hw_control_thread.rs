@@ -7,12 +7,12 @@ use log::{debug, error, info};
 use crate::common::box_error::BoxError;
 use std::{sync::mpsc, thread::sleep, time::Duration};
 
-use super::{codec_control::CodecControl, status_light::{HardwareMessage, StatusFunction, StatusLight}};
+use super::{codec_control::{CodecControl, ScanMode}, status_light::{HardwareMessage, StatusFunction, StatusLight}};
 
 
 
 pub fn hw_control_thread(
-    scan_pots: bool,
+    scan_mode: ScanMode,
     lights_rx: mpsc::Receiver<HardwareMessage>, // channel from main thread
 ) -> Result<(), BoxError> {
 
@@ -75,16 +75,21 @@ pub fn hw_control_thread(
             }
         }
         // Now check the pots
-        if scan_pots {
-            match codec_option {
-                Some(ref mut codec) => {
-                    codec.read_pots();
+        match codec_option {
+            Some(ref mut codec) => {
+                match codec.update_volumes(&scan_mode) {
+                    Ok(_) => {
+                        // Successfully updated volumes
+                    }
+                    Err(e) => {
+                        error!("Error updating volumes: {}", e);
+                    }
                 }
-                None => {
-                    // No codec could be constructed.  Just ignore it
-                }
-            }    
-        }
+            }
+            None => {
+                // No codec could be constructed.  Just ignore it
+            }
+        }    
         sleep(Duration::new(0, 5_000_000));
     }
 }

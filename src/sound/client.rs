@@ -35,14 +35,10 @@ use crate::{
         websocket::{websocket_thread, WebSocketThreadFn},
     }, 
     hw_control::{
-        hw_control_thread::hw_control_thread, 
-        status_light::{has_lights, HardwareMessage},
+        codec_control::ScanMode, hw_control_thread::hw_control_thread, status_light::{has_lights, HardwareMessage}
     }, 
     sound::{
-        jack_thread,
-        alsa_thread,
-        jam_engine::JamEngine,
-        param_message::{JamParam, ParamMessage},
+        alsa_thread, jack_thread, jam_engine::JamEngine, param_message::{JamParam, ParamMessage}
     }, 
     utils,
 };
@@ -267,7 +263,7 @@ fn init_hardware_control() -> Result<(Option<mpsc::Sender<HardwareMessage>>, Opt
         light_option = Some(lights_tx);
 
         hw_handle = Some(thread::spawn(move || {
-            let _res = hw_control_thread(false, lights_rx);
+            let _res = hw_control_thread(ScanMode::AllPots, lights_rx);
         }));
     }
 

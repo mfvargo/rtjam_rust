@@ -3,7 +3,7 @@ use std::{sync::mpsc, thread::{self, sleep}, time::Duration};
 use log::{error, info};
 use rtjam_rust::{
     common::box_error::BoxError, 
-    hw_control::{ hw_control_thread::hw_control_thread, status_light::{HardwareMessage, Color} }
+    hw_control::{ codec_control::ScanMode, hw_control_thread::hw_control_thread, status_light::{Color, HardwareMessage} }
 };
 
 fn main() -> Result<(), BoxError> {
@@ -17,7 +17,7 @@ fn main() -> Result<(), BoxError> {
     mpsc::channel();
 
     let _hw_handle = thread::spawn(move || {
-        let res = hw_control_thread(false, lights_rx);
+        let res = hw_control_thread(ScanMode::NoScan, lights_rx);
         error!("hw control thread exited: {:?}", res);
     });
 

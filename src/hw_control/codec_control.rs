@@ -43,16 +43,6 @@ impl fmt::Display for CodecControl {
     }
 }
 
-// function to test if pot values have changed (handles wrapping better than old method)
-pub fn pot_has_changed(old_value: u8, new_value: u8) -> bool {
-        
-    // Calculate the difference using wrapping arithmetic
-    let diff = old_value.wrapping_sub(new_value).abs_diff(0);
-    
-    // Check if the difference is 2 or more
-    diff > 3
-}
-
 impl CodecControl {
     pub fn new() -> Result<CodecControl, BoxError> {
 

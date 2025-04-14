@@ -44,7 +44,7 @@ fn main() -> Result<(), BoxError> {
         }
         let _res = lights_tx.send(
             HardwareMessage::GainMessage { 
-                input_1_gain: gain, input_2_gain: 0.0, headphone_gain: 0.0 
+                input_1_gain: gain, input_2_gain: gain, headphone_gain: gain 
             }
         );
         sleep(Duration::new(0, 500_000_000));

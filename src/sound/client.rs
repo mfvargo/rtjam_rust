@@ -397,7 +397,9 @@ fn handle_status_messages(
         Err(mpsc::TryRecvError::Empty) => { Ok(()) }
         Err(mpsc::TryRecvError::Disconnected) => {
             warn!("audio thread: disconnected channel");
-            Err("audio thread is dead!".into())
+            sleep(Duration::new(1, 0));
+            Ok(())
+            // Err("audio thread is dead!".into())
         }
     }
 }

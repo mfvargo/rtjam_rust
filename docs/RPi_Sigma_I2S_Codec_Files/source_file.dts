@@ -9,7 +9,7 @@
         target = <&sound>;
         __overlay__ {
             compatible = "simple-audio-card";
-            simple-audio-card,name = "RTJAM-Knobless";
+            simple-audio-card,name = "DRIVER_NAME_HERE";
             status="okay";
 
             capture_link: simple-audio-card,dai-link@0 {
@@ -20,7 +20,7 @@
                 frame-master = <&r_codec_dai>;
 
                 r_cpu_dai: cpu {
-                    sound-dai = <&i2s>;
+                    sound-dai = <&CLOCK_CONFIG_HERE>;
                     // TDM slot configuration for stereo
                     dai-tdm-slot-num = <2>;
                     dai-tdm-slot-width = <32>;
@@ -39,7 +39,7 @@
                 frame-master = <&p_codec_dai>;
 
                 p_cpu_dai: cpu {
-                    sound-dai = <&i2s>;
+                    sound-dai = <&CLOCK_CONFIG_HERE>;
                     dai-tdm-slot-num = <2>;
                     dai-tdm-slot-width = <32>;
                 };
@@ -82,7 +82,7 @@
     };
 
     fragment@2 {
-        target = <&i2s>;
+        target = <&CLOCK_CONFIG_HERE>;
         __overlay__ {
             #sound-dai-cells = <0>;
             status = "okay";

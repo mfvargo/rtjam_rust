@@ -7,11 +7,15 @@ all:
 	cargo doc --release --no-deps
 	git rev-parse HEAD > target/release/examples/version.txt
 
+drivers:
+	make all -C docs/RPi_Sigma_I2S_Codec_Files
+
 test:
 	cargo test -- --test-threads=1
 
 clean:
 	cargo clean
+	make clean -C docs/RPi_Sigma_I2S_Codec_Files
 
 debug:
 	cargo build --package rtjam_rust --example rtjam_broadcast --example rtjam_sound --example r2_2_wave --example rt_2_csv

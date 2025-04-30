@@ -28,6 +28,9 @@ pub enum ScanMode {
 
 impl ScanMode {
     pub fn new(dev: &str) -> ScanMode {
+        if dev.contains("SigmaI2S") {
+            return ScanMode::AllPots;
+        }
         if dev.contains("3knob") {
             return ScanMode::AllPots;
         }

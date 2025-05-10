@@ -5,6 +5,8 @@
 use std::fmt;
 use std::net::SocketAddr;
 
+use log::debug;
+
 use crate::common::player::Player;
 
 /// Structure to hold the list of players
@@ -56,8 +58,10 @@ impl PlayerList {
             // save stats for values about to be cleared
             if p.is_old(now_time) {
                 match serde_json::to_value(p) {
-                    Ok(v) => self.stat_queue.push(v),
-                    Err(_e) => (),
+                    Ok(v) => {
+                        self.stat_queue.push(v);
+                    },
+                    Err(e) => debug!("Unable to serialize player stats {}", e),
                 }
             }
         }

@@ -1,6 +1,7 @@
 //! Struct use to track a players packet stream
 //!
 //! used by both sound and broadcast components.  
+use log::debug;
 use pedal_board::dsp::smoothing_filter::SmoothingFilter;
 use serde::Serialize;
 use std::fmt;
@@ -37,10 +38,14 @@ pub struct Player {
     #[serde(skip)]
     pack_stats: StreamTimeStat,       // interarrival stats
     packet_count: usize,              // count number of packets
+    latency_hist: Vec<f64>,           // latency values per minute
 }
+
+const PACKETS_PER_SIX_SECS: usize = 6 * 48_000 / 128; // 128 samples per packet
 
 impl Player {
     pub fn new(now_time: u128, id: u32, addr: SocketAddr) -> Player {
+        debug!("New player: {} {}", id, addr);
         Player {
             client_id: id,
             keep_alive: now_time,
@@ -51,6 +56,7 @@ impl Player {
             loop_stat: SmoothingFilter::build(0.5, 2666.6),
             pack_stats: StreamTimeStat::new(100),
             packet_count: 0,
+            latency_hist: Vec::new(),
         }
     }
     pub fn get_drops(&self) -> usize {
@@ -60,15 +66,26 @@ impl Player {
         self.loop_stat.get_last_output()
     }
     pub fn clear(&mut self) -> () {
+        debug!("Clearing player: {}", self.client_id);
         self.hist = [0; HISTOGRAM_BUCKETS];
         self.client_id = EMPTY_SLOT;
         self.keep_alive = 0;
         self.seq = 0;
         self.drops = 0;
         self.packet_count = 0;
+        self.latency_hist.clear();
+        self.pack_stats.clear();
     }
     pub fn update(&mut self, now: u128, id: u32, loop_time: u128, seq: u32) -> () {
         self.packet_count += 1;
+        if self.packet_count % PACKETS_PER_SIX_SECS == 0 {
+            // Every minute, add a sample to the latency histogram
+            self.latency_hist.push(self.loop_stat.get_last_output());
+            if self.latency_hist.len() > 120 * 6 {  // only record 2 hours worth of data
+                // remove the oldest sample
+                self.latency_hist.remove(0);
+            }
+        }
         if self.keep_alive <= now {
             self.pack_stats.add_sample((now - self.keep_alive) as f64);
             let idx: usize = ((1333 + now - self.keep_alive) / 2667) as usize; // 2667 microsec per 128 sample frame

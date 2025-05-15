@@ -49,13 +49,13 @@ pub fn hw_control_thread(
                         info!("input_1_gain: {}, input_2_gain: {}, headphone_gain: {}", input_1_gain, input_2_gain, headphone_gain);
                         match codec_option {
                             Some(ref mut codec) => {
-                                if (input_1_gain >= 0.0) || (input_1_gain <= 1.0) {
+                                if (input_1_gain >= 0.0) && (input_1_gain <= 1.0) {
                                     codec.update_input_one_gain(input_1_gain)?;
                                 }
-                                if (input_2_gain >= 0.0) || (input_2_gain <= 1.0) {
+                                if (input_2_gain >= 0.0) && (input_2_gain <= 1.0) {
                                     codec.update_input_two_gain(input_2_gain)?;
                                 }
-                                if (headphone_gain >= 0.0) || (headphone_gain <= 1.0) {
+                                if (headphone_gain >= 0.0) && (headphone_gain <= 1.0) {
                                     codec.update_headphone_gain(headphone_gain)?;
                                 }
                             }

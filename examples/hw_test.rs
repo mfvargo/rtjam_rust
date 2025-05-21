@@ -3,7 +3,7 @@ use std::{sync::mpsc, thread::{self, sleep}, time::Duration};
 use log::{error, info};
 use rtjam_rust::{
     common::box_error::BoxError, 
-    hw_control::{ hw_control_thread::hw_control_thread, status_light::{LightMessage, Color} }
+    hw_control::{ codec_control::ScanMode, hw_control_thread::hw_control_thread, status_light::{Color, HardwareMessage} }
 };
 
 fn main() -> Result<(), BoxError> {
@@ -13,15 +13,16 @@ fn main() -> Result<(), BoxError> {
     env_logger::init();
 
     info!("starting hardware test");
-    let (lights_tx, lights_rx): (mpsc::Sender<LightMessage>, mpsc::Receiver<LightMessage>) =
+    let (lights_tx, lights_rx): (mpsc::Sender<HardwareMessage>, mpsc::Receiver<HardwareMessage>) =
     mpsc::channel();
 
     let _hw_handle = thread::spawn(move || {
-        let res = hw_control_thread(lights_rx);
+        let res = hw_control_thread(ScanMode::NoScan, lights_rx);
         error!("hw control thread exited: {:?}", res);
     });
 
     let mut pwr = -80.0;
+    let mut gain = 0.0;
     loop {
         // Toggle the lights
         pwr += 1.0;
@@ -29,13 +30,24 @@ fn main() -> Result<(), BoxError> {
             pwr = -80.0;
         }
         let _res = lights_tx.send(
-            LightMessage{
+            HardwareMessage::LightMessage {
                 input_one: pwr,
                 input_two: pwr,
                 status: Color::Red,
                 blink: true,
-        });
-        sleep(Duration::new(0, 50_000_000));
+            }
+        );
+        // Increase the gain
+        gain += 0.01;
+        if gain > 1.0 {
+            gain = 0.0;
+        }
+        let _res = lights_tx.send(
+            HardwareMessage::GainMessage { 
+                input_1_gain: gain, input_2_gain: gain, headphone_gain: gain 
+            }
+        );
+        sleep(Duration::new(0, 500_000_000));
     }
 
     // let _res = hw_handle.join();

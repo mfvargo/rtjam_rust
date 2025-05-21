@@ -52,6 +52,8 @@ pub enum JamParam {
     ChannelGain,  // Set the channel gain (replaces ChanGain1-14)
     MetronomeGain, // Set the gain on the metronome
     MetronomeMute, // Mute/unMute metronome
+    InputGain, // Set the gain on the input channel
+    HeadphoneGain, // Set the volume level on the headphone output
     Count,  // Count of basic apis  (not really used)
     SetAudioInput = 1000,
     SetAudioOutput,
